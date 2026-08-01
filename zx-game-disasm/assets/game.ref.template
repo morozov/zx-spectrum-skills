@@ -1,0 +1,44 @@
+; Main SkoolKit HTML config for {Game Title}. Build the site with:
+;
+;   skool2html.py -d html -o game.skool game.ref
+;
+; List extra ref files in RefFiles; create each as you add pages.
+
+[Config]
+RefFiles=graphics.ref;sound.ref;data.ref;notes.ref;glossary.ref
+GameDir=game
+
+[Game]
+Game={Game Title}
+
+; Index headings group pages on the home page. Each name must match a [Page:...]
+; or a generated page id.
+[Index:Graphics:Graphics and sound]
+Graphics
+Sound
+
+[Index:DataTables:Data tables and buffers]
+Data
+
+[Index:Reference:Reference]
+Notes
+Glossary
+
+[Paths]
+Graphics=graphics/graphics.html
+Sound=sound/sound.html
+Data=data/data.html
+Notes=reference/notes.html
+Glossary=reference/glossary.html
+
+[Links]
+Graphics=Game graphics
+Sound=Sound effects
+Data=Data tables
+Notes=Implementation notes
+Glossary=Glossary
+
+[Titles]
+Graphics=Game graphics
+Sound=Sound effects
+Notes=Implementation notes

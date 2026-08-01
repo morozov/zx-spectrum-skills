@@ -1,0 +1,16 @@
+; tap2sna.py config for {Game Title}. Build the pristine snapshot with:
+;
+;   tap2sna.py @game.t2s --reg pc={PC} --reg sp={SP} game.pristine.z80
+;
+; The tape source can be a local file or a URL. Pin it with --tape-sum so the
+; build fails loudly if the dump ever changes.
+
+https://example.net/Some%20Game.tzx
+--tape-sum 00000000000000000000000000000000
+
+; RAM setup the disassembly relies on. Initialize the system variables, then
+; poke only the locations the game actually depends on at entry.
+--ram sysvars
+; --ram poke=23611,8   # FLAGS
+; --ram poke=23612,0   # TV-FLAG
+; --ram poke=23624,7   # BORDCR

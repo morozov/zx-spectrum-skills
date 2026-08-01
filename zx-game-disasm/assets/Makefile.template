@@ -1,0 +1,31 @@
+# SkoolKit disassembly — game Makefile. Set the name and the five numbers below,
+# then include the skill's shared framework. The project carries NO build logic, so
+# a framework fix reaches every game without re-copying (mirrors how SkoolKit's own
+# disassemblies include $(SKOOLKIT_HOME)/tools/disassembly.mk). SKILL has no
+# default: set it to the zx-game-disasm skill directory.
+#
+#   make          Build the fixed asm + snapshot, verify the round-trip
+#   make verify   Round-trip check (cmp) + the .ctl linters
+#   make coverage The "is it done?" gauge
+#   make html     Build the HTML site (needs the .ref files)
+#   make clean    Remove all generated files
+
+GAME = game
+
+# The game's program origin, its length in bytes, its entry point and its stack
+# pointer. Each has no default: set it from the game's snapshot.
+ORG  =
+SIZE =
+PC   =
+SP   =
+RELOC_FLOOR = 0x5B00   # refs at/above must be labels (below = ROM/screen, fixed)
+
+ifndef SKILL
+    $(error set SKILL to the zx-game-disasm skill directory)
+endif
+$(foreach v,ORG SIZE PC SP,$(if $($(v)),,$(error set $(v) to the game's value)))
+MK = $(SKILL)/tools/disassembly.mk
+ifeq ($(wildcard $(MK)),)
+    $(error $(MK): not found — set SKILL to the zx-game-disasm skill directory)
+endif
+include $(MK)
