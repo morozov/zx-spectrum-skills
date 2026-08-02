@@ -194,10 +194,19 @@ tap: $(TAP_FIXED)
 $(TAP_FIXED): $(BIN_FIXED)
 	bin2tap.py --org $(ORG) --start $(PC) --stack $(SP) $< $@
 
+# Every site ships the skill's default theme: dark responsive layout,
+# JetBrains Mono listing, Z80 syntax highlighting, comment-group hover, and a
+# card-grid index (assets/theme.{ref,css,js}). The theme ref is passed before
+# the project's refs, so a project overrides it by restating a parameter and
+# layers its identity by appending its own stylesheet
+# (StyleSheet=skoolkit.css;theme.css;$(GAME).css). `-a` renders operands as
+# label names — `CALL draw_sprite`, never `CALL $F0A2`.
+THEME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../assets)
+
 html: html/.stamp
 
-html/.stamp: $(SKOOL) $(REF)
-	skool2html.py -d html -o $(SKOOL) $(REF)
+html/.stamp: $(SKOOL) $(REF) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js
+	skool2html.py -d html -H -a --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
 	touch $@
 
 clean:

@@ -116,7 +116,15 @@ Each entry pairs the claim with rendered evidence (the sprite showing the stray 
 
 ## Styling
 
-The stock `skoolkit.css` is the base; a project restyles by **extending** it, never replacing it — `StyleSheet=skoolkit.css;{game}.css` in the main `.ref`, with every override in that one project stylesheet. Stylesheets, the INI, and rendered images are HTML-affecting sources the framework's `html/.stamp` does not know about, so the project Makefile adds them as extra prerequisites:
+**Every site gets the skill's default theme — unconditionally.** The framework's `html` target passes `assets/theme.ref` (with `assets/theme.css` and `assets/theme.js`) ahead of the project's refs and builds with `-H -a`, so by default every disassembly ships with:
+
+- a dark, responsive layout (viewport meta, card-grid index, header bar);
+- the code listing in a monospace face (JetBrains Mono) with prose in a reading face (Inter); the theme ships **no accent face and no game palette** — its `:root` colors are deliberately neutral;
+- **Z80 syntax highlighting** (highlight.js with a registered Z80 grammar: mnemonics, registers, immediates, strings, comments each colored);
+- **operands rendered as label names** — `CALL draw_sprite`, never `CALL $8A42` — via `--asm-labels`, which is why the 0-auto-label bar matters to the HTML too;
+- comment-group hover: the rows a shared comment spans light up together.
+
+The theme is the floor, not the identity — it is structural on purpose, so fifty games built with it do not all look like one game. Identity (the palette derived from the game's attributes, the accent face, the logo) comes from the project layer: extend the chain, never replace it — `StyleSheet=skoolkit.css;theme.css;{game}.css` in the main `.ref`, with every game-specific override in that one stylesheet. The theme's `:root` variables and per-section `--section-color` are the override points. Stylesheets, the INI, and rendered images are HTML-affecting sources the framework's `html/.stamp` does not know about, so the project Makefile adds them as extra prerequisites:
 
 ```
 html/.stamp: $(wildcard *.css) $(INI)
