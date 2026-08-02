@@ -171,3 +171,7 @@ Richer is the goal, but never at the cost of truth. Two guards from the rest of 
 
 - **Verify the syntax.** These macros have many parameters and their forms are version-specific — image-macro syntax shifts between SkoolKit releases (in v10 the `#UDGARRAY` UDG address specs go inside **parentheses**, not after a `;` as older docs show). Check the official docs *and the installed version* for a macro's exact signature before relying on it, and confirm the build stays warning-free after adding it. A malformed macro that fails to expand is a build break, not a richer page.
 - **Express facts, not guesses.** A rendered sprite, a computed timing, a substituted constant are all claims about the code — they must be correct. The no-speculation rule (`references/comment-style.md`) covers macros too: do not render a "sprite" from bytes you have not confirmed are a sprite.
+
+## When the stock palette runs out, decode it yourself
+
+A format the macros cannot express — packed rooms, compressed sprites, a custom string encoding — is not a license to describe it in prose. Register a project `HtmlWriterClass`, write a decoder, and `#CALL` it from the pages; rendering every instance from the live data is the same proof at a higher power. See "Decode the game's formats" in `references/html-docs.md`.

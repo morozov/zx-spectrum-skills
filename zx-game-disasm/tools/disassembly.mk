@@ -12,6 +12,8 @@
 #   make gate     The same gate, logged, ending in one PASS/FAIL verdict line
 #   make coverage The "is it done?" gauge (documentation/naming/relocatability)
 #   make verify-frag FRAG=…  Round-trip one Worker fragment in isolation
+#   make tap      A loadable .tap of the fixed build — the disassembly as a
+#                 playable rebuild, not only a byte-check
 #   make clean    Remove all generated files
 #
 # The default `make` builds everything — the disassembly, the verified round-trip,
@@ -44,7 +46,7 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-comments coverage html
+.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-comments coverage html
 
 # `make` (the default) is the one verification gate: it drives the round-trip cmp,
 # the .ctl linters, and the HTML build (the only step that validates the .ref
@@ -181,6 +183,16 @@ $(BIN_FIXED): $(ASM_FIXED)
 
 $(Z80_FIXED): $(BIN_FIXED)
 	bin2sna.py --border 0 --org $(ORG) --start $(PC) --stack $(SP) $< $@
+
+# The documented source as a runnable deliverable: wrap the fixed program image
+# into a tape anyone can load. Kept out of `all` — it is a shipping artifact,
+# not a gate.
+TAP_FIXED = $(GAME).fixed.tap
+
+tap: $(TAP_FIXED)
+
+$(TAP_FIXED): $(BIN_FIXED)
+	bin2tap.py --org $(ORG) --start $(PC) --stack $(SP) $< $@
 
 html: html/.stamp
 

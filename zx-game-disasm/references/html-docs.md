@@ -66,6 +66,54 @@ Compose prose and tables into their own pages via ref sections:
 
 Group them under index headings in the main `.ref` (`[Index:Reference:Reference]`) so the site has a navigable structure rather than a flat list of routine pages.
 
+## Decode the game's formats
+
+The stock macros render what they can address; a game's own formats — packed rooms, compressed sprites, custom string encodings, route tables — need a decoder. Register a project HtmlWriter and put the decoders there:
+
+```ini
+[Config]
+HtmlWriterClass=:{game}.{Game}HtmlWriter
+```
+
+The class extends SkoolKit's `HtmlWriter`, and `.ref` pages call its methods with `#CALL:method(args)`. Write one decoder per format and render **every instance** from the snapshot's own bytes — all the rooms, the whole map, each mask — so the pages are computed from the data, never transcribed. A decoder is executable schema: rendering every instance correctly proves the format documentation the same way a `#UDGARRAY` proves an extent. Pair each render with a short storage section stating the format it decodes.
+
+Two devices this unlocks beyond plain rendering:
+
+- **Analytic variants** — the same data re-rendered with an interpretive twist: a map with a checkerboard BRIGHT overlay exposing tile boundaries, masks drawn over the map, room bounds outlined.
+- **Computed statistics** — counts derived while decoding ("this object appears in 12 rooms"), emitted as tables. A number a script counts stays correct as the `.ctl` evolves; a number typed in prose rots.
+
+## Memory maps
+
+Ship more than one map. Alongside the everything-view, link SkoolKit's filtered maps — routines only, data only, messages only — and the **unused-address map**, so leftover space is a documented inventory rather than an omission. Retitle the index links so a reader knows what each map is before clicking:
+
+```ini
+[Links]
+MemoryMap=[Everything] (routines, data, text and unused addresses)
+RoutinesMap=[Routines] (just the routines)
+DataMap=[Data] (just the data)
+```
+
+## Orientation pages
+
+Open the site with the game, not the code. Reproduce the original instructions/manual as `[Page:...]` sections — the game's own voice is period documentation worth preserving — plus a controls page and a completion/how-to-win page. Where a diagram beats prose (the screen layout, the control cluster), make a small annotated image and ship it via `[Resources]`:
+
+```ini
+[Resources]
+static-images/GameWindow.png=static-images
+```
+
+These pages are the reader's on-ramp; the catalogs and the behavior spec assume a reader who already knows what the game is.
+
+## Defect catalogs carry IDs and evidence
+
+Bugs, quirks, and graphic glitches get catalog pages with one anchored section per defect, so each has a stable ID that code comments and other pages point at:
+
+```ini
+[GraphicGlitch:enemiesTooLow:Front-facing enemies are drawn too low]
+```
+
+Each entry pairs the claim with rendered evidence (the sprite showing the stray pixels, the misaligned mask), the root cause traced to its routine, and the fix address. A project that releases its documentation in versions can add a changelog page for the disassembly itself.
+
 ## Styling
 
 The stock `skoolkit.css` is the base; a project restyles by **extending** it, never replacing it — `StyleSheet=skoolkit.css;{game}.css` in the main `.ref`, with every override in that one project stylesheet. Stylesheets, the INI, and rendered images are HTML-affecting sources the framework's `html/.stamp` does not know about, so the project Makefile adds them as extra prerequisites:
@@ -78,4 +126,6 @@ html/.stamp: $(wildcard *.css) $(INI)
 - **A custom game font is an accent, not the text face.** When the game's 8x8 font is extracted to a webfont (`Font={game}.woff2;{game}.ttf`), use it for headers, the logo, and small accents only; body prose and the code listing keep a proper reading face. A bitmap font at paragraph size is atmosphere on one line and an eyesore on a page.
 - **The disassembly table lays out from its content.** Column widths are content-driven and code lines never wrap — a wrapped instruction reads as two. The source-side half of this rule is the 24-char label cap (`lint-label-length`): styling cannot fix a gutter a label forced open.
 - **Link every operand the reader will chase.** Extend `LinkOperands` beyond the call/jump defaults — `LinkOperands=CALL,DEFW,DJNZ,JP,JR,LD` — so pointer-table entries and immediate address loads hyperlink like calls do.
+- **Bitmap art scales pixelated.** Every game image on the site is chunky 8x8-derived art; scale it with `image-rendering: pixelated` so it stays crisp at integer multiples. A blurred sprite is a wrong sprite.
+- **A name and credit line are the author's call.** `Release=` names the disassembly and its version; `Copyright=` sets the site's credit line. `CodeFiles={address:04X}.html` in `[Paths]` gives hex page filenames to match the hex-addressed `.ctl`.
 - **Prove it by looking at it.** After any styling change, render one sample of each page type — a code routine, a data block, a text block, a graphics-heavy page, a reference/catalog page, the index — in Chrome and check it reads decently: columns sized to content, no wrapped code lines, no gutter blowout, images at integer scale, the accent font confined to accents. A stylesheet edit is verified by a rendered page, never by reading the CSS.

@@ -273,6 +273,8 @@ Describe a variable by *what its value represents* — physical meaning, units, 
 
 For load-bearing variables, list the routines that read and write them using cross-references, so a reader can trace data flow.
 
+**Give structures a field-and-flag vocabulary and spend it everywhere.** A multi-byte record's fields get names (`enemy.counter_and_flags`), flag bits get named values (`flags_FACING_LEFT`), and bounded quantities get named endpoints (`lives_MIN`..`lives_MAX`); comments then use those names instead of re-deriving offsets and bit masks in prose. One naming, many uses: the same vocabulary appears in the `g`-block schema, in every comment that touches the field, and in the behavior spec — so a rename is a grep, and a mismatch is visible instead of silent.
+
 Hunt for those readers and writers in the `.skool`/`.ctl`, not by grepping the generated `.asm` for the raw address. `skool2asm --create-labels` auto-labels any referenced line-start, data bytes included, as `L<hex>`, so a referenced `$8E00` renders as `L8E00` and a grep for `$8E00` finds none of its readers. Before calling a variable unused, grep for the bare hex without the `$` (it matches both forms) or for the assigned label — better, label the variable yourself first so every reference renders through your name.
 
 The `g` block is also the agent-facing memory map: a live agent reads game state straight from these addresses. Documenting it richly serves both the human porter and the MDP described in `references/behavior-spec.md`.
