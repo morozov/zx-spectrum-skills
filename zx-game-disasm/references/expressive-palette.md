@@ -52,6 +52,23 @@ A table earns its place only by carrying **data the reader cannot get otherwise*
 
 This is the biggest expressive win and the most underused. The game's graphics are *in the snapshot* — render them, do not describe them. Point each macro at the address your disassembly identified for that graphic, so the picture and the data block stay in sync.
 
+**A sprite floats on the page — it never ships its paper as a frame.** In the game a sprite is drawn over the playfield, so its paper pixels are the playfield; rendered to a PNG they become an opaque rectangle in the game's background color, which reads as a black (or paper-color) frame the moment the page background differs.
+
+First, one project-wide line — SkoolKit renders transparency-designated pixels opaque by default (`PNGAlpha` is 255):
+
+```ini
+[ImageWriter]
+PNGAlpha=0
+```
+
+Then, per sprite, in order of fidelity:
+
+1. **The game has masks** — use them: the mask spec (`#UDG$addr,attr:$maskaddr`, and per-UDG in `#UDGARRAY`) renders masked-out pixels transparent (mask 1 over an unset pixel), and the render then proves the mask data the same way it proves the bitmap.
+2. **No masks — derive them.** A sprite is a set pixel figure; derive its mask topologically: flood-fill the unset pixels from outside the bounding box — everything reached is *around* the figure and becomes mask (transparent); unset pixels *enclosed* by the figure are its interior and stay paper. A face keeps its eye holes; the void around it vanishes. Generate the masks in a project decoder (or a small script emitting mask data) and render with the standard mask spec, so derived masks and game masks read identically.
+3. **The quick floor** — for a sprite with no enclosed paper at all, `tindex=<paper color index>` on the macro (indices 1-15; 1 is black) makes the paper color itself transparent with no mask involved. It punches holes through enclosed paper too, which is why it is the floor and not the rule.
+
+Backgrounds, full screens, and playfield captures keep their paper: they *are* the background. The rule is for figures that sit on one.
+
 **A frame-pointer entry says which address space it points at.** A game that `LDIR`s its sprites from a source area into a working bank has each bitmap at *two* addresses, and a frame table holds one of them — usually the working copy, because that is what the draw code reads. Annotate the entry with the address it actually holds *and* the source it mirrors, so neither identity is lost:
 
 ```
