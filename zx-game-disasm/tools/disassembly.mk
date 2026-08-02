@@ -205,7 +205,7 @@ THEME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../assets)
 
 html: html/.stamp
 
-html/.stamp: $(SKOOL) $(REF) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js
+html/.stamp: $(SKOOL) $(wildcard *.ref) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js
 	skool2html.py -d html -H -a --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
 	touch $@
 
