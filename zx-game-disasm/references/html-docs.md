@@ -65,3 +65,17 @@ Compose prose and tables into their own pages via ref sections:
 - **Glossary** — the domain terms the comments use, defined once.
 
 Group them under index headings in the main `.ref` (`[Index:Reference:Reference]`) so the site has a navigable structure rather than a flat list of routine pages.
+
+## Styling
+
+The stock `skoolkit.css` is the base; a project restyles by **extending** it, never replacing it — `StyleSheet=skoolkit.css;{game}.css` in the main `.ref`, with every override in that one project stylesheet. Stylesheets, the INI, and rendered images are HTML-affecting sources the framework's `html/.stamp` does not know about, so the project Makefile adds them as extra prerequisites:
+
+```
+html/.stamp: $(wildcard *.css) $(INI)
+```
+
+- **Derive the visual identity from the game.** Colors come from the game's own attribute bytes — the palette the player actually sees on the playfield, HUD, and border — not from a designer's swatch. The logo is rendered from the game's glyph bitmaps with their own attributes (`Logo=#UDGARRAY…` over the title-screen data), never an imported image. The site should read as the game documenting itself.
+- **A custom game font is an accent, not the text face.** When the game's 8x8 font is extracted to a webfont (`Font={game}.woff2;{game}.ttf`), use it for headers, the logo, and small accents only; body prose and the code listing keep a proper reading face. A bitmap font at paragraph size is atmosphere on one line and an eyesore on a page.
+- **The disassembly table lays out from its content.** Column widths are content-driven and code lines never wrap — a wrapped instruction reads as two. The source-side half of this rule is the 24-char label cap (`lint-label-length`): styling cannot fix a gutter a label forced open.
+- **Link every operand the reader will chase.** Extend `LinkOperands` beyond the call/jump defaults — `LinkOperands=CALL,DEFW,DJNZ,JP,JR,LD` — so pointer-table entries and immediate address loads hyperlink like calls do.
+- **Prove it by looking at it.** After any styling change, render one sample of each page type — a code routine, a data block, a text block, a graphics-heavy page, a reference/catalog page, the index — in Chrome and check it reads decently: columns sized to content, no wrapped code lines, no gutter blowout, images at integer scale, the accent font confined to accents. A stylesheet edit is verified by a rendered page, never by reading the CSS.
