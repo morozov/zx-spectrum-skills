@@ -197,7 +197,7 @@ A project can read `RELOCATABLE 0`, `NAMING 100%` and every routine body-explain
 
 ### Proving it: shift the program and run it
 
-The only proof is dynamic: move the code, rebuild, and confirm it behaves identically under the **`zx-fuse-debug`** skill. Two constraints decide whether the test means anything, and a naive bump of the single `ORG` gets both wrong.
+The only proof is dynamic: move the code, rebuild, and confirm it behaves identically under the **`zx-fuse-driver`** skill. Two constraints decide whether the test means anything, and a naive bump of the single `ORG` gets both wrong.
 
 **Shift only the program; the screen must stay put.** The display file is hardware-fixed at `$4000`, and a post-load image begins *with* the captured loading screen, so it starts at `$4000` too. Bumping the one `ORG` drags the screen bytes along, and that tests nothing: the code still writes to the absolute screen address, so the moved copy is inert and any misbehavior is unattributable — a real relocation bug looks exactly like the displaced picture. Insert padding at `RELOC_FLOOR` instead, the boundary the project already declares as the game's own, and verify the screen and attribute bytes are untouched.
 

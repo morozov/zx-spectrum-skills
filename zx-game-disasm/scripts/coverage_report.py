@@ -306,7 +306,7 @@ def main():
           + " (Static proxy only — 0 here is label-clean, not proven: an absolute"
             " pointer in a data table passes every operand check. Relocatability is"
             " claimed only after the shifted program runs identically under"
-            " zx-fuse-debug, recorded as its own commit. Shift the program alone,"
+            " zx-fuse-driver, recorded as its own commit. Shift the program alone,"
             " by 257 — not the whole image, and not by a multiple of 256; see"
             " references/build-verify.md.)")
     print(f"  PLACEHOLDERS : {len(placeholders)} placeholder labels"
@@ -375,7 +375,7 @@ def main():
     print("(This is a floor check. Whether each comment is correct, whether the"
           " catalogs and behavior spec are complete and code-derived, and whether the"
           " code is *actually* relocatable — proven by reassembling at a shifted ORG and"
-          " running it under the emulator (zx-fuse-debug), not by a label-clean static"
+          " running it under the emulator (zx-fuse-driver), not by a label-clean static"
           " read — is beyond this gauge.)")
     return 0
 

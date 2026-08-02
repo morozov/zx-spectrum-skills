@@ -20,10 +20,10 @@ The work is four stages, in order. Each builds on the previous; do not skip ahea
 
 | Stage | Goal | Reference |
 | --- | --- | --- |
-| 1. Analyze | Recover what the tape loader does, block by block | `references/analysis-techniques.md`, the `zx-fuse-debug` skill, `assets/report-template.md` |
+| 1. Analyze | Recover what the tape loader does, block by block | `references/analysis-techniques.md`, the `zx-fuse-driver` skill, `assets/report-template.md` |
 | 2. Author | Write the TR-DOS loader (`boot.asm`) and BASIC boot (`boot.bas`) | `references/loader-authoring.md` |
 | 3. Build | Extract, compress the screen, assemble the `.trd`/`.scl` | `references/build-pipeline.md` |
-| 4. Verify | Boot the `.scl` under FuseX and prove it reaches the game | `references/verification.md`, the `zx-fuse-debug` skill |
+| 4. Verify | Boot the `.scl` under FuseX and prove it reaches the game | `references/verification.md`, the `zx-fuse-driver` skill |
 
 ## The mental model
 
@@ -33,7 +33,7 @@ A tape game is a tiny BASIC bootstrap (`RANDOMIZE USR …`) that hands off to a 
 
 Run the tape loader live under FuseX and produce a **loading analysis** report. This answers: what does the loader do block by block, where does each block end up, how is each encoded, and how does control reach the game?
 
-This is applied code comprehension: the general method (static reading plus live analysis) is the shared reference `../shared/disasm-analysis.md`, and the live driver is the **`zx-fuse-debug`** skill. This stage applies them to a tape loader.
+This is applied code comprehension: the general method (static reading plus live analysis) is the shared reference `../shared/disasm-analysis.md`, and the live driver is the **`zx-fuse-driver`** skill. This stage applies them to a tape loader.
 
 Workflow (full detail, including the tape-specific trapping recipes, in `references/analysis-techniques.md`):
 
@@ -63,7 +63,7 @@ Boot the built `.scl` under FuseX and prove the loader reaches the game's entry 
 
 Verify each exists before use; name any that is missing.
 
-- **FuseX** (gdbserver build) + **`z88dk-gdb`** — read the tape loader (stage 1) and verify the result (stage 4). The driver and its mechanics are the **`zx-fuse-debug`** skill; use it rather than re-deriving them here.
+- **FuseX** (gdbserver build) + **`z88dk-gdb`** — read the tape loader (stage 1) and verify the result (stage 4). The driver and its mechanics are the **`zx-fuse-driver`** skill; use it rather than re-deriving them here.
 - **pasmo** — assemble `boot.asm`.
 - **bas2tap** — tokenize `boot.bas`.
 - **zxspectrum-utils** (`tapto0`, `0tobin`, `binto0`, `0tohob`, `hobeta2trd`, `createtrd`) — block extraction and TR-DOS file/image assembly.

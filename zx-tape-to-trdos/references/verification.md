@@ -1,6 +1,6 @@
 # Verifying the disk image (stage 4)
 
-Prove the built `.scl` boots and the loader reaches the game's entry with the correct bytes there. Driving mechanics (launch, `gdb.sh`/`gdb-session.py`, `z88dk-gdb` commands, reset guard) are the **`zx-fuse-debug`** skill; this doc is the disk-verification recipe and its two hard rules.
+Prove the built `.scl` boots and the loader reaches the game's entry with the correct bytes there. Driving mechanics (launch, `gdb.sh`/`gdb-session.py`, `z88dk-gdb` commands, reset guard) are the **`zx-fuse-driver`** skill; this doc is the disk-verification recipe and its two hard rules.
 
 ## Two hard rules
 
@@ -10,13 +10,11 @@ Prove the built `.scl` boots and the loader reaches the game's entry with the co
 ## Launching a disk
 
 ```
-FUSEX=~/Applications/FuseX.app/Contents/MacOS/FuseX
-"$FUSEX" --gdbserver-enable --gdbserver-port=1337 --machine=pentagon \
-  /abs/path/Game.scl &
+python3 ../zx-fuse-driver/scripts/fuse_drive.py gdbserver 1337 \
+  --machine=pentagon /abs/path/Game.scl >/tmp/fuse.log 2>&1 &
 FPID=$!
 ```
 
-- Pass options in **`=`-form**. AppKit routes a space-separated value (`--machine pentagon`) to `openFile:` and silently drops it; `--machine=pentagon` works. The same applies to `--gdbserver-port=`.
 - Passing the `.scl` as the file argument inserts it in the Beta drive.
 - `--machine=pentagon` boots a Pentagon, which **auto-runs the `boot` file** on the disk. FuseX's default 48K machine has no TR-DOS.
 - A plain launch may sit idle in the TR-DOS ROM for a moment before auto-boot completes — do not mistake that for failure. If auto-boot does not fire (the disk was inserted after TR-DOS came up), `monitor reset` with the disk present re-triggers it.

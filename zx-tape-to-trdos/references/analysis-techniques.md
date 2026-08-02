@@ -2,7 +2,7 @@
 
 Patterns that recur in tape loaders. Use them to recognize what a loader is doing and to translate that into the disk-loader implications the report must state. These are recurring shapes, not laws — verify each against the game in front of you.
 
-The general method for deriving Z80 logic — static reading, idiom recognition, dynamic confirmation — is the shared reference at `../shared/disasm-analysis.md`. The live driver (enabling the FuseX gdbserver, the `gdb.sh`/`gdb-session.py` session models, the command set, reset detection, state discipline) is the **`zx-fuse-debug`** skill — use it for everything about running the loader. This doc is the tape-loader-specific layer: the patterns below, and the trapping recipes in "Driving the loader under FuseX" at the end.
+The general method for deriving Z80 logic — static reading, idiom recognition, dynamic confirmation — is the shared reference at `../shared/disasm-analysis.md`. The live driver (enabling the FuseX gdbserver, the `gdb.sh`/`gdb-session.py` session models, the command set, reset detection, state discipline) is the **`zx-fuse-driver`** skill — use it for everything about running the loader. This doc is the tape-loader-specific layer: the patterns below, and the trapping recipes in "Driving the loader under FuseX" at the end.
 
 ## Why this analysis exists
 
@@ -25,7 +25,7 @@ To read the BASIC without it autorunning, either trap at the USR target (the tra
 Once you are at the USR target, characterize the machine code. It is usually one of these, and turbo loaders are common — do **not** assume a ROM loader:
 
 - **Relocating / self-decrypting bootstraps.** The entry often copies itself to high RAM, decrypting as it goes, then `JP`s there — so the _real_ loader only exists after the copy runs. Recognize a short copy loop (`LD A,(HL) / <transform> / LD (DE),A / INC DE / INC HL / DJNZ`) ending in `JP <high addr>`. The transform can be `XOR key`, `INC A`, etc. Relocation is CPU-only (no tape), so let it run and trap at the destination to read the plaintext body.
-- **Custom turbo loaders.** These bypass the ROM and read the EAR port directly with their own edge detection — look for `IN A,($FE) / RRA / AND $20 / …` in a timing loop. Block destination and length come from whatever registers the loader sets before its load call (commonly `IX`=dest, `DE`=length, `A`=flag) — read them from the disassembly, not from any ROM convention. A turbo load that fails typically resets (`JP NC,$0000` or similar): use the reset guard from the `zx-fuse-debug` skill.
+- **Custom turbo loaders.** These bypass the ROM and read the EAR port directly with their own edge detection — look for `IN A,($FE) / RRA / AND $20 / …` in a timing loop. Block destination and length come from whatever registers the loader sets before its load call (commonly `IX`=dest, `DE`=length, `A`=flag) — read them from the disassembly, not from any ROM convention. A turbo load that fails typically resets (`JP NC,$0000` or similar): use the reset guard from the `zx-fuse-driver` skill.
 - **ROM-based loaders.** Some games do use the ROM. The standard tape load entry is `LD-BYTES` at `$0556`; protected ones call a few bytes in (e.g. `$055A`) to skip header/flag handling and defeat generic copiers. There the convention holds: `IX`=destination, `DE`=length on entry.
 
 ## On-tape encoding
@@ -66,12 +66,12 @@ TR-DOS allocates whole 256-byte sectors. For each block, sectors = `ceil(bytes /
 
 ## Driving the loader under FuseX
 
-The generic driver — enabling the gdbserver, the batch `gdb.sh` and persistent `gdb-session.py` session models, the `z88dk-gdb` command set, reset detection, and state discipline — is the **`zx-fuse-debug`** skill. Read it first; what follows is specific to trapping and reading a *tape loader*.
+The generic driver — enabling the gdbserver, the batch `gdb.sh` and persistent `gdb-session.py` session models, the `z88dk-gdb` command set, reset detection, and state discipline — is the **`zx-fuse-driver`** skill. Read it first; what follows is specific to trapping and reading a *tape loader*.
 
 **Launch to trap the loader entry.** Load the `.tzx` natively — never convert it, since `tzx2tap` flattens turbo timing and the loader resets — and add `--no-traps --no-fastload` so the BASIC block loads in real time instead of via ROM traps. Without them the bootstrap runs and the loader is already past `PROG+N` before you can attach, so a `break <entry>` never fires:
 
 ```bash
-"$FUSEX" --gdbserver-enable --gdbserver-port=1337 --no-traps --no-fastload \
+python3 ../zx-fuse-driver/scripts/fuse_drive.py gdbserver 1337 --no-traps --no-fastload \
   --tape="/abs/path/Game.tzx" --auto-load >/tmp/fusex.log 2>&1 &
 ```
 

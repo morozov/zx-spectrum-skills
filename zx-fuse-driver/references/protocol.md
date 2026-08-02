@@ -20,7 +20,9 @@ This is the protocol and mechanics reference behind `SKILL.md`. It is platform-g
 
 ## Enabling the server
 
-Three ways — pick whichever fits the workflow.
+Four ways — pick whichever fits the workflow.
+
+**Headless, no window:** `scripts/fuse_drive.py gdbserver 1337` serves the gdbserver from the `libfusex` library (see `SKILL.md`). The FuseX flags below follow the port.
 
 **CLI flag on the macOS GUI app (one-shot, no state):**
 

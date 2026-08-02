@@ -48,7 +48,7 @@ https://example.net/Some%20Game.tzx
 
 `--tape-sum` pins the exact tape; if the download ever changes, the build fails loudly instead of silently disassembling a different dump. Pin tool and asset versions the same way you would any dependency.
 
-If `tap2sna` cannot load the game (turbo loaders, custom decryption, anti-tamper), the loader itself needs live analysis. Drive it under FuseX with the **`zx-fuse-debug`** skill, applying the comprehension method in `../shared/disasm-analysis.md`, to learn where the payload lands; then capture a snapshot at the hand-off point. The `zx-tape-to-trdos` skill has tape-loader-specific trapping recipes for turbo and protected loaders.
+If `tap2sna` cannot load the game (turbo loaders, custom decryption, anti-tamper), the loader itself needs live analysis. Drive it under FuseX with the **`zx-fuse-driver`** skill, applying the comprehension method in `../shared/disasm-analysis.md`, to learn where the payload lands; then capture a snapshot at the hand-off point. The `zx-tape-to-trdos` skill has tape-loader-specific trapping recipes for turbo and protected loaders.
 
 ## From an existing snapshot (.sna/.szx/.z80)
 

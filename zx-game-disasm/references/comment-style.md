@@ -126,7 +126,7 @@ The rule governs **every artifact the reader opens** — the `.ctl` comments, th
 
 ### A run is evidence for the author, never support for the reader
 
-Running the game under `zx-fuse-debug` is how you *acquire* a fact when the bytes are ambiguous. The code is what *supports* it. So the deliverable never cites the emulator: no "verified live", "measured under emulation", "reproduced under FuseX", "the play-observed color". A sentence that leans on a run is a sentence whose code backing was never found, wearing a citation that the reader cannot check and the next author cannot re-derive.
+Running the game under `zx-fuse-driver` is how you *acquire* a fact when the bytes are ambiguous. The code is what *supports* it. So the deliverable never cites the emulator: no "verified live", "measured under emulation", "reproduced under FuseX", "the play-observed color". A sentence that leans on a run is a sentence whose code backing was never found, wearing a citation that the reader cannot check and the next author cannot re-derive.
 
 Two repairs, both real. **Re-derive the observation as a code fact** — the observation was right, so find what makes it true:
 

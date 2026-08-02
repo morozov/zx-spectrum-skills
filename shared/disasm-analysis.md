@@ -4,7 +4,7 @@ This is the shared method for *understanding* a piece of ZX Spectrum machine cod
 
 It pairs with two siblings:
 
-- **Run the code to understand it** — drive it under FuseX with the `zx-fuse-debug` skill (breakpoints, watchpoints, register/memory reads). Static reading and dynamic observation are complementary; combine them.
+- **Run the code to understand it** — drive it under FuseX with the `zx-fuse-driver` skill (breakpoints, watchpoints, register/memory reads). Static reading and dynamic observation are complementary; combine them.
 - **Write the understanding down well** — the documentation discipline lives in the `zx-game-disasm` skill's `comment-style.md` and `behavior-spec.md`.
 
 ## Static first, dynamic to confirm
@@ -41,7 +41,7 @@ These are shapes to recognize, not laws — verify each against the code in fron
 
 ## Using the emulator to resolve the unknowns
 
-When static reading hits a wall, the `zx-fuse-debug` recipes resolve it:
+When static reading hits a wall, the `zx-fuse-driver` recipes resolve it:
 
 - **A computed/indirect jump** — trap just before it, read the target register (`reg`), or watch where control lands.
 - **A value that depends on state** — break at the point and read it (`x`/`reg`), or set a watchpoint on the variable and see who writes it and with what.
