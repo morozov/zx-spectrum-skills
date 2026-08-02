@@ -8,6 +8,8 @@ The `.skool` is your feedback loop. Rebuild it after every `.ctl` change and rea
 
 Every address in the `.ctl` is written in upper-case hex with a `$` prefix (`c $A891`, `D $A891`, `  $A891,3 …`). The build emits a hex `.skool` (`sna2skool --hex`), so a hex `.ctl` means an address reads the same in the file you edit and the file you read — no dec↔hex conversion in your head on any cross-reference, and that conversion-by-eye is exactly the error class the skill bans. (The `.ctl` validators parse addresses as hex, so a decimal `.ctl` is also *mis-validated*.) If you run `sna2ctl.py` for a first-cut hint, pass `--hex`, and keep every hand-edited address hex. To migrate an existing decimal `.ctl`, run `scripts/ctl_to_hex.py` — it is purely notational (the `.skool` is byte-identical), then run `make verify` and fix any ordering the validators now correctly flag. Lengths after a comma (`,3`) and `@equ` values stay as written.
 
+The same rule covers **every address the reader sees**, not just directives: a raw `#R` reference is `#R$A891`, never `#R43153`; addresses quoted in comments, `.ref` catalogs, and `spec/*.md` are `$`-hex. (Better than a raw `#R$hex` is a label — `#R$A891(draw_car)` or a named ref — but when the address shows, it shows in hex.) Decimal digits appear only where the *value* is the point — a score, a count, a coordinate — with no conversion beside it. One base everywhere means an address greps identically in the `.ctl`, the `.skool`, the site, and the spec.
+
 ## Table of contents
 
 - [Block types](#block-types)

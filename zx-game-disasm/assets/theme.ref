@@ -8,6 +8,10 @@
 StyleSheet=skoolkit.css;theme.css
 JavaScript=theme.js
 Released=
+AddressAnchor={address#IF({base}==16)(:04x)}
+
+[Paths]
+CodeFiles={address:04X}.html
 
 [Template:Layout]
 <!DOCTYPE html>
