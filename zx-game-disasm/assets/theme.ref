@@ -1,11 +1,9 @@
-; Default site theme for every zx-game-disasm project. The framework's `html`
-; target passes this ref file before the project's own, so these settings are
-; the baseline and a project overrides them by restating a parameter. To layer
-; a game identity on top, append the project stylesheet:
-;   StyleSheet=skoolkit.css;theme.css;{game}.css
+; Default site theme for every zx-game-disasm project. skool2html parses the
+; project's own ref before this one, so [Game+] appends the theme baseline
+; without wiping the project's [Game]. This section sets no StyleSheet — each
+; project owns the full chain: StyleSheet=skoolkit.css;theme.css;{game}.css.
 
-[Game]
-StyleSheet=skoolkit.css;theme.css
+[Game+]
 JavaScript=theme.js
 Released=
 AddressAnchor={address#IF({base}==16)(:04x)}
