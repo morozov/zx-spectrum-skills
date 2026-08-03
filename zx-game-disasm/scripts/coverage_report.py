@@ -29,11 +29,12 @@ point it at the skool. `--ctl`/`--ref` override the discovery.
 
 Usage: coverage_report.py <file.skool> [--ctl FILE] [--ref FILE ...] [--min-density 0.35]
   - PROSE          the lint_comments counts, over the .skool and over the .ref
-                   catalogs and spec/*.md beside it. RET_GROUP / SELFLINK / DIARY
-                   are precise detections of always-wrong patterns, so they gate
-                   the verdict; STAMP / RET / RESTATE are advisory (a formula can
-                   be legitimate). This is how a project built under older
-                   requirements surfaces its gap to the current bar.
+                   catalogs and spec/*.md beside it. RET_GROUP / SELFLINK /
+                   DIARY / OPERAND_ECHO / ELLIPSIS are precise detections of
+                   always-wrong patterns, so they gate the verdict; STAMP / RET /
+                   RESTATE are advisory (a formula can be legitimate). This is
+                   how a project built under older requirements surfaces its gap
+                   to the current bar.
 """
 
 import argparse
@@ -178,8 +179,10 @@ def main():
     ret_group = prose.get('RET_GROUP', 0)
     selflink = prose.get('SELFLINK', 0)
     diary = prose.get('DIARY', 0)
+    op_echo = prose.get('OPERAND_ECHO', 0)
+    ellipsis = prose.get('ELLIPSIS', 0)
     stamp = prose.get('STAMP', 0)
-    prose_hard = ret_group + selflink + diary
+    prose_hard = ret_group + selflink + diary + op_echo + ellipsis
 
     # The honest unit is the routine, not the averaged line. A routine's body is
     # "explained" when it carries comments at roughly the right altitude — a low
@@ -311,7 +314,8 @@ def main():
             " references/build-verify.md.)")
     print(f"  PLACEHOLDERS : {len(placeholders)} placeholder labels"
           + (f" (e.g. {', '.join(sorted(set(placeholders))[:5])})" if placeholders else ""))
-    print(f"  PROSE        : {ret_group} RET_GROUP, {selflink} SELFLINK, {diary} DIARY"
+    print(f"  PROSE        : {ret_group} RET_GROUP, {selflink} SELFLINK, {diary} DIARY,"
+          f" {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS"
           f" (gate the verdict); {stamp} STAMP (advisory)"
           + ("  — run `make lint-comments` for the line-level list" if prose else ""))
     print(f"  ARRAYS       : {len(unindexed)} unindexed array run(s) of >=10 records"
@@ -362,7 +366,8 @@ def main():
         if audio and inline_audio == 0:
             reasons.append(f"{audio} #AUDIO only in the .ref index, none inline at their blocks")
         if prose_hard:
-            reasons.append(f"prose not at the bar ({ret_group} RET_GROUP, {selflink} SELFLINK, {diary} DIARY)")
+            reasons.append(f"prose not at the bar ({ret_group} RET_GROUP, {selflink} SELFLINK,"
+                           f" {diary} DIARY, {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS)")
         print("VERDICT: NOT at the bar — " + "; ".join(reasons)
               + ". Do not call it mature/done; this is the upgrade backlog.")
     else:

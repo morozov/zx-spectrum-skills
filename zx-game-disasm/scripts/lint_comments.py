@@ -18,6 +18,12 @@ ones a reviewer would otherwise flag by hand:
   - DIARY          investigation vocabulary in reader-facing text ("unverified",
                    "PROVISIONAL", "this pass", "verified live", "under emulation")
                    — type the uncertainty instead, and cite the code, not a run
+  - OPERAND_ECHO   a comment #R-referencing the very address its own
+                   instruction's operand carries — label-rendered operands
+                   already show and link that symbol on the same row
+  - ELLIPSIS       a comment spliced across instructions with '...' — one
+                   thought spanning rows is a '{ }' comment group, not chained
+                   fragments
   - REFPOINTER     a comment pointing the reader at a `.ref` index file
   - STAMP          the same >=8-word phrase (addresses normalized) in 3+ block
                    comments — family text stamped per sibling instead of written
@@ -69,6 +75,9 @@ PLACEHOLDER_LABEL_RE = re.compile(
 # 'label (#R$addr)' and the reversed '#R$addr (label)' — flagged when the #R
 # resolves to that same label, because #R renders as the label and the built
 # page then reads "name (name)" either way.
+# #R references in a comment, hex or decimal, normalized to a hex string.
+COMMENT_REF_RE = re.compile(r'#R\$(?P<hex>[0-9A-Fa-f]{4})|#R(?P<dec>\d{4,5})')
+
 SELFLINK_RE = re.compile(r'(?P<name>\w+)\s*\(#R\$(?P<addr>[0-9A-Fa-f]{4})\)')
 SELFLINK_REV_RE = re.compile(r'#R\$(?P<addr>[0-9A-Fa-f]{4})\s*\((?P<name>\w+)\)')
 
@@ -368,6 +377,22 @@ def scan(path):
             elif comment_restates(mnemonic, operands, comment):
                 add(lineno, 'RESTATE', line.strip(),
                     'comment only restates the instruction — say the why, not the what')
+            op_addrs = {a.upper() for a in re.findall(r'\$([0-9A-Fa-f]{4})\b', operands)}
+            op_addrs |= {f'{int(n):04X}' for n in re.findall(r'\b(\d{4,5})\b', operands)
+                         if 16384 <= int(n) <= 65535}
+            for cm in COMMENT_REF_RE.finditer(comment):
+                ref = (cm.group('hex') or f"{int(cm.group('dec')):04X}").upper()
+                if ref in op_addrs:
+                    add(lineno, 'OPERAND_ECHO', line.strip(),
+                        'the comment re-references its own operand — the '
+                        'instruction already shows and links that symbol; '
+                        'say the action, drop the echo')
+                    break
+            stripped = comment.strip()
+            if stripped.startswith(('...', '…')) or stripped.endswith(('...', '…')):
+                add(lineno, 'ELLIPSIS', line.strip(),
+                    "a '...'-spliced continuation — one thought spanning "
+                    "instructions is a '{ }' comment group, not chained fragments")
 
     close_para()
     for lineno, phrase, count in find_stamps(units):

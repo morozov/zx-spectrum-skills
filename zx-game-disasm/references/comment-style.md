@@ -59,6 +59,16 @@ These add nothing; leave them bare:
 - **Spectrum architecture basics** — assume the reader knows screen memory layout, the attribute system, interrupt modes, the ULA port. Document the *game*, not the platform.
 - **Empty or content-free structure** — a hand-drawn ASCII table in a comment (`; +------+------+`), a table header with no rows, a "table" that just re-lists a record's field names. It carries no data the reader can't already see, so it is bloat. Fill it with real values via `#TABLE`, express it with the right device (a tune is an `#AUDIO`, not a period/duration byte table — see `references/expressive-palette.md`), or delete it.
 
+## The comment never repeats its own operand
+
+With labels rendered into operands everywhere (`.skool`, `.asm`, the site's `CALL erase_door`), an instruction already names and links the thing it touches. A comment that references that same symbol says it twice on one row, and an ellipsis chain hand-splices what a comment group exists for. Both are linted (`OPERAND_ECHO`, `ELLIPSIS`) and gate the coverage verdict.
+
+> **Bad:** `LD (door_anim_phase),A  ; clear the phase (#R$7F30)...` `CALL erase_door  ; ...and erase the door via #R$8D40.`
+>
+> **Good:** `LD (door_anim_phase),A  ; clear the phase` `CALL erase_door  ; erase the door`
+
+When one thought genuinely spans several instructions, use a `{ }` comment group over exactly those rows — never `...` fragments stitched line to line.
+
 ## Decimal equivalents
 
 Give a decimal equivalent only for a value that means something in the human world — a level number, an iteration count, a pixel distance — not for memory addresses. `$7A26` as an address stays hex; `$0F` as "15 lives" earns its `(15)`.

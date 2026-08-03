@@ -134,7 +134,7 @@ lint-data-structure: $(CTL) $(BIN_PRISTINE)
 	    --org $(ORG) --reloc-floor $(RELOC_FLOOR)
 
 # Advisory comment-quality pre-filter (RET / RESTATE / PLACEHOLDER / SELFLINK /
-# DIARY / REFPOINTER / STAMP). Advisory, so it is not in the default `make` gate
+# OPERAND_ECHO / ELLIPSIS / DIARY / REFPOINTER / STAMP). Advisory, so it is not in the default `make` gate
 # — run it on demand. The Challenger consults it; a flag is a prompt to review,
 # not necessarily a build failure (a STAMP can be a legitimate formula over a
 # genuinely templated reality). The checks that matter most — does a comment add
