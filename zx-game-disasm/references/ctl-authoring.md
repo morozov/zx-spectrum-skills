@@ -15,6 +15,7 @@ The same rule covers **every address the reader sees**, not just directives: a r
 ## Table of contents
 
 - [Block types](#block-types)
+- [Nothing anonymous](#nothing-anonymous)
 - [Labels and routine descriptions](#labels-and-routine-descriptions)
 - [Line-level comments and the length rule](#line-level-comments-and-the-length-rule)
 - [Symbolic constants](#symbolic-constants)
@@ -55,6 +56,27 @@ The all-bytes baseline grown into code from the entry (see `references/agents.md
 - `sna2ctl`'s heuristic code/data guess is a hint, not the map. It mislabels graphics and data tables as code, and every wrong boundary spawns phantom label references — a flood of `--create-labels` warnings that are pure noise. Keep its output under `build/` as a starting hint, never as the source of truth.
 - Byte-identity does not prove the map (see above): a whole region wrongly labeled code or data still round-trips green. Confirm each boundary from how the code *uses* the bytes — an address written via `LD (nn),A` is a variable, not an instruction operand.
 - Self-modifying code hides variables *inside* code: an instruction toggled between `LD A,n` and `RET` to enable a routine, an `HL`/`A` value stored into an operand byte. When a reference lands mid-instruction, suspect such a variable. Mark those bytes a `b`/`B` data sub-block and document the patch; do not force them to code.
+
+## Nothing anonymous
+
+A reader meets the disassembly one page at a time, and every entry becomes a page. So **every entry carries a title, and every sub-directive says what its bytes are.** `make lint-identity` gates both.
+
+```
+b $7F08                            <- publishes as "Data at 7F08"
+B $7F08,1                          <- a row of DEFB that nothing explains
+```
+
+An untitled entry does not go unheaded; it gets SkoolKit's default heading for its type, from the `[Titles]` templates: `Data at` for `b` and `w`, `Routine at` for `c`, `Game status buffer entry at` for `g`, `Text at` for `t`, `Unused RAM at` for `s` and `u`. The page exists, the reader can reach it, and it says nothing about the block that its address does not.
+
+Neither form fails anything else. Both round-trip, both tile, both can be fully labeled, and `make coverage` counts both as documented — a titleless block reads as 100% NAMING, because the gauge counts labels and a label is not a sentence.
+
+**An untitled entry has two causes and they need opposite fixes.** Either it is one field that a stray block directive split out of the record above it — in which case delete the block directive, leave the sub-directive where it is, and the field returns to its record — or it genuinely starts a structure that was never titled, in which case write the title. Nothing in the file tells the two apart: you decide by asking whether these bytes are fields of the record above. Get it wrong in the fold direction and a real structure disappears into an unrelated entry, which is worse than the untitled page you started with. The linter reports both fixes and names the record; it does not choose.
+
+The one exemption is the trailing `i` block. It publishes no page — it marks where the disassembly stops — so it needs no title.
+
+**A sub-directive is identified when it carries its own description, or when its address carries an `@ label=`.** A description is trailing text on the directive or a line comment inside its span; a label names those exact bytes, renders on that row, and makes the span reachable by name from anywhere in the disassembly. Either one, and the bytes have a name a reader can use.
+
+**The entry's own title, `D` or `N` does not discharge it**, however completely the schema is stated there. This is the exemption the rule exists to refuse. A record whose `N` says, in as many words, "+4/+5 are the X/Y speeds" and "+7 is the pass counter" over anonymous `S` sub-directives still leaves those bytes nameless and unreachable by absolute address. "It is obvious from the record above" is exactly the reasoning the rule refuses. A rule you cannot state is not a rule.
 
 ## Labels and routine descriptions
 
@@ -207,7 +229,11 @@ Name records by what the reader is looking for, not by ordinal position, and use
 
 ### The tiling contract
 
-Everything above is advice until something checks it, and advice is what gets skipped on the one region nobody understood. The checkable form of "a data block states what its bytes mean" is a **tiling**: for every `b`/`s` block, starting at the block's address, the sub-directives cover every byte exactly once and sum to the block's size. No gaps, no overlaps, no leftovers. A block that states nothing about its bytes fails. `make lint-data-structure` enforces it.
+Everything above is advice until something checks it, and advice is what gets skipped on the one region nobody understood. The checkable form of "a data block states what its bytes mean" is a **tiling**: for every data entry — every block type but `c` and `i` — starting at the block's address, the sub-directives cover every byte exactly once and sum to the block's size. No gaps, no overlaps, no leftovers. A block that states nothing about its bytes fails. `make lint-data-structure` enforces it, and it is in the build gate.
+
+The contract is on the *entry*, not on the letter that groups its page. What an undeclared byte becomes differs by type — `DEFS` under `s`, `DEFB` under `b`, `g` and `u`, `DEFM` under `t`, `DEFW` under `w` — and only under `s` is it unused space, under a note that says what it is. Under every other type it is worse: the byte is *published as data* on a page whose title says the block was digested, and no directive anywhere claims it. A `u` entry titled "Undetermined 5-byte block" that carries one five-byte `B` but runs on for two kilobytes publishes every byte past that directive as `DEFB` under that title.
+
+`w` is the one type that answers the schema question by itself, so it is exempt from UNTYPED. Its bytes render one `DEFW` per word whether or not a `W` repeats that stride, and a word that names a labeled address assembles as that label — so there is no stride left to declare and nothing left to hide as a literal. A `w` entry still has to tile, and whether its words group into multi-word records is the array-element question `make lint-array-elements` asks, above.
 
 This matters because prose is free. It can describe a span convincingly without committing to one verifiable claim, and a byte block is where code goes to hide: held as data, an embedded address is a literal byte that no shifted build relocates, and every other check still reads green. The tiling moves the claim somewhere arithmetic can test it. It invents no notation — every directive below is stock SkoolKit. The vocabulary was always there; only the contract was missing.
 
@@ -305,12 +331,15 @@ In comment text, reference addresses with `#R$XXXX` (SkoolKit resolves it to the
 
 ## Validation rules
 
-The build runs three linters (`scripts/validate_ctl_*.py`); violations fail the build. They keep the `.ctl` mechanically consistent so diffs stay clean and `sna2skool` never silently reorders.
+The build runs six linters (`scripts/validate_ctl_*.py`); violations fail the build. The first four keep the `.ctl` mechanically consistent so diffs stay clean and `sna2skool` never silently reorders; the last two hold it to the contracts above.
 
 1. **Address order** — every directive in ascending address order.
 2. **Instruction order** — directives at the *same* address follow the canonical sequence: `@` → block type (`c`/`b`/…) → `D` → `N` → `R` → line comment.
 3. **No redundant lengths** — a line comment's `LENGTH` must not equal the gap to the next documented address.
+4. **Label length** — 24 characters, fixed by renaming.
+5. **Block identity** (`validate_ctl_identity.py`) — every entry titled, every sub-directive described or labeled. See [Nothing anonymous](#nothing-anonymous).
+6. **Data-block schema** (`validate_ctl_data_structure.py`) — every data entry tiles and declares its stride. See [The tiling contract](#the-tiling-contract).
 
 Run them yourself while editing (`python3 scripts/validate_ctl_address_order.py {game}.ctl`) rather than waiting for the full build.
 
-`validate_ctl_data_structure.py` is a fourth, **advisory** and outside the build gate: it holds every `b`/`s` block to the tiling contract above. Run it as `make lint-data-structure`.
+Checks 5 and 6 land red on a mature `.ctl`, so a project records the findings it starts with in `lint-baseline.txt` (`make lint-baseline`) and the gate holds that line: a finding the file does not list fails the build, and a line it lists that the check does not report fails the build too, so a fix takes its baseline entry with it in the same commit. The file only ever shrinks. Never hand-edit it to silence something you introduced — see [build-verify.md](build-verify.md#the-known-failing-baseline).

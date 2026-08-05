@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Validate that every b/s block in a SkoolKit .ctl file declares a checkable schema.
+Validate that every data entry in a SkoolKit .ctl file declares a checkable schema.
 
 A data block must say what its bytes mean. The machine-checkable form of that
 claim is a tiling: starting at the block's address, the sub-directives cover
@@ -11,8 +11,9 @@ check while relocating nothing.
 
 Five checks, all arithmetic over directives the .ctl already carries:
 
-  UNTYPED      a block with no sub-directives, or a B/W/T span carrying no
-               sublength, over the scalar threshold (default 8 bytes)
+  UNTYPED      a block with no sub-directives, or a B/T span carrying no
+               sublength, over the scalar threshold (default 8 bytes). `w` and
+               `W` state the element size themselves and are exempt.
   ZEROFILL     (needs --bin) an all-zero span enumerated as a stride instead of
                declared a buffer — nothing checks a stride over zeros
   TILING       sub-directive lengths sum to the block size, contiguous from its
@@ -38,10 +39,19 @@ import argparse
 import re
 import sys
 
-# Block-level directives. A b/s block is data this script checks; any other
-# block type (code, text, words, ignored) only serves to bound the one above it.
+import ctl_baseline
+
+CHECK = 'data-structure'
+
+# Block-level directives. Every entry that publishes bytes is checked, whatever
+# letter groups its page. What an undeclared byte renders as differs by type —
+# `DEFS` under `s`, `DEFB` under `b`, `g` and `u`, `DEFM` under `t`, `DEFW` under
+# `w` — and only under `s` is it unused space. Under the rest it is published
+# data the .ctl never declared, which is the same defect wearing a page title.
+# Only `c` (it disassembles, and the round-trip proves it) and `i` (it publishes
+# nothing) are outside the contract; they serve to bound the entry above them.
 BLOCK_TYPES = 'bcgistuw'
-DATA_BLOCK_TYPES = 'bs'
+DATA_BLOCK_TYPES = 'bgstuw'
 
 # Sub-directives that cover a span of bytes. M groups sub-blocks that are
 # themselves declared, so counting it as well would double-count the span.
@@ -116,10 +126,11 @@ def parse_ctl(path):
     """
     Return (data_blocks, addresses) for a .ctl.
 
-    data_blocks are its b/s blocks in file order. Each carries its address,
-    type, title, source line number, size (the next block's address minus its
-    own; None for the last block, whose extent the file does not state), the
-    span sub-directives inside it, and the text of its prose directives.
+    data_blocks are its data entries in file order — every block type but `c` and
+    `i`. Each carries its address, type, title, source line number, size (the next
+    block's address minus its own; None for the last block, whose extent the file
+    does not state), the span sub-directives inside it, and the text of its prose
+    directives.
 
     addresses is every address the file names — block starts of any type, plus
     `@ addr label=` entry points. A pointer table points at what the .ctl has
@@ -241,6 +252,14 @@ def check_untyped(block, threshold, by_address):
     This is the first failing case, and the one that matters: the defect this
     gate exists for is a byte span with no sub-directives at all, which a check
     written as "sub-directives must be typed" sails straight past.
+
+    `w` answers the question in the entry type, so it is asked nothing. Its bytes
+    render one `DEFW` per word whether or not a `W` repeats the stride, so the
+    directive this check would demand changes nothing published; and a word that
+    names a labeled address assembles as that label, which is the relocation the
+    untyped-span defect costs. Whether those words group into multi-word records,
+    and whether each element is annotated, is what
+    `validate_ctl_array_elements.py` asks.
     """
     violations = []
     size = block['size']
@@ -252,6 +271,8 @@ def check_untyped(block, threshold, by_address):
         return violations
 
     if not block['spans']:
+        if block['type'] == 'w':
+            return violations
         if size is None or size > threshold:
             extent = 'unbounded' if size is None else f'{size} bytes'
             violations.append((block['line_number'], 'UNTYPED',
@@ -262,6 +283,11 @@ def check_untyped(block, threshold, by_address):
     for span in block['spans']:
         if span['type'] == 'S':
             # A skip block's size is its whole claim: N bytes of buffer.
+            continue
+        if span['type'] == 'W':
+            # `W` is the answer to "bytes of what?": words, two bytes each. A
+            # sublength on it groups words into records, which is a different
+            # question and a different check's.
             continue
         if span['length'] > threshold and not span['sublengths']:
             violations.append((span['line_number'], 'UNTYPED',
@@ -383,7 +409,7 @@ def check_pointers(block, image, origin, floor, targets):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Validate that b/s blocks in a .ctl declare a checkable schema.')
+        description='Validate that data entries in a .ctl declare a checkable schema.')
     parser.add_argument('ctl', help='the .ctl file to validate')
     parser.add_argument('--threshold', type=lambda s: int(s, 0), default=8,
                         help='scalar threshold: a block at or under this many bytes is '
@@ -394,6 +420,7 @@ def main():
                         help='address the --bin image loads at (default $4000)')
     parser.add_argument('--reloc-floor', type=lambda s: int(s, 0), default=0x5B00,
                         help='addresses at/above this are the game region (default $5B00)')
+    ctl_baseline.add_arguments(parser)
     args = parser.parse_args()
 
     try:
@@ -420,19 +447,35 @@ def main():
             found += check_zerofill(block, args.threshold, image, args.org)
             found += check_pointers(block, image, args.org, args.reloc_floor, addresses)
         for line_number, kind, message in found:
-            violations.append((line_number, kind, block, message))
+            violations.append((line_number, kind, message, block))
+    violations.sort(key=lambda v: v[0])
 
-    if not violations:
+    with open(args.ctl, encoding='utf-8') as f:
+        lines = f.read().splitlines()
+
+    if args.write_baseline:
+        if not args.baseline:
+            print('Error: --write-baseline needs --baseline', file=sys.stderr)
+            return 2
+        ctl_baseline.report_write(
+            args.baseline, CHECK,
+            *ctl_baseline.write(args.baseline, CHECK, violations, lines))
         return 0
 
-    print(f"Found {len(violations)} data-block schema violation(s) "
-          f"in {len(blocks)} b/s block(s):")
-    print()
-    for line_number, kind, block, message in sorted(violations):
-        print(f"  Line {line_number}: {kind} — {message}")
-        print(f"    in {block['type']} ${block['address']:04X} {block['title']}")
+    new, held, stale = ctl_baseline.partition(args.baseline, CHECK, violations, lines,
+                                              report_stale=not args.ignore_stale)
+
+    if new:
+        print(f"Found {len(new)} data-block schema violation(s) "
+              f"in {len(blocks)} data entry(ies):")
         print()
-    return 1
+        for line_number, kind, message, block in new:
+            print(f"  Line {line_number}: {kind} — {message}")
+            print(f"    in {block['type']} ${block['address']:04X} {block['title']}")
+            print()
+
+    ctl_baseline.report(args.baseline, CHECK, held, stale)
+    return 1 if new or stale else 0
 
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ The **gate** is `make`: it reassembles the disassembly and `cmp`s it against the
 
 ```sh
 make                      # the gate: round-trip cmp + .ctl linters + HTML
-make lint-data-structure  # advisory: the tiling contract; outside the gate
+make lint-baseline        # re-record the gating checks' findings (only ever shrinks)
 make coverage             # the "is it done?" gauge
 make verify-frag FRAG=…   # round-trip one fragment in isolation
 make clean                # remove generated files

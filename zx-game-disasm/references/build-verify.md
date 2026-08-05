@@ -110,18 +110,36 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 
 ## The linters
 
-`make` runs four `.ctl` linters (also runnable standalone as `make lint`, or from `scripts/`):
+`make` runs six `.ctl` linters (also runnable standalone as `make lint`, or from `scripts/`):
 
 - `validate_ctl_address_order.py` — directives in ascending address order.
 - `validate_ctl_instruction_order.py` — at one address: `@` → block type → `D` → `N` → `R` → line comment.
 - `validate_ctl_lengths.py` — no line-comment `LENGTH` that just restates the gap to the next entry.
 - `validate_ctl_label_length.py` — labels within 24 characters.
+- `validate_ctl_identity.py` — every entry titled, every sub-directive named.
+- `validate_ctl_data_structure.py` — every data entry tiles and declares a stride.
 
-They exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff.
+The first four exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff. The last two are content checks, and they carry a baseline — see below.
 
-### The data-block schema check (advisory)
+### The block-identity check
 
-`make lint-data-structure` runs `scripts/validate_ctl_data_structure.py` over the `.ctl` and holds every `b`/`s` block to a **tiling**: starting at the block's address, its sub-directives cover every byte exactly once and sum to its size.
+`make lint-identity` runs `scripts/validate_ctl_identity.py` and refuses a block a reader cannot identify. Three kinds:
+
+- **UNTITLED** — a block directive with no title, following a data entry. It publishes under SkoolKit's default heading for its type — "Data at 5B08" for a `b` or `w` entry, "Text at" for `t`, "Game status buffer entry at" for `g`, "Unused RAM at" for `s` and `u`. Two causes need opposite fixes: one field that a stray block directive split out of the record above (delete the block directive), or a structure that was never titled (write the title). *The check does not choose between them.* No property of the directives tells them apart: a stray split and an untitled structure can both sit contiguously after the entry above, carry several labeled fields, and hold one to three sub-directives. So the message states both fixes and names the record, and the author answers the question it asks: are these bytes fields of that record? Guessing wrong in the fold direction buries a real structure inside an unrelated entry.
+- **UNTITLED_ENTRY** — the same, but following code or opening the file. There is no record to fold into, so the fold is not available and the title is the fix.
+- **UNDESCRIBED** — a sub-directive with no description anywhere and no `@ label=` on its address.
+
+The trailing `i` block is exempt from the title rule: it publishes no page.
+
+**What discharges UNDESCRIBED, and what deliberately does not.** A sub-directive is identified if it carries a description — trailing text, or a line comment at an address inside its span — *or* if its address carries an `@ label=`. The label names those exact bytes, renders on that row of the listing, and makes the span reachable by name from anywhere.
+
+The entry's own title, `D` or `N` does **not** discharge it, however completely the schema is stated there. That is the exemption the check exists to refuse. Picture `S $7E04,2` and `S $7E07,1` as anonymous fill inside a player-state record whose `N` says "+4/+5 are the X/Y speeds" and "+7 is the frame counter": the schema is on the entry, the bytes are still anonymous, and neither is reachable by absolute address. Accepting "it is obvious from the record above" accepts exactly that.
+
+Nothing else catches either form. Both round-trip, both tile, both can be fully labeled, and `coverage` reports NAMING 100% over a titleless block because it counts labels, not sentences.
+
+### The data-block schema check
+
+`make lint-data-structure` runs `scripts/validate_ctl_data_structure.py` over the `.ctl` and holds every data entry — every block type but `c` and `i` — to a **tiling**: starting at the block's address, its sub-directives cover every byte exactly once and sum to its size.
 
 The defect it exists for is code annotated as an undifferentiated byte span. That reads as clean under every other check — the `-s` gate inspects operands and these are data, `coverage_report` counts the span as documented bytes — while nothing in it relocates. Prose is free: it can describe a span convincingly without committing to one verifiable claim about its layout. The tiling is that claim, in arithmetic.
 
@@ -139,9 +157,45 @@ The macro usually sits in the block's own prose. A beeper sound is the case wher
 
 The exemption reads a macro's presence, not its extent.
 
-It is **advisory**, and deliberately not in `lint`: on a mature `.ctl` it flags real but pre-existing gaps, and a gate that lands red on day one gets switched off rather than fixed. Wire it into `lint` once a project clears it.
+**The contract is on the entry, not on the letter that groups its page.** What an undeclared byte renders as does differ by type — `DEFS` under `s`, `DEFB` under `b`, `g` and `u`, `DEFM` under `t`, `DEFW` under `w` — but only under `s` is it unused space. Under every other type it is published as data on a page whose title implies the block was digested, with no directive anywhere claiming it, which is worse than a visible hole. A `u $C748` titled "Undetermined 5-byte block" that carries one `B $C748,5` while the entry runs on to $CFFF publishes everything past that directive as `DEFB`, declared by nothing.
+
+`w` is the exception to UNTYPED, and only to UNTYPED. Its bytes render one `DEFW` per word whether or not a `W` directive repeats that stride, so "declare the stride" is a demand for a directive that changes nothing published; and a word that names a labeled address assembles as that label, which is the relocation an untyped byte span costs. A `w` entry still has to tile, and what its words owe beyond that — do they group into records, is each element annotated — is `make lint-array-elements`' question.
 
 **Honest limit: tiling proves accounting, not meaning.** A wrong stride that happens to divide will pass, and a mis-typed field will tile. It is necessary, not sufficient. Its job is to make an unparsed span impossible to leave behind — not to prove the parse is right. Only the render, the round-trip and the relocation proof test meaning.
+
+### The known-failing baseline
+
+`lint-identity` and `lint-data-structure` land red on a mature `.ctl`. That is not a reason to keep them out of the gate — it is the reason the baseline exists.
+
+Left advisory, a check is never run: a defect it reports ships under `make gate` printing GATE PASS, while the check has the defect in its output the whole time.
+
+So both checks are in `lint`, and a project records the findings it starts with:
+
+```
+make lint-baseline        # writes lint-baseline.txt from the current findings
+```
+
+`lint-baseline.txt` lists one accepted finding per line, as `<check> <KIND> <$ADDRESS>  <message>`. The first three fields are the key; the message is for the reader. Four rules give it its shape:
+
+- a finding whose key the file does not list **fails the build** — that is the new defect, and it is the whole point;
+- a line the file lists that its check no longer reports **fails the build too**, so a fix takes its baseline entry with it in the same commit and the file cannot rot into a permanent excuse;
+- a key is only compared against the check that wrote it, so a project may baseline one check and gate another cleanly;
+- a key may repeat, and the count is part of the comparison: two findings of one kind at one address are two lines, and a third fails the build.
+
+The key is the *address on the directive the finding points at* — never the line number, which churns on every unrelated edit above it, and never the message, which changes when a neighboring directive resizes. Counting repeats is what stops that address-only key from swallowing a second finding where one is already listed. Splitting an undescribed `M $7E04,2` into `M $7E04,2` plus `B $7E04,1` leaves two findings at `$7E04` against one accepted line, and the build fails — while a directive that merely moves down the file keeps its key and its count.
+
+**The file only ever shrinks.** Regenerate it when a fix clears a finding — the shrunk file is the evidence, and the diff is how the debt is visible in review. Each check rewrites only its own lines, so re-recording one leaves the other's alone. Every run names the keys it adds and the keys it drops:
+
+```
+identity: recorded 26 finding(s) in lint-baseline.txt
+identity: 1 key(s) NOT in the previous baseline — a key this file gains is debt
+taken on, not debt inherited:
+  + identity UNDESCRIBED $7F29
+```
+
+Regeneration is routine, which makes a silent one the realistic way a defect gets buried, so the names are the point: a run that adds a key is a run to throw away. Never hand-edit the file to silence something you introduced either — the diff would show it growing, which is the same signal from the other direction.
+
+A project with no `lint-baseline.txt` is gated on everything, which is the right default for a new disassembly. Adopt the baseline only where the findings predate the check.
 
 ### The comment-quality pre-filter (advisory)
 

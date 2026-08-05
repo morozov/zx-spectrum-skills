@@ -5,10 +5,12 @@
 # skool2asm warning gate — touching no shared file. On success prints
 # `verify-frag: OK`; any failure exits non-zero with the offending output.
 #
-# Usage: verify_fragment.sh <base.ctl> <fragment.ctl> <pristine.z80> <pristine.bin> <scripts-dir>
+# Usage: verify_fragment.sh <base.ctl> <fragment.ctl> <pristine.z80> <pristine.bin>
+#                           <scripts-dir> <baseline> <org> <reloc-floor>
 set -euo pipefail
 
 CTL="$1"; FRAG="$2"; Z80="$3"; BIN="$4"; SCRIPTS="$5"
+BASELINE="$6"; ORG="$7"; RELOC_FLOOR="$8"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -70,11 +72,22 @@ pasmo --bin "$tmp/game.asm" "$tmp/game.bin" 2>"$tmp/pasmo.err" \
   || { cat "$tmp/pasmo.err" >&2; exit 1; }
 cmp "$tmp/game.bin" "$BIN"
 
-# The .ctl linters that gate the real build.
+# Every .ctl linter that gates the real build, so a fragment cannot pass here and
+# fail the Manager's `make`. The two content checks read the project's baseline:
+# its key is the directive's address, so a finding the fragment inherited is still
+# held after the splice moves its line.
 "$SCRIPTS/validate_ctl_address_order.py"     "$tmp/game.ctl"
 "$SCRIPTS/validate_ctl_instruction_order.py" "$tmp/game.ctl"
 "$SCRIPTS/validate_ctl_lengths.py"           "$tmp/game.ctl"
 "$SCRIPTS/validate_ctl_label_length.py"      "$tmp/game.ctl"
+
+# --ignore-stale: clearing a baselined finding is the fragment doing its job, and
+# the Worker cannot edit the shared baseline to record it. Dropping the line is
+# the Manager's, at the full `make`. What the fragment must not do is add one.
+"$SCRIPTS/validate_ctl_identity.py"       "$tmp/game.ctl" \
+    --baseline "$BASELINE" --ignore-stale
+"$SCRIPTS/validate_ctl_data_structure.py" "$tmp/game.ctl" --bin "$BIN" \
+    --org "$ORG" --reloc-floor "$RELOC_FLOOR" --baseline "$BASELINE" --ignore-stale
 
 # Advisory comment-quality pre-filter over the spliced skool.
 "$SCRIPTS/lint_comments.py" "$tmp/game.skool" || true

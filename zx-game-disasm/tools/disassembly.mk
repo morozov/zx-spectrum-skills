@@ -11,6 +11,9 @@
 #                 the .ref catalogs). Build the asm, snapshot, and site.
 #   make gate     The same gate, logged, ending in one PASS/FAIL verdict line
 #   make coverage The "is it done?" gauge (documentation/naming/relocatability)
+#   make lint-identity        Gate: every entry titled, every sub-block named
+#   make lint-data-structure  Gate: every data entry tiles and declares its stride
+#   make lint-baseline        Re-record the gating checks' findings as the baseline
 #   make lint-array-elements  Advisory: every array record annotated individually
 #   make verify-frag FRAG=…  Round-trip one Worker fragment in isolation
 #   make tap      A loadable .tap of the fixed build — the disassembly as a
@@ -47,7 +50,13 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-array-elements lint-comments coverage html
+.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-identity lint-data-structure lint-baseline lint-array-elements lint-comments coverage html
+
+# Findings a project has accepted as its starting point, one per line. The gating
+# checks below hold this line: a finding it does not list fails the build, and a
+# line it lists that the check no longer reports fails the build too, so a fix
+# takes its baseline entry with it. See `scripts/ctl_baseline.py`.
+BASELINE ?= lint-baseline.txt
 
 # `make` (the default) is the one verification gate: it drives the round-trip cmp,
 # the .ctl linters, and the HTML build (the only step that validates the .ref
@@ -78,7 +87,7 @@ gate:
 # integrated result with the full `make`. The multi-step logic lives in the script
 # so this recipe stays one line. Usage: make verify-frag FRAG=build/frags/my.ctl
 verify-frag: $(Z80_PRISTINE) $(BIN_PRISTINE)
-	@$(SCRIPTS)/verify_fragment.sh "$(CTL)" "$(FRAG)" "$(Z80_PRISTINE)" "$(BIN_PRISTINE)" "$(SCRIPTS)"
+	@$(SCRIPTS)/verify_fragment.sh "$(CTL)" "$(FRAG)" "$(Z80_PRISTINE)" "$(BIN_PRISTINE)" "$(SCRIPTS)" "$(BASELINE)" "$(ORG)" "$(RELOC_FLOOR)"
 
 # Download and convert the original tape to the pristine snapshot.
 $(Z80_PRISTINE): $(T2S)
@@ -96,7 +105,8 @@ $(SKOOL): $(Z80_PRISTINE) $(CTL)
 test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 	cmp $(BIN_PRISTINE) $(BIN_NON_FIXED)
 
-lint: lint-address-order lint-instruction-order lint-lengths lint-label-length
+lint: lint-address-order lint-instruction-order lint-lengths lint-label-length \
+      lint-identity lint-data-structure
 
 # Label naming is a gauge metric, not a build gate. Early on the map is mostly
 # auto-labels and you cannot name a block before you have disassembled it, so a hard
@@ -119,20 +129,47 @@ lint-lengths: $(CTL)
 lint-label-length: $(CTL)
 	$(SCRIPTS)/validate_ctl_label_length.py $(CTL)
 
-# Advisory data-block schema check: every b/s block must tile — its sub-directives
-# cover every byte exactly once. Code modeled as an undifferentiated byte span
-# reads as clean under every other check while relocating nothing, and that is the
-# defect this catches. Advisory for now, so it is not in `lint`: it flags real but
-# pre-existing gaps in a mature .ctl, and a gate that lands red on day one gets
-# switched off. Promote it into `lint` once a project
-# clears it.
+# Every published block must say what it is: an entry with no title publishes
+# under SkoolKit's default heading for its type ("Data at 5B08"), and a
+# sub-directive with neither a description nor a label
+# on its address leaves a run of DEFB that nothing in the listing explains and
+# nothing outside it can refer to. Both forms round-trip, tile, and count as
+# documented under `coverage`, so this is the only check that sees them.
+lint-identity: $(CTL)
+	$(SCRIPTS)/validate_ctl_identity.py $(CTL) --baseline $(BASELINE)
+
+# Data-block schema check: every data entry — every block type but `c` and `i` —
+# must tile: its sub-directives cover every byte exactly once. Code modeled as an
+# undifferentiated byte span reads as clean under every other check while
+# relocating nothing, and a byte inside an entry that no sub-directive covers is
+# that defect at one-byte scale. Under `s` it publishes as unused space (`DEFS`);
+# under every other type it publishes as data — `DEFB`, `DEFM`, `DEFW` — that the
+# .ctl never declared, on a page whose title implies it did.
+#
+# It is in `lint` and lands red on a mature .ctl. That is what the baseline is for:
+# the project records the gaps it starts with, the gate fails on a new one, and the
+# baseline shrinks as they are closed. Left advisory instead, it is never run and
+# the gaps go out the door.
 #
 # The image is passed, not optional: the ZEROFILL and POINTER checks need to read
 # the bytes, and a linter that silently skips half its checks is worse than one
 # that is not wired up at all.
 lint-data-structure: $(CTL) $(BIN_PRISTINE)
 	$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
-	    --org $(ORG) --reloc-floor $(RELOC_FLOOR)
+	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) --baseline $(BASELINE)
+
+# Re-record the gating checks' findings as the project's accepted baseline. Run it
+# when a fix clears a finding — the shrunk file is the evidence — and once when a
+# project first adopts a check. Never to bury a finding you just introduced: each
+# run names the keys the file gains, and a run that gains one is a run to throw
+# away. Each check rewrites only its own lines, so re-recording one leaves the
+# other's alone.
+lint-baseline: $(CTL) $(BIN_PRISTINE)
+	@$(SCRIPTS)/validate_ctl_identity.py $(CTL) \
+	    --baseline $(BASELINE) --write-baseline
+	@$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
+	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
+	    --baseline $(BASELINE) --write-baseline
 
 # Every element of an array of records must be annotated individually. An array
 # laid out as one directive - or as none at all, with the record size stated only
@@ -142,10 +179,10 @@ lint-data-structure: $(CTL) $(BIN_PRISTINE)
 # sub-directive), and both are fixed the same way, one annotated sub-line per
 # record naming it.
 #
-# Advisory for the same reason as lint-data-structure above: it lands red on a
-# mature .ctl. Unlike that one, its two thresholds decide what counts as an array,
-# and byte runs that are not record arrays at all - a bitmap span, a cell grid -
-# trip it. Settle that exemption before promoting it into `lint`.
+# Advisory, and unlike lint-data-structure it cannot simply take a baseline and
+# join the gate: its two thresholds decide what counts as an array, and byte runs
+# that are not record arrays at all - a bitmap span, a cell grid - trip it. Settle
+# that exemption before promoting it into `lint`.
 lint-array-elements: $(CTL)
 	$(SCRIPTS)/validate_ctl_array_elements.py $(CTL)
 
