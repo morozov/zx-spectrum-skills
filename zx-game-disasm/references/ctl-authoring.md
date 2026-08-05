@@ -185,16 +185,21 @@ TABLE#
 
 Then a reader can decode any entry straight from the bytes, and a porter can rebuild the structure, without reverse-engineering the consumer. Derive the layout from the code that *indexes* the block — the stride is in its `ADD HL,DE` / `INC`-by-N step, the field offsets in its `(IX+n)` reads — never guess it by eye.
 
-And **lay the bytes out at that stride** so the structure is *visible*, not a flat `DEFB` run: a `B addr,len,stride` sub-directive (or `W` for word fields) renders one record per line. `step_table` is the model:
+And **lay the bytes out at that stride** so the structure is *visible*, not a flat `DEFB` run: a `B addr,len,stride` sub-directive (or `W` for word fields) renders one record per line, and **each record gets its own annotated sub-line naming it**. A stride directive alone documents the span, not the contents — the reader gets "96 bytes per room" and still cannot find room 12. `room_maps` is the model:
 
 ```
-b $7B80 Enemy movement steps by direction
-D $7B80 Two bytes per direction: the X and Y pixel steps (loaded into an
-D $7B80 enemy's +2/+3; a negative step moves left or up). Read by #R31904.
-B $7B80,16,2
+b $7A40 Per-room tile maps
+D $7A40 The 50 rooms' tile maps laid end to end, 96 bytes per room: a 12x8 grid of tile codes, one row of 12 after another. Records run in room order.
+B $7A40,96,12 Room 1
+B $7AA0,96,12 Room 2
+…
 ```
 
-The `B $7B80,16,2` lays the 16 bytes out as 8 two-byte rows — each direction's record on its own line — so the `D` schema and the byte layout reinforce each other. A bare `b $7C60` under a label (`door_anim_frames`) with no title, schema, or stride is the opposite: an undocumented blob.
+Each record is addressable: the `D` carries the schema, the stride renders the 12x8 grid as eight rows, and the per-record line says *which* room this one is. One `B $7A40,4800,96` in place of those 50 lines would render the rows and name none of them; a bare `b $7A40` under a label, with no title, schema or stride, is worse again — an undocumented blob.
+
+Name records by what the reader is looking for, not by ordinal position, and use the number the game *shows*. Where a counter is 0-based and the caption prints it plus one, record 0 is annotated `Room 1` — and the `D` states that convention, so the two readings cannot be confused.
+
+`make lint-array-elements` checks this (`scripts/validate_ctl_array_elements.py`): it flags a directive standing in for ≥10 records, and an array-sized span with no sub-directive at all — the second being the form that hides from every other check, since declaring nothing leaves nothing to inspect.
 
 ### The tiling contract
 

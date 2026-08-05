@@ -11,6 +11,7 @@
 #                 the .ref catalogs). Build the asm, snapshot, and site.
 #   make gate     The same gate, logged, ending in one PASS/FAIL verdict line
 #   make coverage The "is it done?" gauge (documentation/naming/relocatability)
+#   make lint-array-elements  Advisory: every array record annotated individually
 #   make verify-frag FRAG=…  Round-trip one Worker fragment in isolation
 #   make tap      A loadable .tap of the fixed build — the disassembly as a
 #                 playable rebuild, not only a byte-check
@@ -46,7 +47,7 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-comments coverage html
+.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-array-elements lint-comments coverage html
 
 # `make` (the default) is the one verification gate: it drives the round-trip cmp,
 # the .ctl linters, and the HTML build (the only step that validates the .ref
@@ -132,6 +133,21 @@ lint-label-length: $(CTL)
 lint-data-structure: $(CTL) $(BIN_PRISTINE)
 	$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
 	    --org $(ORG) --reloc-floor $(RELOC_FLOOR)
+
+# Every element of an array of records must be annotated individually. An array
+# laid out as one directive - or as none at all, with the record size stated only
+# in prose - documents the span, not the contents: the reader gets "64 bytes per
+# level" and no way to find level 12. Catches both forms (UNINDEXED: one directive
+# standing in for >= 10 records; UNDECLARED: an array-sized span with no
+# sub-directive), and both are fixed the same way, one annotated sub-line per
+# record naming it.
+#
+# Advisory for the same reason as lint-data-structure above: it lands red on a
+# mature .ctl. Unlike that one, its two thresholds decide what counts as an array,
+# and byte runs that are not record arrays at all - a bitmap span, a cell grid -
+# trip it. Settle that exemption before promoting it into `lint`.
+lint-array-elements: $(CTL)
+	$(SCRIPTS)/validate_ctl_array_elements.py $(CTL)
 
 # Advisory comment-quality pre-filter (RET / RESTATE / PLACEHOLDER / SELFLINK /
 # OPERAND_ECHO / ELLIPSIS / DIARY / REFPOINTER / STAMP). Advisory, so it is not in the default `make` gate
