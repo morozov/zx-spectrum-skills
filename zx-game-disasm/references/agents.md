@@ -10,17 +10,27 @@ The **gate** is `make`: it reassembles the disassembly and `cmp`s it against the
 
 ```sh
 make                      # the gate: round-trip cmp + .ctl linters + HTML
+make gate                 # the same gate, logged, ending in one verdict line
 make lint-baseline        # re-record the gating checks' findings (only ever shrinks)
 make coverage             # the "is it done?" gauge
 make verify-frag FRAG=…   # round-trip one fragment in isolation
 make clean                # remove generated files
 ```
 
+`make gate`'s verdict names the SkoolKit it ran under and distinguishes a build that regenerated something from one that found every file current:
+
+```
+GATE PASS, REBUILT [SkoolKit 10.1] — …
+GATE PASS, NOTHING REBUILT [SkoolKit 10.1] — …
+```
+
+Read the difference. `NOTHING REBUILT` re-ran the round-trip and the linters over artifacts an earlier build produced; it is not evidence that the sources as they stand now assemble. `REBUILT` says at least one generated file came from source — which ones is in the log, not in the verdict. Force the whole chain — `make clean`, or remove the `.skool` — before reporting a checkpoint green. See `build-verify.md`.
+
 ## Non-negotiables
 
 - **Every checkpoint is green.** `make` passes: byte-identical round-trip, linters clean, and `skool2asm --create-labels` emitting **zero** warnings. Never leave the project red across a checkpoint. Keep increments small.
 - **Never hand-edit a generated file.** The `.skool`, `.asm`, `.bin` and `.z80` are generated; edits to them are overwritten and never reach the round-trip. The `.ctl` is annotation *over* the snapshot.
-- **The toolchain runs from `PATH`.** Install the packages in `requirements.txt` so `make` and the SkoolKit tools find them there.
+- **The toolchain runs from `PATH`.** Install the packages in `requirements.txt` so they are on it. The build refuses to start when a tool it needs is missing, whether or not the tree is up to date.
 - **Never write a raw address in a comment.** `skool2asm`'s address-to-label scan rejects any address-shaped token in a comment and the build fails on the warning. Reference code and data by `#R$<hex>` or by label. A fixed hardware address with no `.ctl` block is described functionally; its number belongs in `spec/`, not in the comment.
 - **Map by growing code from the entry.** The image starts as one `b` block; convert a region to `c` only as execution flow confirms it. Do not trust `sna2ctl`'s heuristic guess.
 - **Keep it relocatable.** Label the program's own code and data so references resolve to labels, not raw hex; leave genuinely fixed addresses (screen, sysvars, ports) absolute. A green build does **not** prove relocatability: the gauge counts operands, so it cannot see an address bound to an `@equ`, stored as data, built from an 8-bit immediate, or hidden in a byte blob that is really code. Claim it only after the shifted/permuted build runs identically.

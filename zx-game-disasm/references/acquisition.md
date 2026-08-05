@@ -21,8 +21,9 @@ These feed `tap2sna`/`bin2sna` and the Makefile. Get them wrong and the round-tr
 
 The build runs SkoolKit (`tap2sna.py`, `sna2skool.py`, `skool2asm.py`, …) and `pasmo` from `PATH`. Install the Python packages in `requirements.txt` in any environment that puts them there.
 
-- Pin the SkoolKit version in `requirements.txt` for a reproducible build.
-- `pasmo` is a system binary, not a Python package.
+- **A missing tool stops the build before it starts.** `disassembly.mk` preflights the executables the requested goal can invoke and errors naming the ones it cannot find, whether or not every target is up to date.
+- Pin the SkoolKit version in `requirements.txt` for a reproducible build. `make gate`'s verdict names the version it ran under, so a PASS from a different one is visible.
+- `pasmo` is a system binary, not a Python package. Goals that never assemble — `coverage`, the linters — do not require it.
 - `scripts/extract_bytes.py` does `import skoolkit`, so the `python3` first on `PATH` must have SkoolKit installed. Otherwise it fails with `ModuleNotFoundError`.
 
 **Build logic comes from the skill — the project does not vendor copies.** The `.ctl` validators, `coverage_report.py`, `lint_comments.py`, `splice_ctl.py`, *and the build rules* are skill tooling that evolves and gets fixed; a copy frozen inside a project goes stale the moment it changes, and the project then measures itself with an old gauge or builds with old rules. So they are single-sourced: the project `Makefile` is a thin stub that `include`s the framework `$(SKILL)/tools/disassembly.mk`, which holds every target and self-locates the skill's `scripts/`. `SKILL` has no default: set it to the skill's directory, in the environment or on the `make` command line. Do not copy the scripts or the build rules into the project; if the project holds a vendored `scripts/` copy or a fully expanded `Makefile`, delete the copy and replace the `Makefile` with the stub.

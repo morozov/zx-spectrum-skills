@@ -65,16 +65,44 @@ The framework locates the skill's `scripts/` relative to itself, so the project 
 
 The default `make` builds the HTML site too, so one command produces the whole deliverable. It degrades gracefully: with no `.ref` files yet it is a basic site from the skool alone, gaining the catalog/reference pages as the `.ref` files appear.
 
+### The toolchain the gate runs
+
+The framework runs its tools from `PATH`. The recipes invoke a **variable** per tool — `$(SNA2SKOOL)`, `$(PASMO)`, … — so add a tool by adding its variable, never by writing the bare name into a recipe.
+
+Before anything runs, `disassembly.mk` **preflights** the executables the requested goal can invoke and stops naming the ones it cannot find:
+
+```
+disassembly.mk:<line>: *** toolchain incomplete — not executable on PATH: bin2sna.py
+skool2asm.py skool2html.py sna2skool.py tap2sna.py. The SkoolKit tools come …
+```
+
+The check runs while the makefile is *read*, before make compares one timestamp, because an absent toolchain is not a state in which "every target is up to date" carries any meaning. With nothing installed and nothing stale, make runs no recipe, invokes no missing tool, and exits 0 — and that 0 reads as proof of a round-trip that never ran.
+
+The required set is **per goal**, so a goal is never blocked by a tool it cannot reach: `coverage`, `lint-comments` and the linters need SkoolKit alone and build on a machine with no assembler; `bin2tap.py` is required by `tap` and by nothing else. `clean` and the `.ctl`-only linters require nothing, and `gate` is exempt so it reaches its own recipe — it re-enters make for the build, the sub-make is preflighted, and the gate turns that failure into its verdict line. A goal the table does not name — a file target, or one a project added — is held to the default build's set.
+
 ### Reading the gate's result
 
 **A build is green when `make` exits 0 — never because its output looks green.** Run the gate bare and read the status:
 
 ```
 make                    # then check the exit status ($?)
-make gate               # or: same gate, logged, ending in one PASS/FAIL line
+make gate               # or: same gate, logged, ending in one verdict line
 ```
 
-`make gate` runs the full gate into `build/make.log` (the ignored build directory), prints the last 40 lines plus an unmistakable verdict on failure, and exits with make's own status.
+`make gate` runs the full gate into `build/make.log` (the ignored build directory), prints the last 40 lines plus an unmistakable verdict on failure, and exits with make's own status. A passing verdict names the SkoolKit that produced it and says **which** of two passing states it is:
+
+```
+GATE PASS, REBUILT [SkoolKit 10.1] — at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: build/make.log
+GATE PASS, NOTHING REBUILT [SkoolKit 10.1] — every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: build/make.log)
+```
+
+The gate asks make (`make -q`) whether any generated file is out of date *before* it builds, and reports that answer. It is a real distinction: `all` depends on the phony `test`, `lint` and `html`, whose recipes run every time, so a green `make` always means the `cmp` and the linters passed — but it does not by itself mean the `.skool`, the `.asm` or the `.bin` under them came from the sources as they stand now.
+
+**`REBUILT` says "at least one", and that is all `-q` can say.** It is one bit over the whole artifact set, not a per-file answer: delete `$(GAME).fixed.z80` alone and the verdict is `REBUILT` while only `bin2sna.py` ran, the `.skool` never regenerated and `skool2html.py` never executed. Read the log for which files actually rebuilt; the verdict only tells you the tree was not entirely current.
+
+**`NOTHING REBUILT` is the weaker claim, and the one to read twice.** It is a legitimate and common state — you ran the gate twice, or changed only a file no target depends on. But it says the round-trip was re-checked over artifacts an *earlier* run produced, and a corrupted incremental state survives it. Make deletes a target whose own recipe fails, so a red build leaves nothing behind — but a file written outside make still can: a redirect run by hand that dies mid-write leaves a zero-byte `.skool` newer than the `.ctl`, which make calls current and which everything downstream then agrees with. Before reporting a checkpoint green off a `NOTHING REBUILT`, make the build do the work — `make clean`, or remove the `.skool` so everything under it regenerates — and read the `REBUILT` verdict over a log that shows the whole chain running.
+
+Also read the version. A gate that passed under a SkoolKit other than the one `requirements.txt` pins proved something about a toolchain the project does not ship.
 
 Two traps make the eyeball check wrong:
 

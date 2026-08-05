@@ -9,7 +9,8 @@
 # Targets:
 #   make          The gate: round-trip cmp + .ctl linters + HTML build (validates
 #                 the .ref catalogs). Build the asm, snapshot, and site.
-#   make gate     The same gate, logged, ending in one PASS/FAIL verdict line
+#   make gate     The same gate, logged, ending in one verdict line that names
+#                 the SkoolKit it ran under and says whether anything rebuilt
 #   make coverage The "is it done?" gauge (documentation/naming/relocatability)
 #   make lint-identity        Gate: every entry titled, every sub-block named
 #   make lint-data-structure  Gate: every data entry tiles and declares its stride
@@ -25,10 +26,71 @@
 # gracefully: with no `.ref` files yet it is a basic site from the skool alone, and
 # it gains the catalog/reference pages as the `.ref` files appear. `make` is
 # incremental — run it while iterating; avoid `make clean && make`.
+#
+# The build refuses to start when any of its tools is missing from PATH, whether
+# or not the tree is up to date — see "The toolchain" below.
 
 # Locate the skill's scripts relative to this file: .../tools/disassembly.mk lives
 # beside .../scripts, so the project never has to point at them.
 SCRIPTS := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../scripts)
+
+# --- The toolchain -----------------------------------------------------------
+#
+# The build runs its tools from PATH.
+TAP2SNA    := tap2sna.py
+SNA2SKOOL  := sna2skool.py
+SKOOL2ASM  := skool2asm.py
+SKOOL2HTML := skool2html.py
+BIN2SNA    := bin2sna.py
+BIN2TAP    := bin2tap.py
+PASMO      := pasmo
+
+# The executables each stage of the build shells out to.
+TOOLS_SNAPSHOT := tap2sna.py
+TOOLS_SKOOL    := $(TOOLS_SNAPSHOT) sna2skool.py
+TOOLS_ASM      := $(TOOLS_SKOOL) skool2asm.py
+TOOLS_BIN      := $(TOOLS_ASM) pasmo
+
+# What each goal can reach, so a goal is held to the tools it actually invokes.
+# `coverage` and the .ctl linters run on SkoolKit alone and build on a machine
+# with no assembler at all; `bin2tap.py` belongs to `tap` and to nothing else.
+TOOLS_all                 := $(TOOLS_BIN) bin2sna.py skool2html.py
+TOOLS_test                := $(TOOLS_BIN)
+TOOLS_tap                 := $(TOOLS_BIN) bin2tap.py
+TOOLS_verify-frag         := $(TOOLS_BIN)
+TOOLS_html                := $(TOOLS_SKOOL) skool2html.py
+TOOLS_coverage            := $(TOOLS_SKOOL)
+TOOLS_lint-comments       := $(TOOLS_SKOOL)
+TOOLS_lint                := $(TOOLS_SNAPSHOT)
+TOOLS_lint-data-structure := $(TOOLS_SNAPSHOT)
+TOOLS_lint-baseline       := $(TOOLS_SNAPSHOT)
+
+# Goals that shell out to no tool at all: `clean` deletes, the .ctl-only linters
+# read one text file, and `gate` re-enters make for the build — the sub-make is
+# preflighted and the gate turns its failure into the verdict line. A goal named
+# neither here nor above — a file target, or one a project added — is held to the
+# default build's set.
+TOOLS_FREE_GOALS := clean gate lint-address-order lint-instruction-order \
+                    lint-lengths lint-label-length lint-identity \
+                    lint-array-elements
+
+# Preflight. An absent toolchain is not a state in which "every target is up to
+# date" carries any meaning: with nothing installed and nothing stale, make runs
+# no recipe, invokes no missing tool, and exits 0 — and that 0 reads as
+# proof of a round-trip that never ran. So the check happens while the makefile is
+# read: before make compares a single timestamp, and out of reach of whatever `-j`
+# does to recipe order.
+TOOLCHAIN_GOALS := $(if $(MAKECMDGOALS),$(MAKECMDGOALS),all)
+REQUIRED_TOOLS := $(sort $(foreach g,$(filter-out $(TOOLS_FREE_GOALS),$(TOOLCHAIN_GOALS)),\
+    $(if $(TOOLS_$(g)),$(TOOLS_$(g)),$(TOOLS_all))))
+ifneq ($(REQUIRED_TOOLS),)
+MISSING_TOOLS := $(strip $(foreach t,$(REQUIRED_TOOLS),\
+    $(if $(shell command -v '$(t)' 2>/dev/null),,$(t))))
+ifneq ($(MISSING_TOOLS),)
+$(error toolchain incomplete — not executable on PATH: $(MISSING_TOOLS). \
+The SkoolKit tools come from the packages in requirements.txt)
+endif
+endif
 
 # Game floor: a raw operand at/above this address is the game's own and must be a
 # label (below is ROM/screen, fixed). Per-game; override in the game Makefile.
@@ -52,6 +114,15 @@ ASM_FIXED     = $(GAME).asm
 
 .PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-identity lint-data-structure lint-baseline lint-array-elements lint-comments coverage html
 
+# A recipe that redirects into its own target has already created that target by
+# the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
+# truncated .skool newer than the .ctl, which make then calls current and every
+# downstream target agrees with. Delete the target instead, so the next make
+# rebuilds it and a failure cannot be laundered into an up-to-date tree. Every
+# failing target that must survive here is phony, and `lint-baseline` writes
+# $(BASELINE), not $@.
+.DELETE_ON_ERROR:
+
 # Findings a project has accepted as its starting point, one per line. The gating
 # checks below hold this line: a finding it does not list fails the build, and a
 # line it lists that the check no longer reports fails the build too, so a fix
@@ -71,14 +142,31 @@ all: $(ASM_FIXED) $(Z80_FIXED) test lint html
 # build by that status — never by what the output looks like.
 GATE_LOG = build/make.log
 
+# The generated files the gate would rebuild. `all` also depends on the phony
+# `test`, `lint` and `html`, whose recipes run on every invocation, so asking make
+# whether `all` is current always answers "no". Asking about these answers the
+# question the verdict has to distinguish: did this build regenerate anything, or
+# did it find every file current and only re-run the phony checks over them?
+#
+# That is the whole of what `-q` knows — one bit, over the set as a whole. It does
+# not say which of them rebuilt, so REBUILT claims no more than "at least one",
+# and the log is where a reader finds out which. Deleting one leaf artifact
+# rebuilds that leaf and nothing else, and REBUILT covers that case too.
+GATE_ARTIFACTS = $(Z80_PRISTINE) $(BIN_PRISTINE) $(SKOOL) $(ASM_NON_FIXED) \
+                 $(BIN_NON_FIXED) $(ASM_FIXED) $(BIN_FIXED) $(Z80_FIXED) html/.stamp
+
 gate:
 	@mkdir -p $(dir $(GATE_LOG))
-	@$(MAKE) --no-print-directory all > $(GATE_LOG) 2>&1; s=$$?; \
-	  if [ $$s -eq 0 ]; then \
-	    echo "GATE PASS — round-trip, linters and HTML green (log: $(GATE_LOG))"; \
-	  else \
+	@$(MAKE) --no-print-directory -q $(GATE_ARTIFACTS) >/dev/null 2>&1; q=$$?; \
+	  $(MAKE) --no-print-directory all > $(GATE_LOG) 2>&1; s=$$?; \
+	  v=$$($(SNA2SKOOL) --version 2>/dev/null); \
+	  if [ $$s -ne 0 ]; then \
 	    tail -40 $(GATE_LOG); \
 	    echo; echo "GATE FAIL (make exit $$s) — full log: $(GATE_LOG)"; \
+	  elif [ $$q -eq 0 ]; then \
+	    echo "GATE PASS, NOTHING REBUILT [$${v:-SkoolKit version unknown}] — every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: $(GATE_LOG))"; \
+	  else \
+	    echo "GATE PASS, REBUILT [$${v:-SkoolKit version unknown}] — at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: $(GATE_LOG)"; \
 	  fi; exit $$s
 
 # Round-trip a parallel Worker's range-fragment in isolation (splice into a
@@ -91,7 +179,7 @@ verify-frag: $(Z80_PRISTINE) $(BIN_PRISTINE)
 
 # Download and convert the original tape to the pristine snapshot.
 $(Z80_PRISTINE): $(T2S)
-	tap2sna.py @$(T2S) --reg pc=$(PC) --reg sp=$(SP) $(Z80_PRISTINE)
+	$(TAP2SNA) @$(T2S) --reg pc=$(PC) --reg sp=$(SP) $(Z80_PRISTINE)
 
 # Extract the program bytes from the pristine snapshot (the ground truth).
 $(BIN_PRISTINE): $(Z80_PRISTINE)
@@ -99,7 +187,7 @@ $(BIN_PRISTINE): $(Z80_PRISTINE)
 
 # Disassemble the snapshot into skool, applying the control file.
 $(SKOOL): $(Z80_PRISTINE) $(CTL)
-	sna2skool.py --hex $(Z80_PRISTINE) --ctl $(CTL) > $@
+	$(SNA2SKOOL) --hex $(Z80_PRISTINE) --ctl $(CTL) > $@
 
 # The round-trip: reassembled non-fixed bytes must equal the pristine bytes.
 test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
@@ -210,13 +298,20 @@ coverage: $(SKOOL)
 	$(SCRIPTS)/coverage_report.py $(SKOOL) --reloc-floor $(RELOC_FLOOR)   # auto-discovers the .ctl and every *.ref
 
 # Non-fixed source: must already match the original (no @ofix applied).
+#
+# The build treats a skool2asm WARNING as fatal, so its stderr is captured and
+# grepped — but an error is not a warning (`ERROR: … file not found`, rc=1), so
+# the grep alone lets a failed run's partial stdout reach $@ under a green recipe.
+# The exit status decides first; the grep only adds the warnings on top of it.
+# Nothing moves onto $@ until both say the run was clean.
 $(ASM_NON_FIXED): $(SKOOL)
-	@skool2asm.py --create-labels $(SKOOL) > $@.tmp 2> $@.stderr; \
-	if grep -q WARNING $@.stderr; then cat $@.stderr >&2; rm -f $@.tmp $@.stderr; exit 1; \
-	else rm -f $@.stderr; mv $@.tmp $@; fi
+	@$(SKOOL2ASM) --create-labels $(SKOOL) > $@.tmp 2> $@.stderr; rc=$$?; \
+	if grep -q WARNING $@.stderr; then rc=1; fi; \
+	if [ $$rc -ne 0 ]; then cat $@.stderr >&2; rm -f $@.tmp $@.stderr; exit $$rc; fi; \
+	rm -f $@.stderr; mv $@.tmp $@
 
 $(BIN_NON_FIXED): $(ASM_NON_FIXED)
-	pasmo --bin $(ASM_NON_FIXED) $@
+	$(PASMO) --bin $(ASM_NON_FIXED) $@
 
 # Fixed source: applies @isub/@ofix directives. The fixed asm renders relocatably
 # by default — `-s` puts every in-image operand through its @ssub/@equ form and
@@ -227,15 +322,16 @@ $(BIN_NON_FIXED): $(ASM_NON_FIXED)
 # its Makefile, then removes that line to restore the standard gate.
 ASM_FIXED_FLAGS ?= -s
 $(ASM_FIXED): $(SKOOL)
-	@skool2asm.py --create-labels -f 1 $(ASM_FIXED_FLAGS) $(SKOOL) > $@.tmp 2> $@.stderr; \
-	if grep -q WARNING $@.stderr; then cat $@.stderr >&2; rm -f $@.tmp $@.stderr; exit 1; \
-	else rm -f $@.stderr; mv $@.tmp $@; fi
+	@$(SKOOL2ASM) --create-labels -f 1 $(ASM_FIXED_FLAGS) $(SKOOL) > $@.tmp 2> $@.stderr; rc=$$?; \
+	if grep -q WARNING $@.stderr; then rc=1; fi; \
+	if [ $$rc -ne 0 ]; then cat $@.stderr >&2; rm -f $@.tmp $@.stderr; exit $$rc; fi; \
+	rm -f $@.stderr; mv $@.tmp $@
 
 $(BIN_FIXED): $(ASM_FIXED)
-	pasmo --bin $< $@
+	$(PASMO) --bin $< $@
 
 $(Z80_FIXED): $(BIN_FIXED)
-	bin2sna.py --border 0 --org $(ORG) --start $(PC) --stack $(SP) $< $@
+	$(BIN2SNA) --border 0 --org $(ORG) --start $(PC) --stack $(SP) $< $@
 
 # The documented source as a runnable deliverable: wrap the fixed program image
 # into a tape anyone can load. Kept out of `all` — it is a shipping artifact,
@@ -245,7 +341,7 @@ TAP_FIXED = $(GAME).fixed.tap
 tap: $(TAP_FIXED)
 
 $(TAP_FIXED): $(BIN_FIXED)
-	bin2tap.py --org $(ORG) --start $(PC) --stack $(SP) $< $@
+	$(BIN2TAP) --org $(ORG) --start $(PC) --stack $(SP) $< $@
 
 # Every site ships the skill's default theme: dark responsive layout,
 # JetBrains Mono listing, Z80 syntax highlighting, comment-group hover, and a
@@ -259,7 +355,7 @@ THEME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../assets)
 html: html/.stamp
 
 html/.stamp: $(SKOOL) $(wildcard *.ref) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js
-	skool2html.py -d html -H -a --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
+	$(SKOOL2HTML) -d html -H -a --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
 	touch $@
 
 clean:
