@@ -43,7 +43,7 @@ Checkpoint commit = confirmed claims + honestly-hedged provisional ones
 
 The consequence: the disassembly is **never sloppy**. Everything committed is verified or explicitly flagged unverified; everything unknown is a queued task, not a silent guess and not a reason to stall. "Commit what you know, file a task for the rest" is the whole discipline, made mechanical.
 
-The Manager owns the dig-task queue, kept wherever the user tracks work. It is also the Manager's steering surface at a checkpoint.
+The Manager owns the dig-task queue, kept wherever the user tracks work — a Worker or Challenger hands back its unknowns and the Manager records them (see "The dig-task queue" in `roles/manager.md`). It is also the Manager's steering surface at a checkpoint.
 
 ## The Manager loop
 
@@ -105,6 +105,24 @@ Three rules make the merge clean. Without them, Workers contend on the variable 
 ### Serial — for a coupled *region*, not the whole file
 
 When a *specific region* is tightly coupled — a shared variable block, a couple of routines whose boundaries depend on each other — give **that region** one Worker that edits the real `.ctl` directly (no fragment, no splice). But this is a small serial island, **not** a serialization of the code lane: it runs *concurrently* with parallel range-fragment Workers on all the other disjoint routines, which are almost always the bulk of the program. A full game has one shared variable block and dozens of mutually-independent routines (HUD, high-score, front-end, sound, collision, each enemy handler) — the coupled island is one lane-internal Worker among many parallel ones, never a reason to stop fanning the rest out. Reach for fully-serial-everything only on a tiny program where almost everything interlocks.
+
+## The reader pass
+
+Every other check reads a *claim*: the Challenger verifies one annotation, the linter matches one pattern, `make coverage` counts. None of them reads the deliverable the way its audience does — start to finish, as a person. The reader pass is that read, over the **built HTML** and the `.ref` pages behind it, and it is the only check that catches:
+
+- typos and broken sentences;
+- **link duplication** — `name (name)`, where a `#R` renders the label already written beside it;
+- **fossil identifiers** — an old label or an auto-generated name still standing in the prose after the rename that replaced it;
+- **metronome prose** — one template stamped per sibling, identical in rhythm all the way down a family of blocks and invisible while you read one block at a time;
+- a table that transcribes the data block beside it instead of adding to it;
+- **register and altitude** defects — investigation vocabulary on a reader-facing page, a header pitched at the wrong level, a fact with two homes, a data block left unindexed.
+
+Run it twice over a project's life:
+
+- **at pickup**, over the built site, to inventory the qualitative gaps the gauge cannot see — that is the second instrument of the gap ledger in `roles/manager.md`;
+- **before any milestone or "done" claim.** A project is not at the bar until someone has read it as a reader.
+
+Findings are recorded as dig-tasks and worked through the normal loop, like any other unknown. The Challenger runs the same read at fragment scale for a prose-heavy target ("Read the rendered page" in `roles/challenger.md`); the Manager's pass is the whole-site one.
 
 ## Durable artifacts
 

@@ -25,7 +25,9 @@ python3 scripts/extract_bytes.py {game}.pristine.z80 {ORG} {SIZE} {game}.pristin
 
 Then `cmp {game}.pristine.bin {game}.bin` must print nothing. Any difference is a real defect — chase it before documenting further, because every comment past it describes bytes that may be wrong.
 
-This `cmp` is the **checkpoint gate** (see the working-discipline section in `SKILL.md`). A unit of work is finished only when `make` is green: the `cmp` is silent, the linters pass, and there are no warnings. Run it after every small increment, not once at the end. A green build is the thing you can hand back at any moment for the user to build, boot, and steer — so reaching one frequently is the point, not an afterthought.
+**`make` is the gate — the single one.** A unit of work is green only when the full **`make`** (the default `all` target) passes. `make` drives every check: the round-trip `cmp`, the `.ctl` linters, *and* the HTML build — and `skool2html` is the only step that reads the `.ref` catalogs and validates their content (the `#R` cross-references and the image/audio macros). It is not slow, so there is no separate "verify" target to run instead; a green `make` is the thing you can hand back at any moment for the user to build, boot, and steer. Run it after every small increment, and never report "green" or commit a checkpoint without it — a dangling `#R` in `sound.ref` or a malformed macro in `graphics.ref` only shows up in `make`, not in the round-trip alone.
+
+(`make verify-frag` is the one narrower check, because it serves a need `make` cannot: it round-trips a single Worker's fragment in an isolated temp dir, safe to run alongside other Workers in a parallel fan-out. It is a pre-check before a Worker reports; the Manager still proves the integrated result with `make`.)
 
 ### What the round-trip does NOT prove
 
@@ -59,9 +61,9 @@ endif
 include $(MK)
 ```
 
-The framework locates the skill's `scripts/` relative to itself, so the project never points at them. `make` is incremental — run plain `make` while iterating, not `make clean && make`. The first run downloads and converts the tape (slow); after that only what you changed rebuilds. `make` runs the round-trip, the linters and the HTML build; `make clean` removes every generated file (`.skool`, `.asm`, `.bin`, `.z80`, `html`).
+The framework locates the skill's `scripts/` relative to itself, so the project never points at them. `make` is incremental — run plain `make` while iterating, not `make clean && make`. The first run downloads and converts the tape (slow); after that only what you changed rebuilds. Plain `make` runs the round-trip, the linters, and the HTML build — the whole gate; `make clean` removes every generated file (`.skool`, `.asm`, `.bin`, `.z80`, `html`).
 
-HTML is part of the default `all` target, so a green `make` means the site built too. `make html` builds the site alone.
+The default `make` builds the HTML site too, so one command produces the whole deliverable. It degrades gracefully: with no `.ref` files yet it is a basic site from the skool alone, gaining the catalog/reference pages as the `.ref` files appear.
 
 ### Reading the gate's result
 
@@ -171,7 +173,7 @@ Treat a warning as a failed build. A clean `make` with a silent `cmp` is the onl
 
 **Fix or name a warning; do not blanket-suppress it.** When a `skool2asm` warning is a genuine false positive — a deliberate reference SkoolKit cannot resolve, an intentional unlabeled access — silence *that one line* with an **`@nowarn`** directive in the `.ctl`, with a comment saying why. A whole game warrants only a handful of `@nowarn`s. It is the escape hatch, not the default: prefer fixing the map or adding the missing label.
 
-`pasmo` reports a second class — **`WARNING: Var Lxxxx is never used`** — when an auto-label (`L####`, minted by `--create-labels` for a block the `.ctl` never named) is defined but unreferenced. `@nowarn` does *not* touch these (it is a `skool2asm` directive; `pasmo` never sees it). These do **not** fail the build: an `L####` is an unnamed block, and you cannot name a block before you have disassembled it, so early on the map is full of them. Naming is **progressive** — `make coverage` reports it as a percentage, and **100% is a done-criterion, not a per-commit gate**. Name each block as you derive it; reach 0 auto-labels before claiming the work mature. Name an unreferenced block `data_unused_<addr>`; a *named* unused symbol still draws a `pasmo` "never used" note, and that is fine; the gauge counts only the `L####` kind.
+`pasmo` reports a second class — **`WARNING: Var Lxxxx is never used`** — when an auto-label (`L####`, minted by `--create-labels` for a block the `.ctl` never named) is defined but unreferenced. `@nowarn` does *not* touch these (it is a `skool2asm` directive; `pasmo` never sees it). These do **not** fail the build: an `L####` is an unnamed block, and you cannot name a block before you have disassembled it, so early on the map is full of them. Naming is **progressive** — `make coverage` reports it as a percentage (`NAMING: 94% of labels named, 59 auto-labels remain`), and **100% is a done-criterion, not a per-commit gate**. Name each block as you derive it; reach 0 auto-labels before claiming the work mature. Name an unreferenced block `data_unused_<addr>`; a *named* unused symbol still draws a `pasmo` "never used" note, and that is fine; the gauge counts only the `L####` kind.
 
 ## Relocatability: a green build does not prove it
 
@@ -183,6 +185,18 @@ Policy — label the program's own code and data, keep fixed hardware absolute:
 
 - **Label** the program's body and its own data, including a variable block that lives in repurposed RAM. The label also names the runtime state for a reader or an agent-trainer, so it doubles as documentation. For a game that takes the machine from a floor (e.g. `$5B00`) up, **not one** absolute reference may point at or above that floor.
 - **Keep absolute** genuinely fixed hardware addresses *below* the floor — the ROM (`$0000-$3FFF`) and the screen and attributes (`$4000-$5AFF`). These do not move with the program, so naming them adds nothing.
+
+### References that don't land on a boundary — the `LBL+1` technique
+
+Splitting a block works when the target byte *can* become a line-start. Some cannot: a reference into the **operand of an instruction** — self-modifying code that patches a `CALL`/`LD` operand, or an overlapping-instruction trick where a jump lands on the second byte of the previous instruction. You cannot put a label mid-instruction, and `--create-labels` leaves the operand raw. Sort each raw operand into one of three fixes:
+
+- **A data-block field** → split the block and give the field its own exact-address label. Resolves in the default build, no offset needed.
+- **Working RAM above the program image** (buffers the game never ships) → an `@equ` constant, referenced as `base+offset`.
+- **Mid-instruction in code** (SMC, overlapping instructions) → the **`LBL+1`** technique: label the *instruction's* line-start, then rewrite the raw operand to `label+offset` with an **`@ssub`** directive — SkoolKit does **not** emit it automatically. For a `CALL $0000` at `enemy_handler_call` whose operand the code patches:
+
+      @ssub=LD (enemy_handler_call+1),A
+
+  renders `LD (enemy_handler_call+1),A`, now relocatable. `@ssub` is a *safe substitution* — byte-identical by SkoolKit's definition — so it reassembles to the exact original bytes.
 
 **`@ssub` only renders under `skool2asm -s`.** The default `--create-labels` build ignores it, so the operand still reads raw in the deliverable `.asm` the gauge sees. `-s` (ssub mode) is also a **strict static relocatability gate**: it fails on *every* unresolved in-image address. The framework builds the fixed asm with `-s` **by default** (`ASM_FIXED_FLAGS ?= -s`), so the relocatability gate is the standard, not a per-project opt-in. But it fails while the map is still raw, so a project in the breadth/labeling sweep opts **out** — sets `ASM_FIXED_FLAGS =` (empty) in its Makefile — and runs the whole sweep (data splits, `@equ`, `@ssub`) under the default build first. When no raw in-image reference remains, it removes that line to restore the standard `-s` gate. (`-s` checks instruction operands; an absolute pointer baked in a *data table* still slips past it — see the dynamic check below.)
 

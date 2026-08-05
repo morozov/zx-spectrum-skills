@@ -19,6 +19,15 @@ Reports, from the generated .skool (plus the .ctl and .ref files when given):
   - AUDIO          #AUDIO count; a game with sound and zero #AUDIO is undocumented.
   - DATA TABLES    #TABLE count (the bar lays bitfields/tables out as #TABLE).
   - PLACEHOLDERS   @label values that name nothing (work_b, helper_8e3a, L5B50).
+  - PROSE          the lint_comments counts, over the .skool and over the .ref
+                   catalogs and spec/*.md beside it. RET_GROUP / SELFLINK /
+                   DIARY / OPERAND_ECHO / ELLIPSIS are precise detections of
+                   always-wrong patterns, so they gate the verdict; OPEN gates it
+                   too, for the opposite reason — the marker is right where it
+                   stands, and it says the claim under it is not derived yet.
+                   STAMP / RET / RESTATE are advisory (a formula can be
+                   legitimate). This is how a project built under older
+                   requirements surfaces its gap to the current bar.
 
 Exit 0 always — this is a yardstick the Manager and Challenger read, not a gate
 that fails the build.
@@ -28,13 +37,6 @@ content is found by section type wherever it lives, under any filename), so just
 point it at the skool. `--ctl`/`--ref` override the discovery.
 
 Usage: coverage_report.py <file.skool> [--ctl FILE] [--ref FILE ...] [--min-density 0.35]
-  - PROSE          the lint_comments counts, over the .skool and over the .ref
-                   catalogs and spec/*.md beside it. RET_GROUP / SELFLINK /
-                   DIARY / OPERAND_ECHO / ELLIPSIS are precise detections of
-                   always-wrong patterns, so they gate the verdict; STAMP / RET /
-                   RESTATE are advisory (a formula can be legitimate). This is
-                   how a project built under older requirements surfaces its gap
-                   to the current bar.
 """
 
 import argparse
@@ -182,6 +184,10 @@ def main():
     op_echo = prose.get('OPERAND_ECHO', 0)
     ellipsis = prose.get('ELLIPSIS', 0)
     stamp = prose.get('STAMP', 0)
+    # A typed uncertainty marker is legitimate text and unfinished work at the
+    # same time: it says a claim is not derived yet, so it holds the project
+    # short of the bar until the dig-task behind it lands.
+    open_markers = prose.get('OPEN', 0)
     prose_hard = ret_group + selflink + diary + op_echo + ellipsis
 
     # The honest unit is the routine, not the averaged line. A routine's body is
@@ -214,13 +220,15 @@ def main():
     ref_text = ''.join(read(r) for r in refs)
     blob = ctl_text + ref_text
     # Graphics belong inline in the .ctl — each sprite/frame rendered at its own
-    # data block, so reading the disassembly there *shows* it — with the .ref as a
-    # second, catalog copy. A project whose sprites live only in the .ref renders
+    # data block, so reading the disassembly there *shows* it — with the .ref as
+    # the index over them. A project whose sprites live only in the .ref renders
     # 0 inline. Count each home apart.
     GFX = r'#UDGARRAY|#UDG\b|#UDGTABLE|#FONT|#SCR|#FRAMES'
     inline_gfx = len(re.findall(GFX, ctl_text))
     catalog_gfx = len(re.findall(GFX, ref_text))
     audio = blob.count('#AUDIO')
+    # Audio follows the same source-of-truth rule as graphics: the #AUDIO belongs
+    # inline at the block that owns the sound, with sound.ref as the index over it.
     inline_audio = ctl_text.count('#AUDIO')
     tables = blob.count('#TABLE')
     audio_sections = blob.count('[Audio:')
@@ -233,29 +241,48 @@ def main():
     admissions = len(re.findall(
         r'not yet|to be (?:named|identified)|\bTODO\b|unnamed|as identified|provisional',
         blob, re.I))
+    # Unindexed arrays: a single B/W run spanning many records inside a block with
+    # no commented element sub-lines and no inline render is an opaque blob — a
+    # reader must count bytes to find record N. Advisory (a uniform blob can be
+    # legitimate); blocks whose content is rendered by an image macro are exempt.
+    unindexed = []
+    RUN_RE = re.compile(r'^([BW]) \$?[0-9A-Fa-f]+,(\d+),(\d+)\s*$')
+    ELEM_RE = re.compile(r'^  \$[0-9A-Fa-f]+,[0-9:,*bcdhn]+ +\S')
+    LABEL_LINE_RE = re.compile(r'^@ \$?[0-9A-Fa-f]+ label=(\S+)')
+    cur_name, pend_name = None, None
+    cur_max_records, cur_elem_comments, cur_has_macro = 0, 0, False
+
+    def flush_block():
+        if cur_name and cur_max_records >= 10 and not cur_elem_comments and not cur_has_macro:
+            unindexed.append((cur_name, cur_max_records))
+
+    for ln in ctl_text.splitlines():
+        lm = LABEL_LINE_RE.match(ln)
+        if lm:
+            pend_name = lm.group(1)
+            continue
+        if re.match(r'^[bcgistuwz] \$', ln):
+            flush_block()
+            cur_name = pend_name or ln.split()[1]
+            pend_name = None
+            cur_max_records, cur_elem_comments, cur_has_macro = 0, 0, False
+            continue
+        if not cur_name:
+            continue
+        rm = RUN_RE.match(ln)
+        if rm and int(rm.group(3)):
+            cur_max_records = max(cur_max_records, int(rm.group(2)) // int(rm.group(3)))
+        if ELEM_RE.match(ln):
+            cur_elem_comments += 1
+        if re.search(GFX, ln):
+            cur_has_macro = True
+    flush_block()
+
     # Sound footprint: the ULA speaker ($FE) and the AY-3 sound chip ($FFFD/$BFFD,
     # used for tunes). If there is sound code and no #AUDIO, the audio is undocumented
     # — and a tune (AY) is easy to miss after the beeper effects are done.
     skool_text = open(args.skool, encoding='utf-8', errors='ignore').read()
     sound = len(re.findall(r'OUT\s*\(\$(FE|FFFD|BFFD)', skool_text))
-
-
-    # Arrays of >=10 same-size records declared as one undifferentiated span
-    # (B $addr,len,stride with no per-record sub-lines) — advisory.
-    unindexed = []
-    last_label = None
-    for ln in ctl_text.splitlines():
-        lm = re.match(r'@ \$[0-9A-Fa-f]{4} label=(\w+)', ln)
-        if lm:
-            last_label = lm.group(1)
-            continue
-        bm = re.match(r'B \$([0-9A-Fa-f]{4}),(\d+),(\d+)\s*$', ln)
-        if bm:
-            length, stride = int(bm.group(2)), int(bm.group(3))
-            if stride and length // stride >= 10:
-                unindexed.append((last_label or f'${bm.group(1)}', length // stride))
-        if ln[:1] in 'bcgistuwz' and ln[1:2] == ' ':
-            last_label = None
 
     # Relocatability and naming, read from the generated .asm (post --create-labels):
     # an `L####:` auto-label is a block SkoolKit had to name because the .ctl did not
@@ -301,8 +328,11 @@ def main():
     print(f"  AUDIO        : {audio} #AUDIO in {audio_sections} [Audio:] section(s);"
           f" {sound} speaker/AY write(s) in code"
           + ("  — sound code present, none rendered" if sound and audio == 0 else ""))
+    print(f"  INLINE AUDIO : {inline_audio} #AUDIO rendered in the .ctl"
+          + ("  — all audio lives only in the .ref index; render each at its"
+             " owning block" if audio and inline_audio == 0 else ""))
     print(f"  DATA TABLES  : {tables} #TABLE{'  — none documented' if tables == 0 else ''}")
-    print(f"  NAMING       : {named_pct:.0f}% of labels named;"
+    print(f"  NAMING       : {named_pct:.0f}% of labels named ({total_labels - auto_labels}/{total_labels});"
           f" {auto_labels} auto-label(s) (L####) remain — reach 100% before done")
     print(f"  RELOCATABLE  : {raw_ops} raw operand(s) into the game region (>= ${floor:04X})"
           + ("  — must be labels; the bar is ~0." if raw_ops else "")
@@ -315,8 +345,8 @@ def main():
     print(f"  PLACEHOLDERS : {len(placeholders)} placeholder labels"
           + (f" (e.g. {', '.join(sorted(set(placeholders))[:5])})" if placeholders else ""))
     print(f"  PROSE        : {ret_group} RET_GROUP, {selflink} SELFLINK, {diary} DIARY,"
-          f" {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS"
-          f" (gate the verdict); {stamp} STAMP (advisory)"
+          f" {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS,"
+          f" {open_markers} OPEN (gate the verdict); {stamp} STAMP (advisory)"
           + ("  — run `make lint-comments` for the line-level list" if prose else ""))
     print(f"  ARRAYS       : {len(unindexed)} unindexed array run(s) of >=10 records"
           + (" — " + ", ".join(f"{n} ({r} records)" for n, r in unindexed[:4])
@@ -344,12 +374,14 @@ def main():
 
     # NOT done if most routines are unexplained, sound is unrendered or lives
     # only in the .ref index, the catalog is auto-labeled, the generated .asm
-    # still has L#### auto-labels (unnamed blocks), or the prose carries
+    # still has L#### auto-labels (unnamed blocks), the prose carries
     # always-wrong patterns (a RET swallowed by a comment group, a name(name)
-    # self-link, investigation vocabulary in the deliverable).
+    # self-link, investigation vocabulary in the deliverable), or a typed
+    # uncertainty marker still stands — the marker is the project saying so.
     far = (doc_frac < 0.60 or (sound and audio == 0) or auto_ids > 0
            or auto_labels > 0 or (catalog_gfx and not inline_gfx)
-           or (audio and inline_audio == 0) or prose_hard > 0)
+           or (audio and inline_audio == 0) or prose_hard > 0
+           or open_markers > 0)
     print()
     if far:
         reasons = []
@@ -368,6 +400,9 @@ def main():
         if prose_hard:
             reasons.append(f"prose not at the bar ({ret_group} RET_GROUP, {selflink} SELFLINK,"
                            f" {diary} DIARY, {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS)")
+        if open_markers:
+            reasons.append(f"{open_markers} typed uncertainty marker(s) still standing "
+                           "— each is an underived claim with a dig-task owed")
         print("VERDICT: NOT at the bar — " + "; ".join(reasons)
               + ". Do not call it mature/done; this is the upgrade backlog.")
     else:

@@ -2,6 +2,8 @@
 
 The `.ctl` is the only file you hand-edit. It is a list of directives, each tied to an address, that tells `sna2skool` how to interpret the snapshot: where code and data live, what to name things, what to substitute, and what to say about it. `sna2skool` weaves the `.ctl` over the snapshot to produce the `.skool`.
 
+The `.skool` and `.asm` are **generated and overwritten on every `make`**; an edit to either is silently lost. The project's `AGENTS.md` opens with this file contract so a cold agent sees it — keep that line intact.
+
 The `.skool` is your feedback loop. Rebuild it after every `.ctl` change and read it to confirm instruction boundaries, byte lengths, and that no `overlapping instruction` warning appeared. Use the `.skool` — not the `.ctl` — to find the exact address and length of an instruction you want to comment.
 
 ## Addresses are hex, always
@@ -66,6 +68,8 @@ N $ADDRESS Narrative: the algorithm, step by step. Use a lone dot for a paragrap
 `@ label=` names the address; SkoolKit resolves every reference to it automatically, so you never hand-write the address in a comment again. Name for *purpose* (`spawn_enemy`, `player_energy`), not mechanism (`loop_routine_3`).
 
 The first name is rarely the final one. As you understand a routine better, a truer name appears — rename it. This is cheap precisely because references resolve through the label: change the `@ label=` line and every `#R` pointer and operand follows. Do not agonize over a perfect name on first contact; give it your best current understanding and refine as the picture fills in.
+
+**Keep a label to 24 characters or fewer.** Labels never wrap in the HTML listing — they are code identifiers — so the label column sizes to the longest label on its page. One over-long internal label opens a wide empty gutter across every row of that page. The cap is a build gate (`lint-label-length`), and the fix for a violation is always to *rename* the label, never to widen or clip the column in CSS. When a `verb_noun_qualifier` name runs long, shorten a word (`controls` → `ctrl`, `quadrant` → `quad`) across the whole family so the naming stays coherent.
 
 A routine has more than one named address. Every internal branch target the disassembler splits out — loop tops, per-case branches, shared tails — is an entry point, and the auto-generated `<routine>_0`, `<routine>_1`, … labels are as opaque as raw hex. A reader following `JR NZ,parse_3` learns nothing. Name each for what that branch *does* (`parse_loop`, `parse_done`, `read_kempston`) as part of documenting the routine, so the control flow reads in words. A referenced data sub-block — a table the code indexes — is an entry point too and earns a name.
 

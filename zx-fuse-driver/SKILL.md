@@ -92,15 +92,14 @@ This is the only practical way to watch a value evolve across breakpoint hits (`
 
 **Prefer headless.** Default to `scripts/fuse_drive.py gdbserver` (see "Headless (no GUI)" below): it opens no window, steals no focus, needs no display, and runs cleanly in CI or in parallel — the least disruptive choice, and the right one for almost all debugging. The GUI `.app` is the option for when a *human* needs to watch the game on screen while you work — reach for it only then. The two modes are driven identically; only the launch target differs.
 
-The GUI launch, for when eyes on the screen are needed:
-
 ```bash
-FUSEX=~/Applications/FuseX.app/Contents/MacOS/FuseX
-"$FUSEX" --gdbserver-enable --gdbserver-port=1337 \
-  --tape=/abs/path/program.tzx --auto-load >/tmp/fusex.log 2>&1 &
+python3 scripts/fuse_drive.py gdbserver 1337 \
+  --tape=/abs/path/program.tzx --auto-load >/tmp/fuse.log 2>&1 &
 FPID=$!                                # track this instance; clean up with kill "$FPID"
 nc -z 127.0.0.1 1337 && echo ready     # port up = ready to connect
 ```
+
+The macOS GUI `.app` (`FuseX.app/Contents/MacOS/FuseX`) takes the identical FuseX flags, with `--gdbserver-enable --gdbserver-port=1337` in place of the `gdbserver 1337` arguments, but opens a visible window — human-watching only, never an autonomous run.
 
 Three things that bite (full detail in `references/protocol.md`):
 

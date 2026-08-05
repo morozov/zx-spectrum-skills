@@ -25,6 +25,9 @@ ones a reviewer would otherwise flag by hand:
                    thought spanning rows is a '{ }' comment group, not chained
                    fragments
   - REFPOINTER     a comment pointing the reader at a `.ref` index file
+  - OPEN           a typed uncertainty marker ("(unverified)", "TODO:") — the one
+                   legitimate way to leave a doubt in the text, and a standing
+                   statement that the work is not finished
   - STAMP          the same >=8-word phrase (addresses normalized) in 3+ block
                    comments — family text stamped per sibling instead of written
                    once at the family head
@@ -93,6 +96,14 @@ DIARY_RE = re.compile(
     r'(verified|confirmed|observed|measured|reproduced|replayed|watched)'
     r'\s+(live|in play))\b'
 )
+
+# Typed uncertainty, pointed at the exact claim: the sanctioned form, so it is
+# not a DIARY hit — but it is counted and reported, because a marker in the text
+# is unfinished work, and the coverage gauge holds a project short of the bar
+# while one stands. A trailing '?' says the same thing and is not detectable: in
+# a real .skool most comments ending in '?' are the condition a test reads
+# ("Up held?"), so the Challenger counts those, not this script.
+OPEN_MARKER_RE = re.compile(r'(?i)[*_]{0,2}\(unverified\)[*_]{0,2}|\bTODO:')
 
 # The subset of DIARY hits that cite a run rather than hedge a claim; they get
 # their own message, because the repair is different — re-derive, don't retype.
@@ -234,6 +245,11 @@ def find_stamps(units):
     return results
 
 
+OPEN_DETAIL = ("typed uncertainty ('{}') — the right way to leave a doubt in the "
+               'text, and a claim that the work is unfinished: it needs an open '
+               'dig-task, and no page carrying one is done')
+
+
 def diary_detail(hit):
     """The DIARY message, sharpened for a runtime citation."""
     if RUNTIME_HIT_RE.fullmatch(hit):
@@ -241,7 +257,8 @@ def diary_detail(hit):
                 'got the evidence, not what supports the claim: re-derive the '
                 'fact from the code and state it flat, or drop it')
     return (f"investigation vocabulary ('{hit}') — state the game fact flat; "
-            "type real uncertainty (trailing '?', TODO:) or file a dig-task")
+            "type real uncertainty at the claim (trailing '?', '(unverified)', "
+            "TODO:) or file a dig-task")
 
 
 def scan_prose(path):
@@ -251,9 +268,13 @@ def scan_prose(path):
     violations = []
     with open(path, 'r', encoding='utf-8') as f:
         for lineno, raw in enumerate(f, 1):
-            dm = DIARY_RE.search(raw)
+            text = raw.strip()[:120]
+            for om in OPEN_MARKER_RE.finditer(raw):
+                violations.append((lineno, 'OPEN', text,
+                                   OPEN_DETAIL.format(om.group(0))))
+            dm = DIARY_RE.search(OPEN_MARKER_RE.sub(' ', raw))
             if dm:
-                violations.append((lineno, 'DIARY', raw.strip()[:120],
+                violations.append((lineno, 'DIARY', text,
                                    diary_detail(dm.group(0))))
     return violations
 
@@ -350,7 +371,9 @@ def scan(path):
                     f"\"{sm.group('name')} ({sm.group('name')})\" — link the first "
                     "mention only, drop the parenthetical")
                 break
-        dm = DIARY_RE.search(comment)
+        for om in OPEN_MARKER_RE.finditer(comment):
+            add(lineno, 'OPEN', line.strip(), OPEN_DETAIL.format(om.group(0)))
+        dm = DIARY_RE.search(OPEN_MARKER_RE.sub(' ', comment))
         if dm:
             add(lineno, 'DIARY', line.strip(), diary_detail(dm.group(0)))
         rm = REF_POINTER_RE.search(comment)

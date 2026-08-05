@@ -43,6 +43,32 @@ A single-instruction comment earns its place only when that one instruction carr
 
 **Derive a routine once; author the contract and the mechanism together.** As you derive the routine, write the body's mechanism comments, and write the `D` contract from the same understanding — purpose and contract at the top, the algorithm in the body, both produced in the one pass so they cannot drift apart. Never derive a routine in full, discard the understanding, and keep only a summary: a later pass then has to re-derive it in full, and the orphaned summary can silently contradict what that second derivation finds.
 
+## One home per fact
+
+Every fact gets exactly one home; everywhere else, link or stay silent.
+
+- **`D`** — the contract: purpose in game terms, callers, the one player-visible consequence. One or two sentences.
+- **`N`** — the mechanism model, *only where the code is non-obvious*, and mid-routine **stage directions** that assert game state ("The shot has just left the ship."), not code topology ("Main path: advance the shot").
+- **Line comments** — what the instruction means for the game. Question on the test, answer on the branch: `; Is the ship frozen?` / `; Jump if so`. One brace-grouped comment per multi-instruction idea; silence for the obvious.
+- **Never say it twice.** If the `D` states it, the `N` does not restate it, and the line comments do not restate the `N`. If the same sentence already exists in another block or a `.ref` page, cross-link it (`See #R…`) instead of copying it.
+
+**The family rule.** Before documenting the second sibling of any family — sound effects, per-enemy handlers, animation-frame tables, mirrored state records — write the shared mechanism **once**, at the family's head (the dispatcher, the shared primitive, the first table), and give each sibling only its deltas: which table, what it is in the game, when it triggers, its quirk. The hard test: **if a sentence would survive swapping its addresses into a sibling block, it is in the wrong place** — move it to the head. (A repeated *formula* is fine exactly when the underlying reality is repeated — sixty structurally identical room initializers may share a title pattern; seven different sound effects may not share a paragraph.)
+
+Shared Z80 idioms — a CPL-abs trick, an LDIR fill, screen-third address math — are explained once, at the primitive or the first use, and referenced after. Never re-derive an idiom per call site. Snapshot/build provenance ("zero in this snapshot; the start-up copy fills it from the source area") is likewise stated once, at one block, and cross-referenced.
+
+Worked example. Bad — a header longer than the routine it describes, stamped nearly verbatim across every sound effect:
+
+> Plays one step of the door-opening creak and advances its 8-step sequence. Polled once per game frame by the main loop's sound dispatch; returns straight away while its counter #R$6D80 is 0 (disarmed). … Takes no register inputs and returns nothing; clobbers #REGa, #REGc, #REGde and #REGhl; its only side effect is speaker output via #R$6D90, which is patched to RET while the sound option is off. … #R$6D90's half-period is about 11*D T-states, so the period byte D maps to roughly 3.5MHz/(22*D). The 8 played periods 90, 80, 70, 60, …
+
+Good — the polled-counter/mute mechanism documented once at the dispatcher and the tone primitive; then, per effect, only what makes it itself, plus the sound:
+
+> The 8-step creak of a door opening; armed by
+> #R$6DA0 and #R$6DB0. #AUDIO(…)
+
+## The register contract is `R` lines, not prose
+
+Never write "Takes no register inputs and returns nothing; clobbers …" — or any inputs/outputs/clobbers sentence — into a description. Register facts go in `R` lines (`I:`/`O:`), and only when **some caller acts on them**: a real parameterized subroutine, a flag a caller branches on. A routine in a fixed dispatch list, called for effect, gets no register prose at all — a Z-flag return is documented *because some caller loops on it*, never as a formality, and clobbers are not documented at all. A clobber note is legitimate only where a specific caller demonstrably depends on preservation.
+
 ## Prefer the native device over prose
 
 Before you describe something in words, check whether SkoolKit can *express* it directly. A sprite rendered with `#UDG` beats a paragraph about its shape; a bitfield as a `#TABLE` beats a sentence listing its bits; a timing computed with `#TSTATES` beats a hand-estimated "about 3 ms"; a literal encoded as an `@isub` constant beats a comment naming its value. The native device is richer for the reader and is derived from the actual bytes, so it cannot drift out of sync. Prose is for the *why* that no device can carry — the game rule, the trade-off, the bug. `references/expressive-palette.md` is the full catalog of devices; reach for them.
@@ -53,11 +79,14 @@ A rendered image is a claim about the bytes, not a fact about the game. The attr
 
 These add nothing; leave them bare:
 
-- **`RET`** — self-evident.
+- **`RET`** — self-evident. And never let a `{ }` comment group swallow a trailing `RET`: the group's text describes the logic above it, and the `RET` is infrastructure, not logic — close the group on the last instruction the text actually describes. If the *return itself* carries meaning ("HL holds the slot"), that is the routine's contract — say it in the `D`/`R` lines, not in a group stretched over the `RET`.
 - **`CALL`/`JP` to a well-named routine** — the name is the comment. Add prose only for non-obvious context (a side effect, why *here*).
 - **A literal beside its named constant** — `SET SOUND_BIT_ALARM` needs no "(bit 3)"; the name suffices.
 - **Spectrum architecture basics** — assume the reader knows screen memory layout, the attribute system, interrupt modes, the ULA port. Document the *game*, not the platform.
 - **Empty or content-free structure** — a hand-drawn ASCII table in a comment (`; +------+------+`), a table header with no rows, a "table" that just re-lists a record's field names. It carries no data the reader can't already see, so it is bloat. Fill it with real values via `#TABLE`, express it with the right device (a tune is an `#AUDIO`, not a period/duration byte table — see `references/expressive-palette.md`), or delete it.
+- **The void contract** — "takes no register inputs and returns nothing" and its relatives. An absent contract is expressed by absence (see "The register contract is `R` lines, not prose").
+- **Arithmetic lessons** — positional notation, two's complement, what a multiply-by-shifting is. The reader knows mathematics; state the formula the code computes, not the theory behind formulas.
+- **A third telling** — the question/answer pair (`; Is he dead?` / `; Yes`) already covers the test and the branch; a block comment restating the same check on top of the pair is one telling too many.
 
 ## The comment never repeats its own operand
 
@@ -104,13 +133,15 @@ The last bullet above is the sharp one: calling out a questionable original deci
 
 `scripts/coverage_report.py` (`make coverage`) measures the floor — the fraction of routines with an explained body, plus audio/table/placeholder gaps — so "is it done?" is a measured claim, not an impression. It counts code only; data blocks (loading screen, level data) are documented by labels and native devices, not line comments, so they are excluded. A skeletal-heavy project is not mature, however green the build.
 
+**These principles are the bar — no project defines it.** Any existing disassembly, including one built with this skill, falls short of some principle somewhere; that is a defect in the project, queued for its upgrade — never a precedent. "Project X does it too" is not a defense. Judge by the rule.
+
 ## Restraint over speculation
 
 Document what you understand. When a routine's purpose is genuinely unclear, leave it with a bare disassembly and move on — do not invent a story. A confident wrong comment costs a future reader more than an honest gap. No speculation, no frequency hand-waving, no root-cause labels you have not verified against the code.
 
 Work breadth-first, and let the breadth pass be **naming**, not deriving. Give every routine a label and at most a tentative one-line purpose from a quick structural read — enough to see the shape of the whole program. Do *not* thoroughly derive a routine's logic in this pass. Deriving a routine in full and then keeping only a one-liner is wasted work: the depth pass has to derive it again. A name on every routine beats a beautifully documented 10% and an undocumented rest.
 
-Breadth-first is about *sequencing*, not a license to stay shallow. The end state is thorough: once you understand a routine, document it fully — the algorithm, the formula, the inputs and outputs, the quirks. Where the detail is genuinely known, lean long, not terse; a reimplementer would rather have too much than too little. Brevity belongs to two places only: the first breadth pass, and code you do not yet understand (where a one-liner plus an honest "purpose unclear" beats a confident invention).
+Breadth-first is about *sequencing*, not a license to stay shallow. The end state is thorough — but **thoroughness lives at the lines, not in the header**. Once you understand a routine, explain its algorithm fully at the instructions and block comments that implement it. The routine description stays one or two sentences: what it does for the game, who calls it and when, the one non-obvious consequence. Length tracks **contract complexity, never routine size** — 250 lines of hairy movement logic can still take one sentence; a long description is earned only when it buys a data-format table, a state machine, or a derivation, never a longer paragraph. If your header restates what the body's comments already say, or previews the call sequence the reader is about to see, cut it from the header.
 
 A fast breadth pass is unreliable in a way a green build never catches. Hand-converted addresses come out off by eye, and architectural claims guessed from a routine's callers turn out wrong. Derive an address, never convert it by eye. Treat every breadth-pass name and one-liner as provisional — the depth pass derives the routine for real and confirms or replaces it. There is no separate summary to re-verify, because the routine description is written from that line-level derivation (see "Document at the right altitude").
 
@@ -156,6 +187,26 @@ State the mechanism you have and stop. The open half goes to a dig-task, never t
 
 The disassembly stays relocatable, so a comment must never hard-code an address, hex or decimal. Refer to code or data by its label — through the `#R` macro, which renders the symbolic label and survives relocation, or by the symbolic name itself. `skool2asm` auto-flags a bare address in a comment ("Comment contains address … not converted to a label") and fails the warning-clean build.
 
+## Prose discipline — voice and cross-references
+
+- **Write noun phrases, not identifiers.** In descriptions and `N` lines, say "while the player is stunned or paused (#R$7F21, #R$7F24)", never "while input_lock (#R$7F25), player_stun (#R$7F21) or player_pause (#R$7F24) hold". Labels belong in operands and `R` lines; prose is for a person. The human form is one noun phrase, one link: "the jump timer at #R$7F28".
+- **Never write `label (#R$addr)` for the same symbol.** `#R` renders as the label, so this produces "ship_x (ship_x)" in the built site. Link a symbol at its first mention in a block; use the bare name after. Keep the cross-reference budget human: a description carries 0–2 `#R` links, not a link per clause.
+- **State conclusions, not derivations.** Keep arithmetic only where a porter needs it (table strides, address math), stated once at the block level. Do not chain "…, so …, so …" proofs, and do not transcribe data into prose — no inline byte lists, no Hz/ms conversion per entry, no `#TABLE` that mirrors the `DEFB` block below it. Render or play the artifact instead (`references/expressive-palette.md`).
+- **Vary the rhythm.** If ten consecutive descriptions open with the same verb, or every clause hangs on the same appositive dash, rewrite until the block reads as written, not generated. Numbered scaffolding ("Stage 1: … Stage 18:") is bureaucracy — name the phases with stage directions instead.
+- **Proofread in the reader's medium.** After editing prose, read the affected page in the built HTML, not the `.ctl`. The `.ctl` is the source; the page is the artifact — link duplication, transcribed tables, and metronome rhythm are visible only there.
+
 ## Tone and tense
 
 Present tense, describing the code as it stands. Short, linear sentences. The comment is for whoever reads the code next, with no memory of how it got there — so never narrate the editing ("changed to…", "now also…"). State what the code *is* and *does*.
+
+Personality is welcome at low frequency, anchored to verified fact — a dozen beats per project, not per page: a dry aside on a proven oddity, a one-word judgment on the original programmer's choice ("roundabout", "redundantly") written from full comprehension. Never signpost it ("interestingly", "it's worth noting") — the observation either carries itself or doesn't belong.
+
+The target register, in examples — economical, concrete, alive:
+
+- "Everything starts here once the game has loaded." — an entry routine's description, in full.
+- "Has the player reached the water?" / "If not, move the player" — question on the test, answer on the branch.
+- "The player has just started falling." / "Out of time." — stage directions asserting game state, not code topology.
+- "A quick and dirty way to pick a random lane." — opinion in two adjectives.
+- "Perhaps this unused table was once meant for a second player." — a hedge that is a falsifiable hypothesis, not insurance.
+
+Never in the register: "This routine is responsible for…", "Takes no register inputs and returns nothing", "identified via tracing", a paragraph where a rendered image or an `#AUDIO` would do, or the same sentence in two blocks.
