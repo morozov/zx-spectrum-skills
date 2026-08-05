@@ -28,9 +28,29 @@ Reports, from the generated .skool (plus the .ctl and .ref files when given):
                    STAMP / RET / RESTATE are advisory (a formula can be
                    legitimate). This is how a project built under older
                    requirements surfaces its gap to the current bar.
+  - IMAGES         the files the image macros name, against the files the build
+                   actually wrote under html/. Counting macros is only a proxy:
+                   a macro can name a file the build never wrote.
+  - BASELINE       the findings the gating linters hold against
+                   `lint-baseline.txt`. Every line is a defect the project has
+                   accepted for now, recorded so the gate can pass; none of them
+                   is fixed.
 
 Exit 0 always — this is a yardstick the Manager and Challenger read, not a gate
 that fails the build.
+
+## Why the verdict reads the gate's own files
+
+A report that reached "at or near the bar" from its own counts alone could print
+that verdict while the gate held recorded findings against the same project — a
+disagreement between two instruments over one question, with the more forgiving
+one printing the headline. A residual-gaps line does not settle it: a line below
+the verdict does not change the verdict.
+
+So the gauge reads what the gate reads. A non-empty baseline is unfinished
+work by construction, and an image macro that rendered nothing is a page that is
+missing its picture; either one holds the project short of the bar, in the
+verdict line itself.
 
 The `.ctl` and every `.ref` beside the skool are auto-discovered (catalog/audio
 content is found by section type wherever it lives, under any filename), so just
@@ -142,6 +162,12 @@ def main():
     ap.add_argument('--min-density', type=float, default=0.35)
     ap.add_argument('--reloc-floor', type=lambda s: int(s, 0), default=0x5B00,
                     help='lowest game-owned address; raw operands at/above it must be labels (default $5B00)')
+    ap.add_argument('--baseline',
+                    help="the gating linters' known-failing baseline "
+                         '(default lint-baseline.txt beside the skool)')
+    ap.add_argument('--html',
+                    help='the built site, for the rendered-image outcome '
+                         '(default html/ beside the skool)')
     args = ap.parse_args()
 
     # Auto-discover the project's `.ref` and `.ctl` from the skool's directory, so
@@ -156,11 +182,40 @@ def main():
     if not ctl:
         guess = os.path.splitext(args.skool)[0] + '.ctl'
         ctl = guess if os.path.exists(guess) else None
+    baseline = args.baseline or os.path.join(proj, 'lint-baseline.txt')
+    html_dir = args.html or os.path.join(proj, 'html')
     print(f"Scanned: {os.path.basename(args.skool)}"
           + (f", {os.path.basename(ctl)}" if ctl else "")
           + (", " + ", ".join(os.path.basename(r) for r in refs) if refs else " (no .ref files found)"))
 
     routines, placeholders = analyze(args.skool)
+
+    # What the gate knows. Both are read from the gate's own inputs — the file it
+    # holds its line against, and the directory the build wrote — so the gauge
+    # cannot report a project done that the gate is only passing on credit.
+    baseline_by_check = {}
+    baseline_present = os.path.exists(baseline)
+    try:
+        import ctl_baseline
+        for entry in ctl_baseline.read_entries(baseline):
+            check = entry.split(None, 1)[0]
+            baseline_by_check[check] = baseline_by_check.get(check, 0) + 1
+    except Exception as e:
+        print(f"  (baseline unreadable: {e})")
+    baselined = sum(baseline_by_check.values())
+
+    images, images_new = None, []
+    if ctl and os.path.isdir(html_dir):
+        try:
+            from validate_rendered_images import survey, token, CHECK
+            images = survey(html_dir, [ctl] + refs)
+            # Only the findings the gate would fail on. The rest are already
+            # counted under BASELINE, and reporting them twice under two names
+            # would overstate what is left to do.
+            images_new = ctl_baseline.partition(baseline, CHECK, images['findings'],
+                                                [], report_stale=False, token_of=token)[0]
+        except Exception as e:
+            print(f"  (image survey unavailable: {e})")
 
     # Prose quality, from the bundled linter (same directory). The gating kinds
     # feed the verdict; the rest are advisory.
@@ -323,8 +378,21 @@ def main():
           " — a rough cross-check, not the bar")
     print(f"  CATALOG      : {graphic_sections} [Graphic:] section(s); {auto_ids} auto-label"
           f" identifier(s); {admissions} 'not-yet/unnamed' admission(s)")
-    print(f"  INLINE GFX   : {inline_gfx} image macro(s) rendered in the .ctl; {catalog_gfx} in the .ref catalog"
+    print(f"  INLINE GFX   : {inline_gfx} image macro(s) written in the .ctl; {catalog_gfx} in the .ref catalog"
+          " — where the macros live, not what they produced"
           + ("  — sprites cataloged but NOT rendered inline at their blocks" if catalog_gfx and not inline_gfx else ""))
+    site = os.path.relpath(html_dir, proj)
+    if images is None:
+        print(f"  IMAGES       : not measured — no built site at {site}/; run `make html`."
+              "  The macro counts above are a proxy for images a reader can see, and"
+              " a macro can name a file the build never wrote")
+    else:
+        unrendered = [f for f in images['findings'] if f[1] == 'UNRENDERED']
+        nofile = [f for f in images['findings'] if f[1] == 'NOFILE']
+        print(f"  IMAGES       : {images['macros']} image macro(s) name"
+              f" {len(images['declared'])} file(s);"
+              f" {len(images['declared']) - len(images['missing'])} present under {site}/"
+              f" — {len(unrendered)} named but missing, {len(nofile)} naming no file at all")
     print(f"  AUDIO        : {audio} #AUDIO in {audio_sections} [Audio:] section(s);"
           f" {sound} speaker/AY write(s) in code"
           + ("  — sound code present, none rendered" if sound and audio == 0 else ""))
@@ -353,6 +421,17 @@ def main():
              + (", …" if len(unindexed) > 4 else "")
              + "  (advisory: mark up record-by-record, one commented sub-line per element)"
              if unindexed else ""))
+    if not baseline_present:
+        print(f"  BASELINE     : no {os.path.basename(baseline)} — this project has recorded "
+              "no accepted findings, which says nothing about whether the gating checks "
+              "pass. Run `make lint-baseline` once to state the starting point")
+    else:
+        print(f"  BASELINE     : {baselined} known-failing finding(s) held by "
+              f"{os.path.basename(baseline)}"
+              + (" (" + ", ".join(f"{c} {n}" for c, n in sorted(baseline_by_check.items()))
+                 + ")" if baseline_by_check else "")
+              + ("  — each one a defect the gate is passing on credit"
+                 if baselined else "  — the gate passes on its own terms"))
 
     gaps = []
     if sound and audio == 0:
@@ -378,10 +457,16 @@ def main():
     # always-wrong patterns (a RET swallowed by a comment group, a name(name)
     # self-link, investigation vocabulary in the deliverable), or a typed
     # uncertainty marker still stands — the marker is the project saying so.
+    # …and NOT done while the gate is holding recorded findings, or while an image
+    # macro rendered nothing. Those two are the gate's own measurements, not this
+    # report's: a project cannot be at the bar on one instrument and carrying
+    # accepted defects on the other. The image count is the findings the baseline
+    # does not already hold, so a recorded one weighs once, under BASELINE.
+    unrendered_count = len(images_new)
     far = (doc_frac < 0.60 or (sound and audio == 0) or auto_ids > 0
            or auto_labels > 0 or (catalog_gfx and not inline_gfx)
            or (audio and inline_audio == 0) or prose_hard > 0
-           or open_markers > 0)
+           or open_markers > 0 or baselined > 0 or unrendered_count > 0)
     print()
     if far:
         reasons = []
@@ -403,6 +488,13 @@ def main():
         if open_markers:
             reasons.append(f"{open_markers} typed uncertainty marker(s) still standing "
                            "— each is an underived claim with a dig-task owed")
+        if baselined:
+            reasons.append(f"{baselined} finding(s) recorded in {os.path.basename(baseline)} "
+                           "— the gate passes because the project accepted them, not "
+                           "because they are fixed")
+        if unrendered_count:
+            reasons.append(f"{unrendered_count} image macro(s) rendered nothing and are not "
+                           "in the baseline — run `make lint-images` for the list")
         print("VERDICT: NOT at the bar — " + "; ".join(reasons)
               + ". Do not call it mature/done; this is the upgrade backlog.")
     else:

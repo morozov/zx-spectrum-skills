@@ -14,6 +14,9 @@
 #   make coverage The "is it done?" gauge (documentation/naming/relocatability)
 #   make lint-identity        Gate: every entry titled, every sub-block named
 #   make lint-data-structure  Gate: every data entry tiles and declares its stride
+#   make lint-publication     Gate: every page inside the image, one page per thing
+#   make lint-names           Gate: prose names a labeled slot by its label
+#   make lint-images          Gate: every image macro put an image under html/
 #   make lint-baseline        Re-record the gating checks' findings as the baseline
 #   make lint-array-elements  Advisory: every array record annotated individually
 #   make verify-frag FRAG=…  Round-trip one Worker fragment in isolation
@@ -63,7 +66,8 @@ TOOLS_coverage            := $(TOOLS_SKOOL)
 TOOLS_lint-comments       := $(TOOLS_SKOOL)
 TOOLS_lint                := $(TOOLS_SNAPSHOT)
 TOOLS_lint-data-structure := $(TOOLS_SNAPSHOT)
-TOOLS_lint-baseline       := $(TOOLS_SNAPSHOT)
+TOOLS_lint-images         := $(TOOLS_html)
+TOOLS_lint-baseline       := $(TOOLS_html)
 
 # Goals that shell out to no tool at all: `clean` deletes, the .ctl-only linters
 # read one text file, and `gate` re-enters make for the build — the sub-make is
@@ -72,7 +76,7 @@ TOOLS_lint-baseline       := $(TOOLS_SNAPSHOT)
 # default build's set.
 TOOLS_FREE_GOALS := clean gate lint-address-order lint-instruction-order \
                     lint-lengths lint-label-length lint-identity \
-                    lint-array-elements
+                    lint-publication lint-names lint-array-elements
 
 # Preflight. An absent toolchain is not a state in which "every target is up to
 # date" carries any meaning: with nothing installed and nothing stale, make runs
@@ -102,6 +106,13 @@ T2S = $(GAME).t2s
 INI = skoolkit.ini
 REF = $(GAME).ref
 
+# Further .ctl files the disassembly is built from, if the project generates any
+# (a build script's sprite masks, say). Set it in the game Makefile as a plain
+# list of paths. They reach sna2skool as extra `--ctl` arguments and are held to
+# the same publication rules as the main one: a page is a page whichever file
+# declared it.
+CTL_EXTRA ?=
+
 # Generated files
 SKOOL         = $(GAME).skool
 Z80_PRISTINE  = $(GAME).pristine.z80
@@ -112,7 +123,7 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-identity lint-data-structure lint-baseline lint-array-elements lint-comments coverage html
+.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-identity lint-data-structure lint-publication lint-names lint-images lint-baseline lint-array-elements lint-comments coverage html
 
 # A recipe that redirects into its own target has already created that target by
 # the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
@@ -132,7 +143,10 @@ BASELINE ?= lint-baseline.txt
 # `make` (the default) is the one verification gate: it drives the round-trip cmp,
 # the .ctl linters, and the HTML build (the only step that validates the .ref
 # catalogs). It is not slow, so there is no separate "verify" — use `make`.
-all: $(ASM_FIXED) $(Z80_FIXED) test lint html
+# `lint-images` is listed after `html` because it reads what the build produced:
+# it is the one check whose subject is a directory of files rather than a text
+# file. Its own prerequisite is html/.stamp, so the order holds under `-j` too.
+all: $(ASM_FIXED) $(Z80_FIXED) test lint html lint-images
 
 # The same gate, with a result that cannot be misread. Under `-j` the HTML branch
 # can print `touch html/.stamp` while the asm branch is failing, so the tail of a
@@ -175,7 +189,7 @@ gate:
 # integrated result with the full `make`. The multi-step logic lives in the script
 # so this recipe stays one line. Usage: make verify-frag FRAG=build/frags/my.ctl
 verify-frag: $(Z80_PRISTINE) $(BIN_PRISTINE)
-	@$(SCRIPTS)/verify_fragment.sh "$(CTL)" "$(FRAG)" "$(Z80_PRISTINE)" "$(BIN_PRISTINE)" "$(SCRIPTS)" "$(BASELINE)" "$(ORG)" "$(RELOC_FLOOR)"
+	@$(SCRIPTS)/verify_fragment.sh "$(CTL)" "$(FRAG)" "$(Z80_PRISTINE)" "$(BIN_PRISTINE)" "$(SCRIPTS)" "$(BASELINE)" "$(ORG)" "$(RELOC_FLOOR)" "$(SIZE)"
 
 # Download and convert the original tape to the pristine snapshot.
 $(Z80_PRISTINE): $(T2S)
@@ -186,15 +200,15 @@ $(BIN_PRISTINE): $(Z80_PRISTINE)
 	$(SCRIPTS)/extract_bytes.py $(Z80_PRISTINE) $(ORG) $(SIZE) $@
 
 # Disassemble the snapshot into skool, applying the control file.
-$(SKOOL): $(Z80_PRISTINE) $(CTL)
-	$(SNA2SKOOL) --hex $(Z80_PRISTINE) --ctl $(CTL) > $@
+$(SKOOL): $(Z80_PRISTINE) $(CTL) $(CTL_EXTRA)
+	$(SNA2SKOOL) --hex $(Z80_PRISTINE) --ctl $(CTL) $(addprefix --ctl ,$(CTL_EXTRA)) > $@
 
 # The round-trip: reassembled non-fixed bytes must equal the pristine bytes.
 test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 	cmp $(BIN_PRISTINE) $(BIN_NON_FIXED)
 
 lint: lint-address-order lint-instruction-order lint-lengths lint-label-length \
-      lint-identity lint-data-structure
+      lint-identity lint-data-structure lint-publication lint-names
 
 # Label naming is a gauge metric, not a build gate. Early on the map is mostly
 # auto-labels and you cannot name a block before you have disassembled it, so a hard
@@ -246,17 +260,58 @@ lint-data-structure: $(CTL) $(BIN_PRISTINE)
 	$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
 	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) --baseline $(BASELINE)
 
+# What the .ctl publishes as pages, rather than what any one entry declares.
+# An entry outside the program image publishes a page for RAM the program never
+# occupies, and a memory-map row for it. A run of same-titled,
+# sub-directive-free entries is one structure cut into pages, none of which says
+# what it is. Neither is visible to a check that reads one entry at a time,
+# which is every other check here. $(CTL_EXTRA) is swept alongside $(CTL)
+# because a generated second .ctl is where render-only data goes.
+lint-publication: $(CTL) $(CTL_EXTRA)
+	$(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
+	    --org $(ORG) --size $(SIZE) --baseline $(BASELINE)
+
+# One name per entity, in the only form arithmetic can settle: a slot family the
+# labels declare (`door_a`/`door_b`) must not be named by position in prose ("the
+# second door"). The .ctl and every reader-facing file beside it are swept, since
+# a term settles wherever nothing looks. See `references/ctl-authoring.md`.
+lint-names: $(CTL)
+	$(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) --baseline $(BASELINE)
+
+# The outcome check: every image macro named a file, and every named file is on
+# the site. `make` proved the HTML *builds*; nothing proved it contains anything.
+# A rewrite of every `(name)` into the frame-only `(*name)` — which defines a
+# frame and writes no file — leaves those images off the site, while the macro
+# count in the source, which is what `coverage` reports, does not move. This
+# reads html/, so it runs after the site is built.
+#
+# It sweeps the .ctl and the .ref catalogs, not $(PROSE): a `spec/*.md` page is
+# not SkoolKit input, so a macro written there renders nothing and is not
+# supposed to.
+lint-images: html/.stamp
+	$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
+	    --baseline $(BASELINE)
+
 # Re-record the gating checks' findings as the project's accepted baseline. Run it
 # when a fix clears a finding — the shrunk file is the evidence — and once when a
 # project first adopts a check. Never to bury a finding you just introduced: each
 # run names the keys the file gains, and a run that gains one is a run to throw
 # away. Each check rewrites only its own lines, so re-recording one leaves the
 # other's alone.
-lint-baseline: $(CTL) $(BIN_PRISTINE)
+#
+# It depends on the built site because one of the checks it re-records reads the
+# images the build produced: an outcome cannot be baselined without the outcome.
+lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) html/.stamp
 	@$(SCRIPTS)/validate_ctl_identity.py $(CTL) \
 	    --baseline $(BASELINE) --write-baseline
 	@$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
 	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
+	    --baseline $(BASELINE) --write-baseline
+	@$(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
+	    --org $(ORG) --size $(SIZE) --baseline $(BASELINE) --write-baseline
+	@$(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) \
+	    --baseline $(BASELINE) --write-baseline
+	@$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
 	    --baseline $(BASELINE) --write-baseline
 
 # Every element of an array of records must be annotated individually. An array
@@ -285,7 +340,8 @@ lint-array-elements: $(CTL)
 # The catalogs and the spec pages are passed too: they reach the same reader as
 # the .skool, so the DIARY sweep covers them. An unswept .ref is where a claim
 # sourced from a run survives.
-PROSE = $(wildcard *.ref) $(wildcard spec/*.md)
+REFS  = $(wildcard *.ref)
+PROSE = $(REFS) $(wildcard spec/*.md)
 
 lint-comments: $(SKOOL)
 	$(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE)
@@ -294,8 +350,13 @@ lint-comments: $(SKOOL)
 # fraction of routines with an explained body, inline-graphics/naming/relocatability
 # signals, and audio/table/placeholder gaps. A green build is breadth; maturity
 # requires this to clear the floor.
+#
+# It also reads the two things the *gate* knows — the baseline it holds and the
+# images the build wrote — so the gauge cannot call a project done while the gate
+# is passing it on recorded credit. Both are auto-discovered beside the skool,
+# along with the .ctl and every *.ref.
 coverage: $(SKOOL)
-	$(SCRIPTS)/coverage_report.py $(SKOOL) --reloc-floor $(RELOC_FLOOR)   # auto-discovers the .ctl and every *.ref
+	$(SCRIPTS)/coverage_report.py $(SKOOL) --reloc-floor $(RELOC_FLOOR)
 
 # Non-fixed source: must already match the original (no @ofix applied).
 #

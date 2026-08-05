@@ -34,6 +34,12 @@ that from swallowing a second finding at an address already listed - splitting
 one undescribed directive into two undescribed directives adds a line, so the
 gate sees it - while a directive that merely moves down the file does not.
 
+A check whose findings do not live on a directive supplies its own third field
+through `token_of`. A phrase in a `.ref` catalog has no address to key on, and
+the address of the `.ctl` line that happens to carry it is not its identity - the
+phrase is. Counting repeats then reads as "13 occurrences of this phrase are
+accepted", and the fourteenth fails the gate.
+
 Regeneration is routine, which makes a silent regeneration the realistic way a
 finding gets buried. So `write` names every key it adds, and every key it drops:
 a file that grows is debt taken on, not debt inherited.
@@ -95,6 +101,18 @@ def finding_key(check, line_number, kind, lines):
     return f'{check} {kind} ${parse_address(match.group(1)):04X}'
 
 
+def key_for(check, finding, lines, token_of=None):
+    """
+    Return one finding's baseline key.
+
+    `token_of`, when given, maps the finding to the key's third field, for a
+    check whose findings are not located by a .ctl directive address.
+    """
+    if token_of is None:
+        return finding_key(check, finding[0], finding[1], lines)
+    return f'{check} {finding[1]} {token_of(finding)}'
+
+
 def read_entries(path):
     """Return the file's finding lines, stripped, without header or blanks."""
     if not path or not os.path.exists(path):
@@ -118,7 +136,7 @@ def load(path, check):
     return keys
 
 
-def write(path, check, findings, lines):
+def write(path, check, findings, lines, token_of=None):
     """
     Rewrite one check's lines in the baseline, leaving every other check's alone.
 
@@ -132,7 +150,7 @@ def write(path, check, findings, lines):
     current = collections.Counter()
     recorded = []
     for finding in findings:
-        key = finding_key(check, finding[0], finding[1], lines)
+        key = key_for(check, finding, lines, token_of)
         current[key] += 1
         recorded.append(f'{key}  {finding[2]}')
 
@@ -146,7 +164,7 @@ def write(path, check, findings, lines):
             sorted((previous - current).elements()))
 
 
-def partition(path, check, findings, lines, report_stale=True):
+def partition(path, check, findings, lines, report_stale=True, token_of=None):
     """
     Split findings against the baseline.
 
@@ -159,7 +177,7 @@ def partition(path, check, findings, lines, report_stale=True):
     new, held = [], []
     seen = collections.Counter()
     for finding in findings:
-        key = finding_key(check, finding[0], finding[1], lines)
+        key = key_for(check, finding, lines, token_of)
         seen[key] += 1
         (held if seen[key] <= accepted[key] else new).append(finding)
     stale = sorted((accepted - seen).elements()) if report_stale else []

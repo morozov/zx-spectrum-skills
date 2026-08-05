@@ -6,21 +6,25 @@
 # `verify-frag: OK`; any failure exits non-zero with the offending output.
 #
 # Usage: verify_fragment.sh <base.ctl> <fragment.ctl> <pristine.z80> <pristine.bin>
-#                           <scripts-dir> <baseline> <org> <reloc-floor>
+#                           <scripts-dir> <baseline> <org> <reloc-floor> <size>
 set -euo pipefail
 
 CTL="$1"; FRAG="$2"; Z80="$3"; BIN="$4"; SCRIPTS="$5"
-BASELINE="$6"; ORG="$7"; RELOC_FLOOR="$8"
+BASELINE="$6"; ORG="$7"; RELOC_FLOOR="$8"; SIZE="$9"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
+# The splice keeps the project's own .ctl filename. The prose check keys its
+# baseline on the file a phrase sits in, so a throwaway name would make every
+# inherited finding look new.
+SPLICED="$tmp/$(basename "$CTL")"
+
 # Splice the fragment over its address range. The fragment owns a contiguous span
 # from its lowest block address up to (but not including) the next base block that
 # starts above its highest block address; every base line in that span is dropped
-# and the fragment inserted in its place. This handles a b->c reclassification,
-# which splice_ctl.py (a c-block-for-c-block replace) does not.
-python3 - "$CTL" "$FRAG" > "$tmp/game.ctl" <<'PY'
+# and the fragment inserted in its place. This handles a b->c reclassification.
+python3 - "$CTL" "$FRAG" > "$SPLICED" <<'PY'
 import sys, re
 base = open(sys.argv[1]).read().splitlines()
 frag = open(sys.argv[2]).read().splitlines()
@@ -58,7 +62,7 @@ print('\n'.join(out))
 PY
 
 # Disassemble; no overlapping-instruction or other warning is allowed.
-sna2skool.py --hex "$Z80" --ctl "$tmp/game.ctl" > "$tmp/game.skool" 2>"$tmp/sna.err" \
+sna2skool.py --hex "$Z80" --ctl "$SPLICED" > "$tmp/game.skool" 2>"$tmp/sna.err" \
   || { cat "$tmp/sna.err" >&2; exit 1; }
 if grep -qi 'warning\|overlap' "$tmp/sna.err"; then cat "$tmp/sna.err" >&2; exit 1; fi
 
@@ -76,18 +80,29 @@ cmp "$tmp/game.bin" "$BIN"
 # fail the Manager's `make`. The two content checks read the project's baseline:
 # its key is the directive's address, so a finding the fragment inherited is still
 # held after the splice moves its line.
-"$SCRIPTS/validate_ctl_address_order.py"     "$tmp/game.ctl"
-"$SCRIPTS/validate_ctl_instruction_order.py" "$tmp/game.ctl"
-"$SCRIPTS/validate_ctl_lengths.py"           "$tmp/game.ctl"
-"$SCRIPTS/validate_ctl_label_length.py"      "$tmp/game.ctl"
+"$SCRIPTS/validate_ctl_address_order.py"     "$SPLICED"
+"$SCRIPTS/validate_ctl_instruction_order.py" "$SPLICED"
+"$SCRIPTS/validate_ctl_lengths.py"           "$SPLICED"
+"$SCRIPTS/validate_ctl_label_length.py"      "$SPLICED"
 
 # --ignore-stale: clearing a baselined finding is the fragment doing its job, and
 # the Worker cannot edit the shared baseline to record it. Dropping the line is
 # the Manager's, at the full `make`. What the fragment must not do is add one.
-"$SCRIPTS/validate_ctl_identity.py"       "$tmp/game.ctl" \
+"$SCRIPTS/validate_ctl_identity.py"       "$SPLICED" \
     --baseline "$BASELINE" --ignore-stale
-"$SCRIPTS/validate_ctl_data_structure.py" "$tmp/game.ctl" --bin "$BIN" \
+"$SCRIPTS/validate_ctl_data_structure.py" "$SPLICED" --bin "$BIN" \
     --org "$ORG" --reloc-floor "$RELOC_FLOOR" --baseline "$BASELINE" --ignore-stale
+"$SCRIPTS/validate_ctl_publication.py"    "$SPLICED" \
+    --org "$ORG" --size "$SIZE" --baseline "$BASELINE" --ignore-stale
+
+# The prose sweep runs over the spliced .ctl alone. The `.ref` catalogs are not
+# spliced, so their findings are the project's, not the fragment's, and a Worker
+# cannot answer for them here.
+"$SCRIPTS/validate_prose_names.py"        "$SPLICED" \
+    --baseline "$BASELINE" --ignore-stale
+
+# `lint-images` has no counterpart here: it reads the built site, and a fragment
+# does not build one. The Manager's `make` is where that outcome is checked.
 
 # Advisory comment-quality pre-filter over the spliced skool.
 "$SCRIPTS/lint_comments.py" "$tmp/game.skool" || true

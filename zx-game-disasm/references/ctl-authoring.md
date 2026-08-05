@@ -22,6 +22,7 @@ The same rule covers **every address the reader sees**, not just directives: a r
 - [Numeric base formatting](#numeric-base-formatting)
 - [Text blocks and string terminators](#text-blocks-and-string-terminators)
 - [Data structures and tables](#data-structures-and-tables)
+- [One page per thing](#one-page-per-thing)
 - [Register annotations and cross-references](#register-annotations-and-cross-references)
 - [Validation rules](#validation-rules)
 
@@ -316,6 +317,26 @@ Hunt for those readers and writers in the `.skool`/`.ctl`, not by grepping the g
 
 The `g` block is also the agent-facing memory map: a live agent reads game state straight from these addresses. Documenting it richly serves both the human porter and the MDP described in `references/behavior-spec.md`.
 
+## One page per thing
+
+Every entry in the `.ctl` becomes a page on the site and a row in the memory map. The set of entries is therefore a claim in its own right — *these are the things this disassembly documents* — and it is wrong in four ways that no per-entry check can see. `make lint-publication` gates the first two, `make lint-names` and `make lint-images` the last two, and `build-verify.md` describes them.
+
+**Publish only what the program occupies.** An entry outside the program image publishes a page for RAM the program never uses. Generated render-only data — sprite masks a build script produced — declared below the image's origin gets pages and memory-map rows for addresses that are ROM on real hardware, and nothing on those pages tells a reader they are not part of the game. Render-only data belongs in a `.ref` `[Graphic:]` entry or beside the script that generates it, never in the address space.
+
+**One structure is one entry, not a run of pages.** A structure split into one entry per address the code writes to gets a page and a memory-map row per part, and no page anywhere says what the whole of it is. The signature the check reads is a run of three or more consecutive `b` or `w` entries, each with no sub-directive, all headed by the same thing — the clause before the title's first `:`, `;`, `,`, `(` or dash, with any index stripped. Three entries reading "Title-screen bitmap; start cell reused for the lives counter", "…for the timer" and "…for the room number" are one title screen: what follows the semicolon is a note about one address inside the subject the head names, not a second subject. The fix is one entry, one title, and a sub-directive per part — which is what [the tiling contract](#the-tiling-contract) asks for anyway.
+
+**One entity, one name.** `references/agents.md` states it — one canonical term per concept, anchored to the `@label` identifiers, never a synonym for something a label already names. Three names for two enemy slots ("enemy A", "first/second enemy", "the chasing enemy") against labels `enemy_a` and `enemy_b` read fine page by page and leave a reader crossing pages to translate.
+
+`make lint-names` holds the one part of that arithmetic can settle. Where the labels declare a **slot family** — a set differing only in one slot token, at the same place in the name (`enemy_a` / `enemy_b`, `enemy_a_timer` / `enemy_b_timer`) — prose must not name a member by its position. "The second enemy" is the worst available name: it is not in the listing, it is not searchable, and which member is "second" is a fact about the `.ctl`'s ordering rather than about the game. Write the slot's own name, or give the thing you actually mean a label.
+
+The slot tokens have to *enumerate* for that to hold: digits, or letters running from `a`. `step_x` / `step_y` are the components of a vector, `spr_arrow_l` / `_r` a pair of directions, and neither set has a first member — "for the first step through 200, 150, 100" is ordinary prose about a sequence of periods, not an alias for `step_x`.
+
+Nor is a hyphenated compound modifier an alias. "The second-enemy bonus" names a bonus; the hyphen is you saying `bonus` is the head noun. That entity has a name of its own, and "the enemy B bonus" is worse wording than what you wrote. It is the *referring* use — "the second enemy", naming the enemy — that has to become "enemy B".
+
+An alias with no positional word in it — "the chasing enemy" — is beyond any linter: no tool can know it means `enemy_a` rather than a third enemy. That one is settled when the name is chosen and held by the vocabulary section of the project's `AGENTS.md`.
+
+**Every image macro must produce an image.** A `#UDGARRAY` in the `.ctl` is a claim that a picture appears at that block. The claim is checkable — `make lint-images` compares the filenames the macros declare against the files the site build wrote — and it is not the same claim as "the HTML built". The frame-only `(*name)` defines a frame and writes no file, so a `.ctl` that writes it in place of `(name)` builds green and publishes no image. Write `(name)` to publish the image, `(name*frame)` to publish it *and* define the frame for a `#FRAMES` animation; `(*frame)` alone publishes nothing and is only ever an ingredient of an animation that does.
+
 ## Register annotations and cross-references
 
 Mark a routine's intentional inputs and outputs like function parameters:
@@ -331,7 +352,7 @@ In comment text, reference addresses with `#R$XXXX` (SkoolKit resolves it to the
 
 ## Validation rules
 
-The build runs six linters (`scripts/validate_ctl_*.py`); violations fail the build. The first four keep the `.ctl` mechanically consistent so diffs stay clean and `sna2skool` never silently reorders; the last two hold it to the contracts above.
+The build runs eight `.ctl` linters; violations fail the build. The first four keep the `.ctl` mechanically consistent so diffs stay clean and `sna2skool` never silently reorders; the last four hold it to the contracts above.
 
 1. **Address order** — every directive in ascending address order.
 2. **Instruction order** — directives at the *same* address follow the canonical sequence: `@` → block type (`c`/`b`/…) → `D` → `N` → `R` → line comment.
@@ -339,7 +360,11 @@ The build runs six linters (`scripts/validate_ctl_*.py`); violations fail the bu
 4. **Label length** — 24 characters, fixed by renaming.
 5. **Block identity** (`validate_ctl_identity.py`) — every entry titled, every sub-directive described or labeled. See [Nothing anonymous](#nothing-anonymous).
 6. **Data-block schema** (`validate_ctl_data_structure.py`) — every data entry tiles and declares its stride. See [The tiling contract](#the-tiling-contract).
+7. **Publication** (`validate_ctl_publication.py`) — every published page inside the program image, and no structure cut into a run of same-titled pages. See [One page per thing](#one-page-per-thing).
+8. **One name per entity** (`validate_prose_names.py`) — prose names a labeled slot family's member by its label, never by its position. See [One page per thing](#one-page-per-thing).
 
-Run them yourself while editing (`python3 scripts/validate_ctl_address_order.py {game}.ctl`) rather than waiting for the full build.
+A ninth check, `validate_rendered_images.py` (`make lint-images`), gates the built site rather than the `.ctl`: every image macro must name an output file, and every named file must be under `html/`. It runs after `make html`, because its subject is what the build produced.
 
-Checks 5 and 6 land red on a mature `.ctl`, so a project records the findings it starts with in `lint-baseline.txt` (`make lint-baseline`) and the gate holds that line: a finding the file does not list fails the build, and a line it lists that the check does not report fails the build too, so a fix takes its baseline entry with it in the same commit. The file only ever shrinks. Never hand-edit it to silence something you introduced — see [build-verify.md](build-verify.md#the-known-failing-baseline).
+Run the `.ctl` ones yourself while editing (`python3 scripts/validate_ctl_address_order.py {game}.ctl`) rather than waiting for the full build.
+
+Checks 5 through 8 land red on a mature `.ctl`, so a project records the findings it starts with in `lint-baseline.txt` (`make lint-baseline`) and the gate holds that line: a finding the file does not list fails the build, and a line it lists that the check does not report fails the build too, so a fix takes its baseline entry with it in the same commit. The file only ever shrinks. Never hand-edit it to silence something you introduced — see [build-verify.md](build-verify.md#the-known-failing-baseline).

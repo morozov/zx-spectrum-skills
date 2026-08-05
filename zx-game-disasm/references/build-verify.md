@@ -138,7 +138,7 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 
 ## The linters
 
-`make` runs six `.ctl` linters (also runnable standalone as `make lint`, or from `scripts/`):
+`make` runs eight `.ctl` linters (also runnable standalone as `make lint`, or from `scripts/`):
 
 - `validate_ctl_address_order.py` — directives in ascending address order.
 - `validate_ctl_instruction_order.py` — at one address: `@` → block type → `D` → `N` → `R` → line comment.
@@ -146,8 +146,14 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 - `validate_ctl_label_length.py` — labels within 24 characters.
 - `validate_ctl_identity.py` — every entry titled, every sub-directive named.
 - `validate_ctl_data_structure.py` — every data entry tiles and declares a stride.
+- `validate_ctl_publication.py` — every page inside the program image, and one page per thing.
+- `validate_prose_names.py` — prose names a labeled slot by its label.
 
-The first four exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff. The last two are content checks, and they carry a baseline — see below.
+The first four exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff. The last four are content checks, and they carry a baseline — see below.
+
+`make` then runs one more check that is not a `.ctl` linter at all, because its subject is the built site:
+
+- `validate_rendered_images.py` (`make lint-images`) — every image macro named an output file, and every named file is on the site.
 
 ### The block-identity check
 
@@ -191,13 +197,80 @@ The exemption reads a macro's presence, not its extent.
 
 **Honest limit: tiling proves accounting, not meaning.** A wrong stride that happens to divide will pass, and a mis-typed field will tile. It is necessary, not sufficient. Its job is to make an unparsed span impossible to leave behind — not to prove the parse is right. Only the render, the round-trip and the relocation proof test meaning.
 
+### The publication check
+
+`make lint-publication` runs `scripts/validate_ctl_publication.py`. Every other check reads one entry and asks whether it declares its bytes. This one reads the *set* of entries and asks whether each should be an entry at all — which is a question no amount of per-entry checking reaches. Two kinds:
+
+- **OUTSIDE** — an entry at an address the program image does not cover. Generated render-only data (sprite masks a build script produced) declared at `$1000` in a project whose image starts at `$4000` makes `skool2html` publish pages and memory-map rows for RAM the program never occupies, at addresses that are ROM on real hardware. A reader has no way to tell those pages from the ones documenting the game. Render-only data belongs in a `.ref` `[Graphic:]` entry or beside the script that generates it. `i` blocks are exempt: they publish no page, and the terminator sits at `ORG + SIZE` by construction.
+- **FRAGMENTED** — three or more consecutive `b` or `w` entries, each with no sub-directive, all headed by the same thing. That is one structure cut into pages: a loading screen split into one entry per screen address the front-end writes to leaves no page saying what the whole of it is. The fix is one entry with one title and a sub-directive per part.
+
+Consecutive entries always tile — the next entry's address is where the previous one ends — so contiguity carries no information and is not tested. What carries information is that the run says one thing N times. A row of small *distinct* tables states a distinct title on each and is not reported.
+
+"The same thing" is the **head** of the title — the clause before its first `:`, `;`, `,`, `(` or dash, with any index stripped. A fragment of a structure is captioned the way a reader writes one: the structure's name, then a note about this fragment's part in it.
+
+```
+b $4060 Title-screen bitmap; start cell reused for the lives counter
+b $4080 Title-screen bitmap; start cell reused for the timer
+b $40C0 Title-screen bitmap; start cell reused for the room number
+```
+
+Comparing whole titles calls those three distinct and reports nothing. The distinguishing tail is not a second subject; it is a note about one address inside the one subject the head names.
+
+Only `b` and `w` are tested. A `g` entry is one status variable and a `t` entry is one message, and having no sub-directive is the normal form for both, so three consecutive `Player N score` entries are the standard idiom rather than a structure cut up. `s` and `u` declare space, which is not a structure at all.
+
+The check takes `--org` and `--size`, which the game Makefile already sets, and sweeps `$(CTL_EXTRA)` alongside `$(CTL)`. A page is a page whichever file declared it, and generated render-only data is exactly what goes in a second `.ctl`, which is why the check reads both.
+
+`fixtures/fragmented-structure.ctl` and `fixtures/outside-image.ctl` hold a minimal case of each kind, with the expected finding stated in a header comment. Run them after changing the check:
+
+```
+scripts/validate_ctl_publication.py fixtures/fragmented-structure.ctl --org 0x4000 --size 8192
+scripts/validate_ctl_publication.py fixtures/outside-image.ctl --org 0x4000 --size 256
+```
+
+### The one-name-per-entity check
+
+`make lint-names` runs `scripts/validate_prose_names.py`. `references/agents.md` states the rule — one canonical term per concept, anchored to the `@label` identifiers — and this check holds the part of it a machine can find. A project can end up with three names for two enemy slots: "enemy A", "first/second enemy" and "the chasing enemy", against labels `enemy_a` and `enemy_b`.
+
+Most of that class is not machine-findable, and the check does not pretend otherwise. No tool can know that "the chasing enemy" means `enemy_a` rather than a third enemy. One form is findable, and it is the form that mints the aliases:
+
+- **ALIAS** — a positional word ("first", "second", "other", "another", …) applied to a *slot family*. A slot family is a set of labels differing only in one slot token — an enumeration index — at the same place in the name: `enemy_a` and `enemy_b`, or `enemy_a_timer` and `enemy_b_timer`, give the family `enemy` with slots `a` and `b`. The labels are the project saying, in code, that these addresses are the members of one set and that each has a name. Prose that then says "the second enemy" has named a member a second way, and by the worst available name: position is not in the listing, is not searchable, and is a fact about the `.ctl`'s ordering rather than about the game.
+
+Three restrictions keep the check on that class and off ordinary prose.
+
+**Only an enumeration is a slot set.** An ordinal presupposes an order with a known start, and two token sets have one: digits, and letters running from `a`. `enemy_a`/`enemy_b` and `spr_wheel_0`..`_3` enumerate. The members of `step_x`/ `step_y`, `spr_arrow_l`/`_r` and `work_h`/`_x`/`_y` are an axis, a direction and a work register, and none of them has a first. Accepting any single letter mints families on ordinary-word stems, and reports "for the first step through 200, 150, 100" as an alias for `step_x`.
+
+**Only the family's full stem counts as the noun.** "first cell" is ordinary prose about probe order; the finding would be "first probe_cell", were the family `probe_cell`. Matching a stem's last word alone would flag every ordinary sentence that uses that word — a check nobody would keep.
+
+**Only a phrase that refers to a member is an alias.** "The second enemy" names the enemy. "The second-enemy bonus" names a bonus, and `second-enemy` is a hyphenated compound modifier — the hyphen is the writer saying so. The head noun there is `bonus`, a different entity with a name of its own, and substituting the label gives "the enemy B bonus", which is not idiomatic and is not the fix this check asks for. A referring use is rewritten to "enemy B"; an attributive one stands.
+
+An alias with no positional word in it is settled by the author and held by the vocabulary section of the project's `AGENTS.md`, not by arithmetic over labels.
+
+The sweep covers the `.ctl`, every `.ref` and `spec/*.md`: a term settles wherever nothing looks. Its baseline keys on `<file>:<phrase>` rather than an address, since a finding in a catalog table has no directive address and the phrase is its identity. The file has to be in that key: without it, an accepted phrase in a `.ref` and the same phrase newly written into the `.ctl` are one key with one count, so fixing the catalog pays for the new one and the gate stays green.
+
+### The rendered-image check
+
+`make lint-images` runs `scripts/validate_rendered_images.py` **after** the site is built, because it reads what the build produced.
+
+`make` proves the HTML *builds*, and `coverage` counts `#UDGARRAY` in the source. Both stay true after a change rewrites every image-file macro `(name)` into the frame-only form `(*name)`, which defines a frame and writes no file, and the site loses the images those macros rendered.
+
+**The invariant: every image macro names an output file, and every named output file exists.** Not "as many files as macros". Those two totals differ for reasons that are all legitimate — several macros can name one file (a sprite rendered at its data block and again in the catalog), a `#FRAMES` macro writes one animation out of frames other macros defined, and a frame-only macro writes nothing. An inequality between the totals is not a defect, and equality is not proof. What does not legitimately differ is the per-macro claim: a macro naming `ship` claims `ship.png` is on the site, and either it is or it is not.
+
+Two kinds, because the failure this exists to catch removes the claim along with the file:
+
+- **UNRENDERED** — the macro names a file and the built site has no such image.
+- **NOFILE** — the macro names no file. `(*name)` defines a frame and writes nothing; `()` writes nothing either. A frame is legitimate only as an ingredient: some `#FRAMES`, `#UDGS` or `#COPY` macro must consume it, and the macro that does must itself name a file. An unconsumed frame renders nowhere.
+
+UNRENDERED alone is silent through such a rewrite — once no macro names a file, no named file is missing. NOFILE is what refuses a macro that claims nothing. Counting files on disk is silent too: `--rebuild-images` does not delete stale output, so the site keeps its old `.png` files while nothing on it refers to them.
+
+Where a macro states its filename is not the same for every macro, and the check follows SkoolKit's own parsers rather than guessing "the last bracketed group": `#UDGSw,h(fname)(uframe)` states it first and names a frame last; `#FONTaddr[,…][(message)][(fname)]` with one group has stated a message and no filename; `#UDG` and `#SCR` fall back to `udg.png` and `scr.png`. Within the spec, `(fname*frame|alt)` splits the alt text off first and the frame second, and a `.png` a spec spells out is the same file as one that leaves it off, because SkoolKit appends it.
+
 ### The known-failing baseline
 
-`lint-identity` and `lint-data-structure` land red on a mature `.ctl`. That is not a reason to keep them out of the gate — it is the reason the baseline exists.
+`lint-identity`, `lint-data-structure`, `lint-names` and `lint-images` land red on a mature project. That is not a reason to keep them out of the gate — it is the reason the baseline exists.
 
 Left advisory, a check is never run: a defect it reports ships under `make gate` printing GATE PASS, while the check has the defect in its output the whole time.
 
-So both checks are in `lint`, and a project records the findings it starts with:
+So every one of them is in the default gate, and a project records the findings it starts with:
 
 ```
 make lint-baseline        # writes lint-baseline.txt from the current findings
@@ -211,6 +284,10 @@ make lint-baseline        # writes lint-baseline.txt from the current findings
 - a key may repeat, and the count is part of the comparison: two findings of one kind at one address are two lines, and a third fails the build.
 
 The key is the *address on the directive the finding points at* — never the line number, which churns on every unrelated edit above it, and never the message, which changes when a neighboring directive resizes. Counting repeats is what stops that address-only key from swallowing a second finding where one is already listed. Splitting an undescribed `M $7E04,2` into `M $7E04,2` plus `B $7E04,1` leaves two findings at `$7E04` against one accepted line, and the build fails — while a directive that merely moves down the file keeps its key and its count.
+
+Two checks key on something other than an address, because their findings do not live on a directive: `prose-names` keys on `<file>:<phrase>` and `images` on the file or frame name. A phrase in a `.ref` catalog has no address, and the address of whatever `.ctl` line happens to carry it is not its identity. Counting repeats then reads as "thirteen occurrences of this phrase in this file are accepted", and the fourteenth fails the gate — but the *location* it prints is one of the thirteen, not necessarily the new one, and the report says so. Every occurrence is the same finding and takes the same fix.
+
+`verify-frag` splices a Worker's fragment into a copy of the `.ctl` under the project's own filename, so those keys still match; a throwaway name would make every inherited finding look new.
 
 **The file only ever shrinks.** Regenerate it when a fix clears a finding — the shrunk file is the evidence, and the diff is how the debt is visible in review. Each check rewrites only its own lines, so re-recording one leaves the other's alone. Every run names the keys it adds and the keys it drops:
 
@@ -243,6 +320,30 @@ Relocatability (a raw address in a comment) is not re-checked here: `skool2asm -
 It **auto-discovers** the project's `.ctl` and *every* `.ref` file beside the skool, and prints what it scanned — so the catalog and audio counts never read as zero just because a caller forgot to pass `graphics.ref` or the project splits its sections across differently-named ref files. Catalog and audio content is found by **section type** (`[Graphic:]`, `[Audio:]`, `#AUDIO`, `#UDGARRAY`) wherever it lives; the filenames (`graphics.ref`, `sound.ref`) are a convention, not a requirement. So `coverage_report.py <game>.skool` alone gives the full picture; a missing-file false negative is not possible.
 
 It counts **code only**: data blocks (the loading screen, level data, tables) are excluded, because data is documented by labels and native devices, not line comments — so the figure is not an average over code and data. Line density is shown only as a rough cross-check, never as the bar; the real signal is the fraction of routines with an explained body. The Manager runs this before reporting completion, and does not call a project mature while it says otherwise (see `references/roles/manager.md`). Whether each comment is *correct* and the catalogs and spec *complete* remains the Challenger's call.
+
+#### The verdict answers for what the gate knows
+
+A gauge that reaches "at or near the bar" from its own counts alone, while the gate holds recorded findings against the same project, is two instruments disagreeing about one question, with the more forgiving one printing the headline. A residual-gaps line below the verdict does not settle it, because a line under a verdict does not change the verdict.
+
+So the gauge reads the gate's own inputs, both auto-discovered beside the skool and overridable with `--baseline` and `--html`:
+
+- **BASELINE** — every finding recorded in `lint-baseline.txt`, per check. A recorded finding is unfinished work by construction: the gate passes because the project accepted it, not because it is fixed. Any non-empty baseline holds the verdict at NOT at the bar.
+- **IMAGES** — the files the image macros name against the files the build wrote, the same survey `lint-images` gates on. The `INLINE GFX` line counts macros in the source, labeled as what it is: where the macros live, not what they produced. Only the findings the baseline does not already hold weigh on the verdict; a recorded one weighs once, under BASELINE.
+
+Both appear in the verdict's reason list, not only in the report body:
+
+```
+BASELINE     : 100 known-failing finding(s) held by lint-baseline.txt
+               (data-structure 40, identity 30, images 20, prose-names 10)
+               — each one a defect the gate is passing on credit
+
+VERDICT: NOT at the bar — 100 finding(s) recorded in lint-baseline.txt — the gate
+passes because the project accepted them, not because they are fixed.
+```
+
+A *missing* `lint-baseline.txt` is not a clean one, and the report says so rather than reading zero findings as the gate passing on its own terms.
+
+Shrinking the baseline to nothing is therefore part of reaching the bar, which is the only reading under which "at or near the bar" means anything.
 
 ## Reading build warnings
 
