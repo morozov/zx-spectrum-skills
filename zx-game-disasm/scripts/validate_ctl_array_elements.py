@@ -24,11 +24,14 @@ that is not would be a false finding - the sort a baseline must never be used to
 bury. Four things disqualify a span, each of them the .ctl already saying what
 the bytes are:
 
-  RENDER    a render macro covers the block, in its own prose or on a code
-            partner the two name each other through. The macro is the schema and
-            the render is its proof, exactly as `validate_ctl_data_structure.py`
-            reads it; a sprite's pixel rows, a screen's cells and a tune's note
-            bytes are not records to index.
+  RENDER    a render macro reads the span's bytes, from the block's own prose or
+            from a code partner the two name each other through. The macro is the
+            schema and the render is its proof, exactly as
+            `validate_ctl_data_structure.py` reads it; a sprite's pixel rows, a
+            screen's cells and a tune's note bytes are not records to index. The
+            discharge reaches as far as the macro reads and no further, so a
+            block a render covers in part keeps its drawn spans exempt and is
+            asked about the rest.
   WORD      the entry is `w`. The entry type declares the element - one `DEFW`
             per word, one element per row - so no record size hides in prose.
   SCALAR    the stride is one byte. A scalar has no fields, so there is no record
@@ -196,8 +199,18 @@ def unannotated_arrays(lines, by_address=None,
         if typ not in 'bgwt':
             continue
         block = (by_address or {}).get(addr)
-        if block is not None and schema.is_rendered_asset(block, by_address):
-            continue
+        covered = set()
+        if block is not None:
+            covered = schema.rendered_coverage(block, by_address)
+            if covered is None:
+                # A macro whose extent the text does not state draws whatever it
+                # is asked about; `lint-data-structure` reads it the same way.
+                continue
+            if block['size'] is None and covered:
+                # The file names no address after its last block, so there is no
+                # extent to measure a remainder against and presence is all
+                # either check can read there.
+                continue
 
         if not subs:
             # `w` answers the question in the entry type: one `DEFW` per word is
@@ -206,6 +219,9 @@ def unannotated_arrays(lines, by_address=None,
             if typ == 'w':
                 continue
             span = (nxt - addr) if nxt else 0
+            if covered:
+                span = sum(end - start
+                           for start, end in schema.uncovered_runs(addr, span, covered))
             if span >= min_span:
                 runs.append(Run('UNDECLARED', i + 1, i + 1, addr, 0, 0, span))
             continue
@@ -215,11 +231,16 @@ def unannotated_arrays(lines, by_address=None,
             if shape is None:
                 continue
             length, stride = shape
+            start = parse_address(s.group(2))
+            if covered.issuperset(range(start, start + length)):
+                # Drawn: the macro is this span's schema and the render is its
+                # proof, which is what `lint-data-structure` discharges here too.
+                continue
             if stride <= 1 or length < min_span or is_geometry(length, stride):
                 continue
             if length // stride < min_records:
                 continue
-            missing = unannotated(parse_address(s.group(2)), length, stride, comments)
+            missing = unannotated(start, length, stride, comments)
             if missing >= min_records:
                 runs.append(Run('UNINDEXED', i + 1, j + 1, addr,
                                 length // stride, missing, length))

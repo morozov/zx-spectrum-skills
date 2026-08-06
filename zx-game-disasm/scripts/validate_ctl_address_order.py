@@ -4,12 +4,15 @@ Validate that all directives in a SkoolKit .ctl file are ordered by address.
 
 This script reads a .ctl file and checks that all address-based directives
 (c, g, b, t, u, s, w, i, @, >, N, D, R, E, and line-level comments)
-are in ascending address order.
+are in ascending address order, and that no two entry heads share an address.
 """
 
 import sys
 import re
 from typing import List, Tuple, Optional
+
+# Entry heads: the directives that open a block and so bound the one above them.
+ENTRY_TYPES = 'cgbtuswi'
 
 
 class DirectiveInfo:
@@ -66,7 +69,7 @@ def extract_directives(ctl_file_path: str) -> List[DirectiveInfo]:
 
     # Patterns for different directive types
     # Main directives: c, g, b, t, u, s, w, i (followed by address)
-    main_directive_pattern = re.compile(r'^([cgbtuswi])\s+\$([0-9A-Fa-f]+)')
+    main_directive_pattern = re.compile(r'^([%s])\s+\$([0-9A-Fa-f]+)' % ENTRY_TYPES)
     # Annotation directives: @ (followed by address)
     annotation_pattern = re.compile(r'^@\s+\$([0-9A-Fa-f]+)')
 
@@ -130,6 +133,15 @@ def validate_address_order(directives: List[DirectiveInfo]) -> Tuple[bool, List[
     """
     Validate that directives are in ascending address order.
 
+    Directives of different kinds share an address routinely - an `@` label, the
+    entry head, its `D` prose and its first sub-directive all sit on the block's
+    first byte - so equal addresses are only a defect between two *entry* heads.
+    Two entries at one address give the first a computed size of zero, and a
+    block of zero bytes drops out of every check that measures a block's extent:
+    the defect inside it stops being reported without being fixed. That is the
+    one construction where adding text to a .ctl can lose a finding, so it is
+    caught here rather than left to the checks it silences.
+
     Args:
         directives: List of DirectiveInfo objects
 
@@ -146,6 +158,12 @@ def validate_address_order(directives: List[DirectiveInfo]) -> Tuple[bool, List[
         if curr_directive.address < prev_directive.address:
             violations.append((prev_directive, curr_directive))
 
+    entries = [d for d in directives if d.directive_type in ENTRY_TYPES]
+    for prev_entry, curr_entry in zip(entries, entries[1:]):
+        if curr_entry.address == prev_entry.address:
+            violations.append((prev_entry, curr_entry))
+
+    violations.sort(key=lambda pair: pair[1].line_number)
     return len(violations) == 0, violations
 
 
@@ -170,7 +188,11 @@ def main():
         print()
 
         for prev_directive, curr_directive in violations:
-            print(f"  Violation:")
+            if curr_directive.address == prev_directive.address:
+                print(f"  Violation: two entries at one address — the first has "
+                      f"zero size, so nothing measures its bytes:")
+            else:
+                print(f"  Violation:")
             print(f"    {prev_directive}")
             print(f"      {prev_directive.line_content}")
             print(f"    {curr_directive}")

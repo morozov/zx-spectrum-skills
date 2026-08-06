@@ -11,9 +11,10 @@ check while relocating nothing.
 
 Five checks, all arithmetic over directives the .ctl already carries:
 
-  UNTYPED      a block with no sub-directives, or a B/T span carrying no
-               sublength, over the scalar threshold (default 8 bytes). `w` and
-               `W` state the element size themselves and are exempt.
+  UNTYPED      a block with no sub-directives, a B/T span carrying no
+               sublength, or the part of a block no render macro reaches, over
+               the scalar threshold (default 8 bytes). `w` and `W` state the
+               element size themselves and are exempt.
   ZEROFILL     (needs --bin) an all-zero span enumerated as a stride instead of
                declared a buffer — nothing checks a stride over zeros
   TILING       sub-directive lengths sum to the block size, contiguous from its
@@ -25,10 +26,22 @@ Five checks, all arithmetic over directives the .ctl already carries:
 A block drawn by an image or audio macro is exempt from UNTYPED: the macro is
 the schema and the render is its proof. The macro may sit in the block's own
 prose, or on a partner block the two name each other through — a beeper sound is
-code plus data, so its #AUDIO lives on the player, not on the period table. The
-exemption reads a macro's presence, not its extent, so a macro covering part of a
-block clears the whole of it. Computing #UDGARRAY extents would close that, and
-would be the stronger form.
+code plus data, so its #AUDIO lives on the player, not on the period table.
+
+The exemption discharges over the bytes a macro actually reads, not over the
+block a macro appears in. #UDGARRAY, #UDG and #FONT state their addresses, so
+the covered set is arithmetic over the macro text: an array's UDG specs are
+address ranges, each UDG is 8 bytes at its own step, and an attribute spec adds
+one byte per cell. What those cover is discharged; what they leave is reported
+as the remainder, because a block holding one sprite and 900 undescribed bytes
+is the blob this check exists to catch.
+
+#FRAMES, #SCR, #AUDIO and #UDGS state no byte range: a frame is defined by some
+other macro elsewhere, a #SCR reads a display file at its `df`/`af` bases, and an
+#AUDIO's delays come out of a simulated run. Their extent is not derivable from
+the macro text, so they keep the whole-block exemption — the coverage they claim
+is unmeasured, not assumed empty, and a block one of them draws stays exempt
+as a whole. That is the blind spot this check carries.
 
 Tiling proves accounting, not meaning: a wrong stride that happens to divide
 passes, and a mis-typed field tiles. The check is necessary, not sufficient. Its
@@ -62,8 +75,40 @@ TEXT_TYPES = 'DNRE'
 TEXT_RE = re.compile(r'^[%s] ' % TEXT_TYPES)
 
 # A block drawn by one of these has declared its bytes in the strongest available
-# form: the render is exercised, and a wrong extent draws visibly wrong.
-RENDER_MACRO_RE = re.compile(r'#(UDGARRAY|UDGTABLE|UDG|FRAMES|FONT|AUDIO|SCR)')
+# form: the render is exercised, and a wrong extent draws visibly wrong. Macro
+# parameters are word characters, so no word boundary ends a name and the longer
+# alternatives must come first — otherwise `UDG` claims the first three letters
+# of `UDGARRAY` and the rest of the macro reads as an address.
+RENDER_MACRO_RE = re.compile(r'#(UDGARRAY|UDGTABLE|UDGS|UDG|FRAMES|FONT|AUDIO|SCR)')
+
+# A macro parameter list outside parentheses, as SkoolKit's `parse_ints` reads
+# it: comma-separated values, each positional or `name=value`, each a decimal or
+# `$`-prefixed hex literal, and each omittable in favor of its default.
+MACRO_INT = r'(?:\d+|\$[0-9A-Fa-f]+)'
+MACRO_INT_RE = re.compile(MACRO_INT)
+NAMED_PARAM = r'(?:[a-z]+=)?%s' % MACRO_INT
+PARAM_LIST_RE = re.compile(r'(?:%s)?(?:,(?:%s)?)*' % (NAMED_PARAM, NAMED_PARAM))
+
+# Parameter names, in SkoolKit's order, for the macros whose extent is
+# arithmetic over their own text. Order is what makes a positional parameter
+# readable, so the names that carry no address — scale, flip, rotate, tindex,
+# alpha — are listed to hold their places rather than to be read.
+UDGARRAY_PARAMS = ('width', 'attr', 'scale', 'step', 'inc', 'flip', 'rotate',
+                   'mask', 'tindex', 'alpha')
+UDG_PARAMS = ('addr',) + UDGARRAY_PARAMS[1:]
+FONT_PARAMS = ('addr', 'chars', 'attr', 'scale', 'tindex', 'alpha')
+UDG_SPEC_PARAMS = ('attr', 'step', 'inc')
+MASK_SPEC_PARAMS = ('addr', 'step')
+
+# A UDG is eight rows of eight pixels: eight bytes, one per row.
+UDG_HEIGHT = 8
+
+# The most characters #FONT draws, from character 32 up. SkoolKit clamps to this.
+FONT_CHARS = 96
+
+# A ceiling on the addresses one range spec may yield. A step that does not
+# advance makes SkoolKit's own walk unbounded; a linter must stop instead.
+RANGE_LIMIT = 0x10000
 
 # A #R cross-reference. A data table and the routine that renders it name each
 # other through these, which is how a table reaches a render it does not hold.
@@ -190,9 +235,263 @@ def parse_ctl(path):
     return ([b for b in blocks if b['type'] in DATA_BLOCK_TYPES], addresses, by_address)
 
 
-def is_rendered_asset(block, by_address):
+def bracketed(text, index, opening='(', closing=')'):
     """
-    Whether a block's bytes are declared by a render, its own or a partner's.
+    Return (body, end) for the bracketed group at `index`, or (None, index).
+
+    `end` is the index just past the closing bracket. Nesting counts, so a
+    filename group carrying alt text in parentheses comes back whole.
+    """
+    if index >= len(text) or text[index] != opening:
+        return None, index
+    depth = 0
+    for end in range(index, len(text)):
+        if text[end] == opening:
+            depth += 1
+        elif text[end] == closing:
+            depth -= 1
+            if depth == 0:
+                return text[index + 1:end], end + 1
+    return None, index
+
+
+def macro_params(text, index, names):
+    """
+    Return ({name: value}, end) for a macro's parameter list, or (None, index).
+
+    A parameter is positional or `name=value`, and one written empty is absent
+    from the mapping so the caller's default stands. A parenthesized list may
+    hold arithmetic and nested macros, which no read of the text resolves; that
+    comes back None, and so does a name the macro does not take.
+    """
+    if index < len(text) and text[index] == '(':
+        return None, index
+    match = PARAM_LIST_RE.match(text, index)
+    values = {}
+    position = 0
+    for part in (match.group().split(',') if match.group() else []):
+        keyword, _, literal = part.rpartition('=')
+        if keyword:
+            if keyword not in names:
+                return None, index
+            position = names.index(keyword)
+        else:
+            literal = part
+        if literal:
+            if position >= len(names):
+                return None, index
+            values[names[position]] = parse_address(literal)
+        position += 1
+    return values, match.end()
+
+
+def address_range(spec, index, width):
+    """
+    Return (addresses, end) for a UDG address range spec, or (None, index).
+
+    The spec is `a[-b[-h[-v]]][xN]`, read as SkoolKit reads it: `a` alone is one
+    address, `a-b` runs to `b`, `h` steps from one UDG to the next along a row of
+    `width`, and `v` from the start of one row to the start of the next.
+
+    `xN` appends N copies of the range, exactly as SkoolKit does. It names no new
+    byte, but the list *length* is what the callers count: an attribute list is
+    read positionally and truncated at the array's cell count, so collapsing the
+    repeats slides every later address into a slot SkoolKit never reaches and
+    claims bytes it never reads. N copies of a long range can outrun the address
+    space, and a spec that does comes back unmeasurable rather than huge.
+    """
+    elements = []
+    end = index
+    while True:
+        match = MACRO_INT_RE.match(spec, end)
+        if not match:
+            return None, index
+        elements.append(parse_address(match.group()))
+        end = match.end()
+        if len(elements) == 4 or end >= len(spec) or spec[end] != '-':
+            break
+        end += 1
+
+    copies = 1
+    if end < len(spec) and spec[end] == 'x':
+        match = MACRO_INT_RE.match(spec, end + 1)
+        if not match:
+            return None, index
+        copies = parse_address(match.group())
+        end = match.end()
+
+    if len(elements) < 2:
+        elements.append(elements[0])
+    if len(elements) < 3:
+        elements.append(1)
+    if len(elements) < 4:
+        elements.append(elements[2] * width)
+    address, last, h_step, v_step = elements
+
+    addresses = []
+    while address <= last:
+        addresses.append(address)
+        if len(addresses) % width:
+            address += h_step
+        else:
+            address += v_step - (width - 1) * h_step
+        if len(addresses) > RANGE_LIMIT:
+            return None, index          # a step that does not advance
+    if len(addresses) * copies > RANGE_LIMIT:
+        return None, index
+    return addresses * copies, end
+
+
+def udg_bytes(addresses, step):
+    """Return the bytes the given UDGs are drawn from: eight rows, `step` apart."""
+    return {address + row * step for address in addresses for row in range(UDG_HEIGHT)}
+
+
+def udgarray_extent(text, index):
+    """
+    Return the addresses a #UDGARRAY reads, or None when they are not derivable.
+
+    The macro is `#UDGARRAYwidth[,attr,scale,step,inc,flip,rotate,mask,…]
+    (UDGSPEC[;UDGSPEC…])[[ATTRSPEC[;ATTRSPEC…]]]`, and each UDGSPEC is an address
+    range with its own optional `,attr,step,inc` and `:mask` tail. Attribute
+    addresses are one byte per cell, and SkoolKit reads only as many as the array
+    has cells, so a spec listing more does not stretch the extent.
+
+    `#UDGARRAY*frame…` builds an animation out of frames other macros defined and
+    names no address of its own, so it comes back None.
+    """
+    if index < len(text) and text[index] == '*':
+        return None
+    params, end = macro_params(text, index, UDGARRAY_PARAMS)
+    if params is None:
+        return None
+    width = params.get('width')
+    if not width or width < 1:
+        return None
+    step, mask = params.get('step', 1), params.get('mask', 1)
+
+    specs, end = bracketed(text, end)
+    if specs is None:
+        return None
+
+    covered, cells = set(), 0
+    for spec in specs.split(';'):
+        addresses, at = address_range(spec, 0, width)
+        if addresses is None:
+            return None
+        udg_step = step
+        if at < len(spec) and spec[at] == ',':
+            values, at = macro_params(spec, at + 1, UDG_SPEC_PARAMS)
+            if values is None:
+                return None
+            udg_step = values.get('step', step)
+        covered |= udg_bytes(addresses, udg_step)
+        cells += len(addresses)
+        if at < len(spec) and spec[at] == ':':
+            masks, at = address_range(spec, at + 1, width)
+            if masks is None:
+                return None
+            mask_step = udg_step
+            if at < len(spec) and spec[at] == ',':
+                values, at = macro_params(spec, at + 1, ('step',))
+                if values is None:
+                    return None
+                mask_step = values.get('step', udg_step)
+            if mask:
+                covered |= udg_bytes(masks[:len(addresses)], mask_step)
+
+    if end < len(text) and text[end] == '[':
+        attrs, end = bracketed(text, end, '[', ']')
+        if attrs is None:
+            return None
+        listed = []
+        for spec in attrs.split(';'):
+            addresses, _ = address_range(spec, 0, width)
+            if addresses is None:
+                return None
+            listed.extend(addresses)
+        covered |= set(listed[:-(-cells // width) * width])
+    return covered
+
+
+def udg_extent(text, index):
+    """
+    Return the addresses a #UDG reads, or None when they are not derivable.
+
+    `#UDGaddr[,attr,scale,step,…][:maskaddr[,step]]` draws one 8-byte character,
+    plus its mask when the macro asks for one.
+    """
+    params, end = macro_params(text, index, UDG_PARAMS)
+    if params is None or 'addr' not in params:
+        return None
+    step = params.get('step', 1)
+    covered = udg_bytes([params['addr']], step)
+    if end < len(text) and text[end] == ':':
+        values, end = macro_params(text, end + 1, MASK_SPEC_PARAMS)
+        if values is None or 'addr' not in values:
+            return None
+        if params.get('mask', 1):
+            covered |= udg_bytes([values['addr']], values.get('step', step))
+    return covered
+
+
+def font_extent(text, index):
+    """
+    Return the addresses a #FONT reads, or None when they are not derivable.
+
+    `#FONTaddr,chars` draws the characters from code 32 up, eight bytes each,
+    contiguous from `addr`. Without `chars` the macro draws a message instead,
+    and which characters that names — hence which bytes — depends on text this
+    does not expand.
+    """
+    params, _ = macro_params(text, index, FONT_PARAMS)
+    if params is None or 'addr' not in params:
+        return None
+    chars = params.get('chars', 0)
+    if chars < 1:
+        return None
+    return set(range(params['addr'],
+                     params['addr'] + UDG_HEIGHT * min(chars, FONT_CHARS)))
+
+
+EXTENT_READERS = {
+    'UDGARRAY': udgarray_extent,
+    'UDG': udg_extent,
+    'FONT': font_extent,
+}
+
+
+def render_extent(prose):
+    """
+    Return the addresses the render macros in some prose read.
+
+    None means one of them draws bytes this cannot name: #FRAMES redraws frames
+    defined elsewhere, #UDGS assembles them, #SCR reads a display file at its
+    `df`/`af` bases, and #AUDIO's delays come out of a simulated run. A macro
+    whose parameters are arithmetic rather than literals reads the same way.
+    None is "unmeasured", not "nothing", and the caller treats it as covering
+    whatever block it is asked about.
+
+    #UDGTABLE draws nothing itself: it opens a table whose cells hold the macros
+    that do, and those are read here in their own right.
+    """
+    covered = set()
+    for match in RENDER_MACRO_RE.finditer(prose):
+        if match.group(1) == 'UDGTABLE':
+            continue
+        reader = EXTENT_READERS.get(match.group(1))
+        if reader is None:
+            return None
+        extent = reader(prose, match.end())
+        if extent is None:
+            return None
+        covered |= extent
+    return covered
+
+
+def rendered_coverage(block, by_address):
+    """
+    Return the addresses a render declares of a block, or None for all of them.
 
     A render is the strongest declaration available: it is exercised, and a wrong
     byte draws or sounds wrong. Usually the macro sits in the block's own prose.
@@ -212,20 +511,63 @@ def is_rendered_asset(block, by_address):
       nothing about anyone else's. Without this, a working copy would be exempted
       by the source bank it is filled from: they name each other, the source is
       drawn, and the copy still holds whatever the capture caught.
+
+    Addresses outside the block are kept: the caller intersects, and a macro on a
+    partner routine names the data block's addresses rather than its own.
     """
-    if RENDER_MACRO_RE.search(block['prose']):
-        return True
+    covered = render_extent(block['prose'])
+    if covered is None:
+        return None
 
     for ref in REF_RE.findall(block['prose']):
         partner = by_address.get(parse_address(ref))
         if partner is None or partner['type'] != 'c':
             continue
-        if not RENDER_MACRO_RE.search(partner['prose']):
+        if not any(parse_address(back) == block['address']
+                   for back in REF_RE.findall(partner['prose'])):
             continue
-        if any(parse_address(back) == block['address']
-               for back in REF_RE.findall(partner['prose'])):
-            return True
-    return False
+        drawn = render_extent(partner['prose'])
+        if drawn is None:
+            return None
+        covered |= drawn
+    return covered
+
+
+def uncovered_runs(address, size, covered):
+    """Return the [start, end) runs of a block's bytes that `covered` misses."""
+    runs = []
+    start = None
+    for at in range(address, address + size):
+        if at in covered:
+            if start is not None:
+                runs.append((start, at))
+                start = None
+        elif start is None:
+            start = at
+    if start is not None:
+        runs.append((start, address + size))
+    return runs
+
+
+def is_rendered_asset(block, by_address):
+    """
+    Whether a render declares every byte of a block, its own or a partner's.
+
+    True is the discharge: the block needs no further schema, because something
+    exercised draws all of it. A block a render covers in part is False here and
+    reports its remainder — `check_untyped` reads the runs rather than this
+    verdict, and holds the covered part exempt while asking about the rest.
+
+    The last block in the file is the one case still read as presence: the file
+    states no address after it, so there is no extent to measure a remainder
+    against.
+    """
+    covered = rendered_coverage(block, by_address)
+    if covered is None:
+        return True
+    if block['size'] is None:
+        return bool(covered)
+    return not uncovered_runs(block['address'], block['size'], covered)
 
 
 def reads_all_zero(address, length, image, origin):
@@ -266,21 +608,45 @@ def check_untyped(block, threshold, by_address):
 
     # A rendered asset: the macro is the schema, and drawing it is the proof.
     # Nobody should index 6144 screen pixels or 50 pitch periods to satisfy a
-    # linter — the bytes are already declared by something that is exercised.
-    if is_rendered_asset(block, by_address):
+    # linter — those bytes are already declared by something that is exercised.
+    # The discharge reaches only as far as the macro reads, so what it leaves is
+    # asked about below exactly as if no macro were there.
+    covered = rendered_coverage(block, by_address)
+    if covered is None:
         return violations
+    if size is None:
+        # The file states no address after its last block, so there is no extent
+        # to measure a remainder against and presence is all this can read there.
+        if covered:
+            return violations
+        uncovered = []
+    else:
+        uncovered = uncovered_runs(block['address'], size, covered)
+        if not uncovered:
+            return violations
 
     if not block['spans']:
         if block['type'] == 'w':
             return violations
-        if size is None or size > threshold:
+        left = sum(end - start for start, end in uncovered)
+        if size is not None and left <= threshold:
+            return violations
+        if covered:
+            message = (f"{left} of {size} bytes fall outside every render's extent, "
+                       f"the first at ${uncovered[0][0]:04X} — the macros draw "
+                       f"{size - left} bytes and declare nothing about the rest; "
+                       f"widen them or state its stride")
+        else:
             extent = 'unbounded' if size is None else f'{size} bytes'
-            violations.append((block['line_number'], 'UNTYPED',
-                               f"{extent} with no sub-directives — declare the stride, "
-                               f"cover it with a render, or model it as code"))
+            message = (f"{extent} with no sub-directives — declare the stride, "
+                       f"cover it with a render, or model it as code")
+        violations.append((block['line_number'], 'UNTYPED', message))
         return violations
 
     for span in block['spans']:
+        if covered.issuperset(range(span['address'], span['address'] + span['length'])):
+            # Drawn: this span's bytes are the render's, and it is their schema.
+            continue
         if span['type'] == 'S':
             # A skip block's size is its whole claim: N bytes of buffer.
             continue
