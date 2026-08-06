@@ -126,6 +126,38 @@ The rate is the only exemption. A ROM or hardware size does not get a second one
 
 This is the instruction-comment altitude. A `D` or `N` note is exactly where a structure's shape belongs — "each enemy record is 6 bytes: +0/+1 the position, +2/+3 the sprite pointer, +5 the active flag" is that note doing its job, written once for the block, and the check does not touch block prose. The defect is that sentence copied down onto a row that already carries the number.
 
+## The comment never cites a code the program assigns
+
+The same rule again, over the program's own encodings. `$1C` is the byte this program happens to spell SPEED with. The fact is *which pickup sets the flag*; the byte lives one table away, and a sentence that repeats it binds itself to a value nothing re-derives. Reassign the pickup codes and the prose is silently false. It is not wrong today — it is unowned.
+
+The reported line, and what it owed instead:
+
+> **Bad:** `N $7F12 Set by the SPEED pickup ($1C). When non-zero, …`
+>
+> **Good:** `N $7F12 Set by the SPEED pickup. When non-zero, …`
+
+Nothing is lost. A reader who wants the byte reads the pickup dispatcher or the glyph catalog, where the byte is what the entry is about.
+
+**Where the line is drawn: does the text define the encoding, or cite it?** A code stays wherever the mapping *is* the content — the catalog row whose job is to say that `$1C` means SPEED, a `D` note stating a record's field values, a dispatcher's per-case comment. Strike the code out of one of those and the entry stops saying anything:
+
+> `{ S | $1C | #UDGARRAY… | SPEED - the player runs faster … }`
+
+So the test is the deletion, not the punctuation. Cross the code out and read what is left. There are three outcomes, and only one of them keeps the byte:
+
+- **What is left still names the thing.** "Set by the SPEED pickup." The code was a citation — leave it crossed out.
+- **What is left names nothing, and nothing could.** `{ S | $1C | #UDGARRAY… | SPEED … }` without the code is a catalog row about no code; the mapping is the entry's whole job. The code was the subject — put it back.
+- **What is left names nothing because the code was standing in for the name.** "frozen by the `$24` pickup" becomes "frozen by the pickup", and the reader is not told which pickup; "the `$28` pickup" becomes "the pickup". This is the defect at its worst — the sentence never carried the fact, only the byte that stands for it. Neither keep the code nor ship the gap: read the name off the table that defines the code and write it. Those two become "frozen by the TIME-STOP pickup" and "the SMART-BOMB pickup".
+
+The second outcome and the third look identical at the moment of deletion, so tell them apart by asking where the name lives: if the entry in front of you *is* where the encoding is defined, the code stays; if the name is defined somewhere else, go get it. This is "one home per fact" reaching an encoding: the mapping lives in the table that defines it, and every other mention names the thing or links there.
+
+Two things the rule does not reach. **A platform encoding** — port `$FE`, opcode `$C9`, the attribute byte's bit layout — is not the program's to reassign, so no edit to it can falsify the sentence; whether to spell one out at all is the separate question under "Spectrum architecture basics". An attribute *value* is not one of these. `$38` is a color this program picked and can repick, so a sentence citing it is a citation like any other; what belongs to the platform is the layout that gives `$38` its meaning, not the decision to write it. **A value the reader needs to use the code** stays too: the range a classifier tests (`$10-$1F` is wall, `$20-$2F` is the ladder band), a record's field offsets, a state byte's value domain in the behavior spec. Those are the interface, not an internal name for something the sentence already said.
+
+**No check ships for this; the Challenger asks the deletion question.** A pattern for the shape — a standalone `($XX)` in a `D` or `N` note — reports mostly misses, among them `OUT ($FE),A` quoted in a note. Widening it to catch more citations adds misses faster than right hits, and a widening keyed on one word of the game's vocabulary finds only the citations that use that word.
+
+**The reason not to ship is the ratio, not an inability to read the difference.** Many of the misses are the glyph catalog's own entries — `SPEED pickup, glyph letter S (tile codes $1C-$1F)` — and those are separable: a definition carries its `#UDGTABLE`/`#UDGARRAY` render and writes the code as a range, and a pattern reads both. A defect and a definition can be the same directive type in the same file, and what tells them apart is on the line. With the definitions filtered out, the findings worth acting on are still outnumbered by the ones an author reads and dismisses. That is what decides it. `scripts/lint_comments.py` is advisory, but its kinds feed the coverage verdict, so a kind at that precision costs more attention than it returns.
+
+The same shape in `graphics.ref`: 19 of the 40 lines carrying a `$XX` are `#TABLE` rows. A check firing there deletes nothing — it reports — but what it reports is the entries that define the encoding, in all three of the forms blessed a dozen lines above: the catalog row, the `N` note that states the code range, the dispatcher's per-case comment. Each comes back as a finding to dismiss by hand.
+
 ## Decimal equivalents
 
 Give a decimal equivalent only for a value that means something in the human world — a level number, an iteration count, a pixel distance — not for memory addresses. `$7A26` as an address stays hex; `$0F` as "15 lives" earns its `(15)`.
@@ -219,7 +251,7 @@ The disassembly stays relocatable, so a comment must never hard-code an address,
 
 - **Write noun phrases, not identifiers.** In descriptions and `N` lines, say "while the player is stunned or paused (#R$7F21, #R$7F24)", never "while input_lock (#R$7F25), player_stun (#R$7F21) or player_pause (#R$7F24) hold". Labels belong in operands and `R` lines; prose is for a person. The human form is one noun phrase, one link: "the jump timer at #R$7F28".
 - **Never write `label (#R$addr)` for the same symbol.** `#R` renders as the label, so this produces "ship_x (ship_x)" in the built site. Link a symbol at its first mention in a block; use the bare name after. Keep the cross-reference budget human: a description carries 0–2 `#R` links, not a link per clause.
-- **State conclusions, not derivations.** Keep arithmetic only where a porter needs it (table strides, address math), stated once at the block level. Do not chain "…, so …, so …" proofs, and do not transcribe data into prose — no inline byte lists, no Hz/ms conversion per entry, no `#TABLE` that mirrors the `DEFB` block below it. Render or play the artifact instead (`references/expressive-palette.md`).
+- **State conclusions, not derivations.** Keep arithmetic only where a porter needs it (table strides, address math), stated once at the block level. Do not chain "…, so …, so …" proofs, and do not transcribe data into prose — no inline byte lists, no walking a table's values into Hz or ms entry by entry, no `#TABLE` that mirrors the `DEFB` block below it. Render or play the artifact instead (`references/expressive-palette.md`). One derived cadence figure for the effect as a whole is a different thing and is allowed; `references/agents.md` bounds what it may be derived from.
 - **Vary the rhythm.** If ten consecutive descriptions open with the same verb, or every clause hangs on the same appositive dash, rewrite until the block reads as written, not generated. Numbered scaffolding ("Stage 1: … Stage 18:") is bureaucracy — name the phases with stage directions instead.
 - **Proofread in the reader's medium.** After editing prose, read the affected page in the built HTML, not the `.ctl`. The `.ctl` is the source; the page is the artifact — link duplication, transcribed tables, and metronome rhythm are visible only there.
 
