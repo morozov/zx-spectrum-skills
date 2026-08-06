@@ -10,8 +10,9 @@
 #   make          The gate: round-trip cmp + .ctl linters + HTML build (validates
 #                 the .ref catalogs). Build the asm, snapshot, and site.
 #   make gate     The same gate, logged, ending in one verdict line that names
-#                 the SkoolKit and the gate it ran under and says whether
-#                 anything rebuilt
+#                 the SkoolKit and the gate it ran under, says whether anything
+#                 rebuilt, and on a red run says how many checks failed and with
+#                 how many findings each
 #   make coverage The "is it done?" gauge (documentation/naming/relocatability)
 #   make lint-identity        Gate: every entry titled, every sub-block named
 #   make lint-data-structure  Gate: every data entry tiles and declares its stride
@@ -244,6 +245,28 @@ stamp_baseline_gate = [ -f $(BASELINE) ] || exit 0; id=$$($(GATE_ID)); \
       awk -v id="$$id" '/^\# gate: /{next} !stamped && !/^\#/{print "\# gate: " id; stamped=1} {print} END{if (!stamped) print "\# gate: " id}' \
         $(BASELINE) > $(BASELINE).tmp && mv $(BASELINE).tmp $(BASELINE)
 
+# --- What a red verdict leads with --------------------------------------------
+#
+# Two things can be red at once, and only one of them is the headline. `all`
+# names `test`, `lint` and `html` as siblings, so under `-j` — including an
+# inherited `MAKEFLAGS=-j4` nobody typed — the checks run beside the round-trip
+# and finish even though `cmp` has already failed. The log then holds a build
+# failure and a full sweep of findings, and a verdict built from the findings
+# alone reports a count of failed checks for a tree whose bytes do not
+# round-trip. Sequentially the same state cannot arise.
+#
+# So the gate reads which targets make reported as failed and separates the
+# non-lint ones. `buildfail` non-empty means the build itself broke, and that
+# branch comes first: it prints the build's own log lines ahead of the check
+# blocks and leads the verdict with the failing target, keeping the finding
+# counts after it rather than dropping them. `named` counts the failure lines the
+# gate could parse at all — none, on a red run with findings, means the failure
+# cannot be attributed to lint, and an unattributable failure is reported as a
+# build failure rather than silently read as a clean build with findings.
+#
+# The remaining branches are unreachable while `buildfail` is set, so their
+# wording still holds: lint alone red, build red with every check clean, build
+# red before any check ran.
 gate:
 	@mkdir -p $(dir $(GATE_LOG))
 	@$(MAKE) --no-print-directory -q $(GATE_ARTIFACTS) >/dev/null 2>&1; q=$$?; \
@@ -251,6 +274,25 @@ gate:
 	  v=$$($(SNA2SKOOL) --version 2>/dev/null); \
 	  id=$$($(GATE_ID)); \
 	  stamp="[$${v:-SkoolKit version unknown}, gate $$id]"; \
+	  lintfail=$$(awk -v tot=$(LINT_TOTAL) '/^LINT FAIL: /{f+=$$3; n+=$$8; \
+	      sub(/^LINT FAIL: [^:]*: /,""); sub(/\.$$/,""); l=(l?l ", " $$0:$$0)} \
+	      END{if (f) printf "%d of %d checks failed, %d finding(s): %s.", f, tot, n, l}' $(GATE_LOG)); \
+	  lintran=$$(grep -c '^LINT ' $(GATE_LOG)); \
+	  lintseen=$$(awk '/^LINT (PASS|FAIL): /{t+=$$5} END{print t+0}' $(GATE_LOG)); \
+	  buildfail=$$(awk '/: \*\*\* \[/{t=$$0; sub(/^.*\*\*\* \[/,"",t); sub(/\].*$$/,"",t); \
+	      sub(/^.*: /,"",t); if (t!="lint" && t!="lint-images" && !seen[t]++) \
+	      l=(l?l ", " t:t)} END{print l}' $(GATE_LOG)); \
+	  named=$$(grep -c ': \*\*\* \[' $(GATE_LOG)); \
+	  if [ $$s -ne 0 ] && [ -n "$$lintfail" ] && [ $$named -eq 0 ]; then \
+	    buildfail='target unknown — make named none'; \
+	  fi; \
+	  case "$$lintfail" in \
+	    *'could not run'*|*'count unread'*|*'crashed'*) \
+	      lintfail="$$lintfail A check with no count is not a check with no findings, so that total is short by whatever it would have reported."; ;; \
+	  esac; \
+	  if [ -n "$$lintfail" ] && [ $$lintseen -lt $(LINT_TOTAL) ]; then \
+	    lintfail="$$lintfail The log accounts for $$lintseen of the gate's $(LINT_TOTAL) checks — no sweep reports the other $$(($(LINT_TOTAL)-lintseen)), so they did not run. That count is a floor, not the distance to green."; \
+	  fi; \
 	  was=$$(sed -n 's/^# gate: *//p' $(BASELINE) 2>/dev/null | head -1); \
 	  drift=''; absent=''; \
 	  if [ ! -f $(BASELINE) ]; then \
@@ -261,9 +303,19 @@ gate:
 	  else \
 	    drift=" $(BASELINE) was recorded under gate $$was, so a finding this gate reports and that one did not is the gate moving, not this commit regressing — see the gate-boundary rule in references/build-verify.md."; \
 	  fi; \
-	  if [ $$s -ne 0 ]; then \
+	  if [ $$s -ne 0 ] && [ -n "$$buildfail" ] && [ -n "$$lintfail" ]; then \
+	    awk '/^--- lint-/{b=1} !b{print} /^LINT /{b=0}' $(GATE_LOG) | tail -40; \
+	    sed -n '/^--- lint-/,/^LINT /p' $(GATE_LOG); \
+	    echo; echo "GATE FAIL (make exit $$s) $$stamp — the build itself failed ($$buildfail), which is what to fix first: a finding count is a distance to green only over a tree that builds. $$lintfail The build's last 40 log lines are above, then every finding in full. Full log: $(GATE_LOG).$$drift$$absent"; \
+	  elif [ $$s -ne 0 ] && [ -n "$$lintfail" ]; then \
+	    sed -n '/^--- lint-/,/^LINT /p' $(GATE_LOG); \
+	    echo; echo "GATE FAIL (make exit $$s) $$stamp — $$lintfail Every finding is above in full, not tailed. Full log: $(GATE_LOG).$$drift$$absent"; \
+	  elif [ $$s -ne 0 ] && [ $$lintran -gt 0 ]; then \
 	    tail -40 $(GATE_LOG); \
-	    echo; echo "GATE FAIL (make exit $$s) $$stamp — full log: $(GATE_LOG).$$drift$$absent"; \
+	    echo; echo "GATE FAIL (make exit $$s) $$stamp — every check that ran was clean, so this is the build failing rather than a finding; its last 40 log lines are above. Full log: $(GATE_LOG).$$drift$$absent"; \
+	  elif [ $$s -ne 0 ]; then \
+	    tail -40 $(GATE_LOG); \
+	    echo; echo "GATE FAIL (make exit $$s) $$stamp — the build failed before any check ran, so no check has a finding count and none of them is what failed; the build's last 40 log lines are above. Full log: $(GATE_LOG).$$drift$$absent"; \
 	  elif [ $$q -eq 0 ]; then \
 	    echo "GATE PASS, NOTHING REBUILT $$stamp — every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: $(GATE_LOG)).$$drift"; \
 	  else \
@@ -299,9 +351,114 @@ $(SKOOL): $(Z80_PRISTINE) $(CTL) $(CTL_EXTRA)
 test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 	cmp $(BIN_PRISTINE) $(BIN_NON_FIXED)
 
-lint: lint-address-order lint-instruction-order lint-lengths lint-label-length \
-      lint-identity lint-data-structure lint-publication lint-names lint-byte-counts \
-      lint-array-elements
+# --- Running every check, and reporting every one that failed -----------------
+#
+# Each check is a target of its own, so `make lint-publication` runs one in
+# isolation. `lint` does NOT list them as prerequisites, because make stops at the
+# first prerequisite that fails: the reader gets the first check's findings and
+# nothing about the checks after it. A gate shaped that way answers "is it
+# green" and cannot answer "how far from green": the count it reports is a
+# prefix of the real one, and nothing labels it as one.
+#
+# So `lint` runs the checks itself, in one shell, and each one runs whatever the
+# last one did. The command the gate runs a check with is stated once, in
+# `CHECK_<name>`, and both the standalone target and the sweep use it. That is the
+# gate's copy only: `lint-baseline` invokes the baselined checks with
+# `--write-baseline`, `scripts/verify_fragment.sh` invokes its own set over a
+# spliced fragment, and both spell out their own argument lists.
+#
+# This is deliberately narrower than `make -k`. `-k` keeps going after *any*
+# failed target, which changes what a red build means everywhere: a broken
+# round-trip would stop stopping the build. It also gives up the ordering that
+# keeps `lint-images` after `html`, and what it continues past differs between
+# make versions. What has to survive a first failure is the set of independent
+# checks, not the build, so the aggregation lives where the checks are and the
+# build keeps halting.
+#
+# Halting is not enough on its own to keep a `cmp` from arriving buried in
+# findings: `-j` starts `lint` beside `test`, so a sweep can complete after the
+# round-trip has already failed. What keeps the build failure the headline is the
+# verdict, which reads the failing targets out of the log and leads with the
+# non-lint ones — see "What a red verdict leads with" above.
+#
+# A check that needs a built prerequisite is held by the prerequisites of the
+# target it runs under, never by anything inside the loop: if the .skool or the
+# pristine image cannot be built the recipe never starts, and make reports the
+# build failure. That is the one thing this must not get wrong — a check that
+# never ran must never be reported as a check with no findings.
+#
+# `lint-images` runs its own one-element sweep, because it reads what the HTML
+# build wrote and so cannot run beside the rest. Both sweeps end in one
+# `LINT PASS:`/`LINT FAIL:` line in the same format, and the gate adds up every
+# such line it finds — so a verdict counts every check even though they ran in
+# two places.
+LINT_CHECKS = address-order instruction-order lengths label-length identity \
+              data-structure publication names byte-counts array-elements
+
+# Every check the gate holds a project to: the sweep's, plus the one that runs
+# after the site is built. The gate compares this against the number of checks the log
+# accounts for, so a run that could not reach one of them says so instead of
+# letting its count read as the whole of the distance to green.
+LINT_TOTAL := $(words $(LINT_CHECKS) images)
+
+# Run one check and tally its outcome. Its output is captured rather than
+# streamed so the count can be read back out of it: a check reports findings as
+# `Found <n> …`, and a baseline line it no longer reports as `<check>: <n>
+# baseline entry(ies) …`. Both are things the reader has to act on, and a check
+# can fail on the second with none of the first.
+#
+# An exit status the checks do not define, an uncaught exception, and a failure
+# that printed neither count, are each reported as themselves. Printing `0
+# findings` for a check whose output nobody could parse would be the same defect
+# one level down.
+#
+# The traceback test is not redundant with the exit-status test: an uncaught
+# Python exception exits 1, the same status a check uses to report findings, so
+# without it a crashed check is filed as a failure whose count could not be read
+# — which sends the reader to "its findings are in the output above" over a
+# traceback.
+lint_run = echo; echo "--- lint-$(1) ---"; \
+    out=$$($(CHECK_$(1)) 2>&1); s=$$?; [ -z "$$out" ] || printf '%s\n' "$$out"; \
+    n=$$(printf '%s\n' "$$out" | sed -n 's/^Found \([0-9][0-9]*\) .*/\1/p' | head -1); \
+    d=$$(printf '%s\n' "$$out" | sed -n 's/^[^ ]*: \([0-9][0-9]*\) baseline entr.*/\1/p' | head -1); \
+    if [ $$s -eq 0 ]; then echo "lint-$(1): ok"; \
+    elif [ $$s -ne 1 ]; then \
+      failed=$$((failed+1)); list="$$list lint-$(1) (could not run),"; \
+      echo "lint-$(1): COULD NOT RUN, exit $$s. That is not a finding count of zero."; \
+    elif printf '%s\n' "$$out" | grep -q '^Traceback (most recent call last):'; then \
+      failed=$$((failed+1)); list="$$list lint-$(1) (crashed),"; \
+      echo "lint-$(1): CRASHED — its output is a traceback, not findings. That is not a finding count of zero."; \
+    elif [ -z "$$n$$d" ]; then \
+      failed=$$((failed+1)); list="$$list lint-$(1) (count unread),"; \
+      echo "lint-$(1): FAIL, and its output carries no finding count — read it above."; \
+    else \
+      c=$$(($${n:-0}+$${d:-0})); failed=$$((failed+1)); findings=$$((findings+c)); \
+      list="$$list lint-$(1) $$c,"; echo "lint-$(1): FAIL, $$c finding(s)."; \
+    fi;
+
+# The one line the verdict is built from. Its shape is load-bearing: `gate` reads
+# the failing count from field 3, the number of checks this sweep accounted for
+# from field 5, the finding count from field 8, and the per-check split from
+# everything after the second colon. A sweep that reports nothing failing still
+# states its total, so the verdict can say how many checks stood behind a green
+# one.
+#
+# Field 5 is what the sweep ran, not what the gate holds a project to, and the two
+# differ whenever a sweep did not happen: with `lint-images` unreached this line
+# counts fewer than $(LINT_TOTAL). The verdict's denominator is $(LINT_TOTAL) so
+# that two runs of the same tree are comparable — which sweeps got to run depends
+# on the scheduler, and a column of stored verdict lines whose denominator moved
+# with `-j` compares nothing. The shortfall is reported as its own clause.
+lint_begin  = failed=0; findings=0; list='';
+lint_report = echo; \
+    if [ $$failed -eq 0 ]; then echo "LINT PASS: $(1) of $(1) checks clean."; \
+    else echo "LINT FAIL: $$failed of $(1) checks failed, $$findings finding(s):$${list%,}."; \
+      exit 1; fi
+
+lint: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL)
+	@$(lint_begin) \
+	$(foreach c,$(LINT_CHECKS),$(call lint_run,$(c))) \
+	$(call lint_report,$(words $(LINT_CHECKS)))
 
 # Label naming is a gauge metric, not a build gate. Early on the map is mostly
 # auto-labels and you cannot name a block before you have disassembled it, so a hard
@@ -309,20 +466,24 @@ lint: lint-address-order lint-instruction-order lint-lengths lint-label-length \
 # progress (% named, auto-labels remaining); the goal is 100% before "done", not
 # before the first commit. See `scripts/coverage_report.py`.
 
+CHECK_address-order = $(SCRIPTS)/validate_ctl_address_order.py $(CTL)
 lint-address-order: $(CTL)
-	$(SCRIPTS)/validate_ctl_address_order.py $(CTL)
+	$(CHECK_address-order)
 
+CHECK_instruction-order = $(SCRIPTS)/validate_ctl_instruction_order.py $(CTL)
 lint-instruction-order: $(CTL)
-	$(SCRIPTS)/validate_ctl_instruction_order.py $(CTL)
+	$(CHECK_instruction-order)
 
+CHECK_lengths = $(SCRIPTS)/validate_ctl_lengths.py $(CTL)
 lint-lengths: $(CTL)
-	$(SCRIPTS)/validate_ctl_lengths.py $(CTL)
+	$(CHECK_lengths)
 
 # Labels never wrap in the HTML listing, so an over-long label opens a wide
 # gutter on its page. Cap length at the source (24 chars); a violation is fixed
 # by renaming the label, never by clipping the column.
+CHECK_label-length = $(SCRIPTS)/validate_ctl_label_length.py $(CTL)
 lint-label-length: $(CTL)
-	$(SCRIPTS)/validate_ctl_label_length.py $(CTL)
+	$(CHECK_label-length)
 
 # Every published block must say what it is: an entry with no title publishes
 # under SkoolKit's default heading for its type ("Data at 5B08"), and a
@@ -330,8 +491,9 @@ lint-label-length: $(CTL)
 # on its address leaves a run of DEFB that nothing in the listing explains and
 # nothing outside it can refer to. Both forms round-trip, tile, and count as
 # documented under `coverage`, so this is the only check that sees them.
+CHECK_identity = $(SCRIPTS)/validate_ctl_identity.py $(CTL) --baseline $(BASELINE)
 lint-identity: $(CTL)
-	$(SCRIPTS)/validate_ctl_identity.py $(CTL) --baseline $(BASELINE)
+	$(CHECK_identity)
 
 # Data-block schema check: every data entry — every block type but `c` and `i` —
 # must tile: its sub-directives cover every byte exactly once. Code modeled as an
@@ -349,9 +511,11 @@ lint-identity: $(CTL)
 # The image is passed, not optional: the ZEROFILL and POINTER checks need to read
 # the bytes, and a linter that silently skips half its checks is worse than one
 # that is not wired up at all.
+CHECK_data-structure = $(SCRIPTS)/validate_ctl_data_structure.py $(CTL) \
+    --bin $(BIN_PRISTINE) --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
+    --baseline $(BASELINE)
 lint-data-structure: $(CTL) $(BIN_PRISTINE)
-	$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
-	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) --baseline $(BASELINE)
+	$(CHECK_data-structure)
 
 # What the .ctl publishes as pages, rather than what any one entry declares.
 # An entry outside the program image publishes a page for RAM the program never
@@ -369,16 +533,18 @@ lint-data-structure: $(CTL) $(BIN_PRISTINE)
 # passed and is not optional: the whole point of reading it is that a store
 # instruction is a fact where a description saying "while the timer runs" is a
 # reading of English.
+CHECK_publication = $(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
+    --org $(ORG) --size $(SIZE) --skool $(SKOOL) --baseline $(BASELINE)
 lint-publication: $(CTL) $(CTL_EXTRA) $(SKOOL)
-	$(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
-	    --org $(ORG) --size $(SIZE) --skool $(SKOOL) --baseline $(BASELINE)
+	$(CHECK_publication)
 
 # One name per entity, in the only form arithmetic can settle: a slot family the
 # labels declare (`door_a`/`door_b`) must not be named by position in prose ("the
 # second door"). The .ctl and every reader-facing file beside it are swept, since
 # a term settles wherever nothing looks. See `references/ctl-authoring.md`.
+CHECK_names = $(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) --baseline $(BASELINE)
 lint-names: $(CTL)
-	$(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) --baseline $(BASELINE)
+	$(CHECK_names)
 
 # A length the listing already carries, copied into an instruction comment:
 # "Clear 163 bytes of the tile map" over the `LD BC` that says 163. It
@@ -386,8 +552,9 @@ lint-names: $(CTL)
 # bytes per slot", "22-byte record stride" — is the arithmetic a reader would
 # otherwise do by hand and is exempt; the author declares a rate by writing it
 # as one. See `references/comment-style.md`.
+CHECK_byte-counts = $(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) --baseline $(BASELINE)
 lint-byte-counts: $(CTL)
-	$(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) --baseline $(BASELINE)
+	$(CHECK_byte-counts)
 
 # The outcome check: every image macro named a file, and every named file is on
 # the site. `make` proved the HTML *builds*; nothing proved it contains anything.
@@ -399,9 +566,15 @@ lint-byte-counts: $(CTL)
 # It sweeps the .ctl and the .ref catalogs, not $(PROSE): a `spec/*.md` page is
 # not SkoolKit input, so a macro written there renders nothing and is not
 # supposed to.
+#
+# It runs through the same sweep as the other checks, over a set of one, so its
+# findings reach the verdict the way theirs do. Reporting it as "the build
+# failed" would put the one check whose subject is an outcome back behind a
+# truncated tail.
+CHECK_images = $(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
+    --baseline $(BASELINE)
 lint-images: html/.stamp
-	$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
-	    --baseline $(BASELINE)
+	@$(lint_begin) $(call lint_run,images) $(call lint_report,1)
 
 # Re-record the gating checks' findings as the project's accepted baseline. Run it
 # when a fix clears a finding — the shrunk file is the evidence. It cannot do the
@@ -469,8 +642,9 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 # which is the one thing it must never do. A render macro, a `w` entry, a
 # one-byte stride and a page-sized region cut at a power-of-two width all
 # disqualify a span - see the script and `references/ctl-authoring.md`.
+CHECK_array-elements = $(SCRIPTS)/validate_ctl_array_elements.py $(CTL) --baseline $(BASELINE)
 lint-array-elements: $(CTL)
-	$(SCRIPTS)/validate_ctl_array_elements.py $(CTL) --baseline $(BASELINE)
+	$(CHECK_array-elements)
 
 # Advisory comment-quality pre-filter (RET / RESTATE / PLACEHOLDER / SELFLINK /
 # OPERAND_ECHO / ELLIPSIS / DIARY / REFPOINTER / STAMP). Advisory, so it is not in the default `make` gate

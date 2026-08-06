@@ -21,7 +21,7 @@ metadata:
   # RED says which gate produced it. Raise it in the same commit that changes
   # what the gate accepts or rejects — a new gating check, a check that gains a
   # finding kind, a rule that widens. See references/build-verify.md.
-  gate: 1
+  gate: 2
 ---
 
 # ZX Spectrum game disassembly

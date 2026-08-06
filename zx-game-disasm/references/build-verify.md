@@ -104,6 +104,49 @@ The gate asks make (`make -q`) whether any generated file is out of date *before
 
 Also read the version. A gate that passed under a SkoolKit other than the one `requirements.txt` pins proved something about a toolchain the project does not ship.
 
+#### A red verdict says how far from green, not just that it is red
+
+The `.ctl` checks all run whatever any one of them reports, and the verdict names every check that failed with its own finding count:
+
+```
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] — 3 of 11 checks failed, 60 finding(s): lint-publication 30, lint-byte-counts 20, lint-array-elements 10. The log accounts for 10 of the gate's 11 checks — no sweep reports the other 1, so they did not run. That count is a floor, not the distance to green. Every finding is above in full, not tailed. Full log: build/make.log.
+```
+
+That is the line to quote and to store. `1 check failed, 30 findings` and `3 checks failed, 60 findings` are different amounts of work, and a bare RED, or a verdict naming only the first check make happened to reach, cannot tell them apart. Make halts at the first prerequisite that fails, which is why `lint` runs its checks in its own recipe rather than listing them as prerequisites: with them listed, the gate stops at the first check that fails, and the findings of every check after it never reach the verdict.
+
+**On a failing check the findings are printed whole, not tailed.** The tail exists for output nobody can plan against — `pasmo`'s hundreds of `WARNING: Var … never used` lines. Findings are the opposite: each one is a line of work, and a 40-line window over three checks' worth silently drops the ones past it. So the gate prints every check's output from the first check's banner to its summary line, and falls back to `tail -40` only when what failed was the build.
+
+**The denominator is the gate's own total**, not the number of checks this run got to. Which sweeps run depends on what failed and on the scheduler, so a denominator taken from the run itself moves between two runs of the same tree — and a stored column of verdict lines then compares nothing. What did not run gets its own clause instead.
+
+Four clauses appear when they apply, and each is there because its absence would make the count read as more than it is:
+
+- **`The log accounts for N of the gate's 11 checks`** — no sweep reported the rest, so they did not run. The count in front of that clause is a **floor**. Clear the named checks and re-run before planning against it.
+- **`(could not run)`** against a check, where a count would be — the check exited a way it does not define, so it was called wrongly or died before it could report. It has no finding count, and that is not a finding count of zero.
+- **`(crashed)`** — the check printed a traceback. It exits the same way a check with findings does, so it is caught by its output rather than its status; what is above it is a stack trace, not work.
+- **`(count unread)`** — the check failed and printed no count the gate could read. Its findings are in the output above; the total does not include them.
+
+A build failure reads as one, and it reads as one whether or not any check also went red. The round-trip `cmp` and the `.asm` come before the checks in `all`'s prerequisite list, so sequentially a failure in either stops the run before a check has started:
+
+```
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] — the build failed before any check ran, so no check has a finding count and none of them is what failed; the build's last 40 log lines are above. Full log: build/make.log.
+```
+
+That order is a sequential order only. Under `-j` — which nobody has to type, an inherited `MAKEFLAGS=-j4` is enough — `test`, `lint` and `html` are siblings, so a full sweep of findings can complete after `cmp` has already failed. Both are then in the log, and the gate leads with the build:
+
+```
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] — the build itself failed (test), which is what to fix first: a finding count is a distance to green only over a tree that builds. 1 of 11 checks failed, 3 finding(s): lint-label-length 3. The build's last 40 log lines are above, then every finding in full. Full log: build/make.log.
+```
+
+`(test)` is the failing target make named. Read that clause first and stop planning against the counts after it: they were measured over a tree that does not build.
+
+A failure after the checks — the site will not build, a dangling `#R` or a malformed macro in a `.ref` does it — gets the third wording:
+
+```
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] — every check that ran was clean, so this is the build failing rather than a finding; its last 40 log lines are above. Full log: build/make.log.
+```
+
+This is deliberately narrower than `make -k`. `-k` continues past *any* failed target, so a broken round-trip stops stopping the build — and what it continues past differs between make versions. What has to survive a first failure is the set of independent checks, not the build. So the checks aggregate and the build still halts, and the verdict — not the halt — is what keeps a one-line `cmp` from arriving buried among findings when `-j` ran them side by side.
+
 #### The marker: which gate produced this verdict
 
 PASS and FAIL are relative to a gate that moves independently of the project, so a verdict that does not name its gate stops meaning anything the moment either side moves. `gate 1/e70342a` in the sample verdicts is that name, in two halves:
@@ -120,13 +163,13 @@ The digest is taken from file contents, never from `git rev-parse`. The skill is
 `lint-baseline.txt` carries the same marker in its header, written by `make lint-baseline`, and the gate compares the two. When they differ the verdict says so, on a pass and on a failure both:
 
 ```
-GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — full log: build/make.log. lint-baseline.txt was recorded under gate 1/e70342a, so a finding this gate reports and that one did not is the gate moving, not this commit regressing — see the gate-boundary rule in references/build-verify.md.
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — 1 of 11 checks failed, 4 finding(s): lint-array-elements 4. … Full log: build/make.log. lint-baseline.txt was recorded under gate 1/e70342a, so a finding this gate reports and that one did not is the gate moving, not this commit regressing — see the gate-boundary rule in references/build-verify.md.
 ```
 
 A tree with **no** `lint-baseline.txt` gets its own clause, on a failure only — a commit that predates the baseline fails that way, and on a pass the absence is the right default for a new disassembly rather than something worth saying:
 
 ```
-GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — full log: build/make.log. There is no lint-baseline.txt in this tree, so this run accepted nothing — a commit that predates the project's baseline fails a gating check the way a regression does; see the gate-boundary rule in references/build-verify.md.
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — 4 of 11 checks failed, 50 finding(s): lint-data-structure 10, lint-publication 20, lint-names 10, lint-byte-counts 10. … Full log: build/make.log. There is no lint-baseline.txt in this tree, so this run accepted nothing — a commit that predates the project's baseline fails a gating check the way a regression does; see the gate-boundary rule in references/build-verify.md.
 ```
 
 That clause is the difference between a red gate you investigate and one you can place in a sentence. Read it before reading the findings: **a red gate whose baseline was recorded under a different gate, or which has no baseline where the project has one, is not evidence about the commit.** It is also what makes the wrong fix unattractive — regenerating the baseline so the live gate passes bakes a different gate's checks into this project's accepted debt.
@@ -155,7 +198,7 @@ This is a sanctioned use of a worktree. A *Worker* still never gets one, see `re
 
 `checkout -qf` is load-bearing. Plain `checkout` refuses only when the switch would *overwrite* a modified tracked file; where the file is byte-identical in both commits it carries the modification along silently, so the loop builds content that is in no commit and reports the verdict against a sha. A failed gate can leave the tree modified, which is exactly when someone runs this — and it fails in both directions: an edit that breaks the build reports every sha RED, one that fixes it reports a genuinely red commit green.
 
-**Keep the verdict line, not just the red or the green.** The verdict is the last line the gate writes to stdout — make's own `*** Error 2` goes to stderr, which is why the loop drops stderr rather than folding it in — and it names the SkoolKit and the gate the run used, and reports a baseline recorded under a different one. A stored `RED: 4cf467a` is uninterpretable a week later; a stored `4cf467a  GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — … recorded under gate 1/e70342a …` places itself.
+**Keep the verdict line, not just the red or the green.** The verdict is the last line the gate writes to stdout — make's own `*** Error 2` goes to stderr, which is why the loop drops stderr rather than folding it in — and it names the SkoolKit and the gate the run used, reports a baseline recorded under a different one, and carries the failing checks with their finding counts. A stored `RED: 4cf467a` is uninterpretable a week later; a stored `4cf467a  GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — 3 of 11 checks failed, 60 finding(s): … recorded under gate 1/e70342a …` places itself, and a column of those lines is a backlog rather than a tally of reds. The denominator holds still across the column — it is the gate's 11, not the number of checks a given run reached — so two lines differ only where the tree differs.
 
 The `${verdict:-…}` default covers the worst case, which is the one the loop must not print blank: a commit whose tree cannot build at all — no `Makefile` yet, or one that does not `include` the framework — writes no verdict line, and the run would otherwise report a sha and nothing beside it. `NO VERDICT (make could not run)` says the loop reached that commit and the commit had no gate to run, which is a different thing from failing one.
 
@@ -195,6 +238,8 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 - `validate_ctl_array_elements.py` — every record of an array is annotated individually.
 
 The first four exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff. The last six are content checks, and they carry a baseline — see below.
+
+`make lint` runs all ten whatever any one of them reports, and ends on a summary line — `LINT FAIL: 3 of 10 checks failed, 60 finding(s): …` — which is what the gate's verdict is built from. The `10` there is what this sweep covered; the verdict re-states the same failure against the gate's own 11. Each is also its own target (`make lint-publication`) for working one check at a time. `make lint-images` is the eleventh check and stands apart because it reads the built site rather than a text file, so it runs after `make html`; its summary line has the same shape and the verdict counts it with the rest.
 
 `make` then runs one more check that is not a `.ctl` linter at all, because its subject is the built site:
 
