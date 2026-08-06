@@ -166,7 +166,7 @@ scripts/gdb.sh "break 0x0000" "break 0x8050" "cont" "reg"
 ## Reference
 
 - `references/protocol.md` — the complete gdbserver reference: enabling the server, halting before the first opcode, choosing/installing a client, connection mechanics, the full RSP packet table, memory watchpoints, the monitor command surface, the raw-RSP wire format for Python scripting, and the known limits and caveats.
-- `references/driving.md` — the complete libfusex reference: the C ABI symbol table, the ctypes driver pattern, ASCII key mapping, the 256×192 screen format and palette, booting a tape/snapshot, peek/poke, RZX/movie recording, gotchas, and a worked "play a game and read the screen" example.
+- `references/driving.md` — the complete libfusex reference: the C ABI symbol table, the ctypes driver pattern, ASCII key mapping, the 256×192 screen format and palette, booting a tape/snapshot, peek/poke, RZX/movie recording, the per-address execution profiler, gotchas, and a worked "play a game and read the screen" example.
 - `scripts/gdb.sh`, `scripts/gdb-session.py` — the batch and persistent gdbserver drivers.
 - `scripts/fuse_drive.py` — the libfusex driver wrapper (boot, key tap, screen → ndarray/PNG, peek/poke); importable or runnable as a smoke test.
 

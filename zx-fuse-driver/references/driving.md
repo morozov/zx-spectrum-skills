@@ -5,6 +5,7 @@
 - **The library must come from the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`.** Upstream's library exports only `fusex_display_info` and `fusex_display_frame`, so the `fusex_peek`, `fusex_peek_block` and `fusex_get_reg` rows below are missing from it.
 - **Library and ROMs.** On macOS the library is `FuseX.app/Contents/Frameworks/libfusex.dylib` and the ROMs are in `FuseX.app/Contents/Resources`, under `~/Applications` or `/Applications`. On Linux, set `FUSEX_LIB` to the `libfusex.so` of a `--with-null-ui` build and `FUSEX_ROMS` to its tree's `roms/`; `/usr/lib/libfusex.so` and `/usr/share/fusex` are tried when they are unset. `FUSEX_LIB` and `FUSEX_ROMS` override the defaults on every platform. Pass the ROM directory as `--rom-dir`, and the working directory stops mattering.
 - **Wrapper**: `scripts/fuse_drive.py` resolves both paths and wraps the calls below.
+- **When a symbol is missing**, `ctypes` raises `AttributeError` on first use and says nothing about why. The library carries no export list: it exports whatever Fuse's objects define, so Fuse's own functions are callable alongside the `fusex_*` additions. `nm -gU libfusex.dylib` is the authoritative answer for a given copy.
 
 ## The C ABI
 
@@ -68,6 +69,44 @@ Reading a HUD value (score, lives) off the screen is a matter of locating its ch
 ## Recording a run
 
 Wrap a play session in `rzx_start_recording(path, 1)` … `rzx_stop_recording()` to capture a deterministic input replay; the RZX re-drives the identical run later (and renders to MP4 via the movie API + `fmfconv`). RZX and movie recording is the reproducible way to hand a playthrough to a human or to re-inspect exact frames.
+
+Boot an `.rzx` the same way as any other medium, with `--auto-load run.rzx` in the `fuse_init` argv. `ctypes.c_int.in_dll(lib, "rzx_playback").value` reads non-zero until the recording runs out.
+
+## Which addresses executed: the profiler
+
+FuseX's Z80 profiler charges each instruction's t-states to the address it started at, across the whole 64K address space — ROM included, and the ROM dominates the count on any run that touches the loader or a system routine. The same library exports it, so `ctypes` reaches it directly:
+
+| Symbol | Signature | Does |
+| --- | --- | --- |
+| `profile_start` | `void(void)` | Zero the per-address t-state totals and start counting. |
+| `profile_finish` | `void(const char *path)` | Write the map, then stop counting — **both only if `fopen` succeeds**. |
+| `profile_active` | `int` (data) | Non-zero while counting. |
+
+`profile_finish` writes one CSV line per address that accumulated any t-states — `0x5b2a,1606` — and omits the rest, so the file *is* the set of addresses an instruction began at. Two things about the pair are not in its name:
+
+- **A failed write returns like a successful one.** An unwritable path makes `profile_finish` print one line to stderr and return, having written no file *and* left `profile_active` set. The return type is `void`, so a driver that reads the file back gets a stale map or a `FileNotFoundError` with nothing naming the cause. Check `ctypes.c_int.in_dll(lib, "profile_active").value` after the call: 0 means the map was written.
+- **Only `profile_start` zeroes the totals.** `profile_finish` leaves them standing, so `start … finish … step … finish` writes a second map that still carries the first run's counts. One `profile_start` per map.
+
+Wrap an RZX playback in the pair to get a map of a reproducible run rather than of whatever happened this time. Bound the stepping by the recording, not by a frame count: a fixed count large enough to play the RZX out keeps free-running once it ends, and everything after that point is this session's own behavior, not the recording's.
+
+```python
+lib.profile_start.argtypes = []
+lib.profile_finish.argtypes = [ctypes.c_char_p]
+lib.fuse_init(...)                # boot the .rzx
+lib.profile_start()
+while ctypes.c_int.in_dll(lib, "rzx_playback").value:   # exactly the recorded run
+    lib.spectrum_do_frame()
+lib.profile_finish(b"/tmp/run.profile")
+assert ctypes.c_int.in_dll(lib, "profile_active").value == 0, "profile_finish failed"
+executed = {int(l.split(",")[0], 16) for l in open("/tmp/run.profile") if l.strip()}
+```
+
+**A hit proves code; a miss proves nothing.** Only the first byte of an instruction is charged, so an instruction's operand bytes never appear, and any path this run did not take is absent whether it is code or data. Read the map as positive evidence, and widen the run before reading anything into a gap.
+
+**A hit is evidence about the memory that ran, which is not always the memory you are reading.** Two filters make the difference:
+
+- **Drop everything below `$4000`.** Those are ROM addresses, and they say nothing about the program.
+- **Profile the state you are asking about.** A run that includes the tape load spends its RAM hits in the loader, and the loader's memory is not the loaded game's — its buffers, and bytes the game has not written yet, sit where the post-load map has code and data. Boot the post-load snapshot instead.
 
 ## Gotchas
 
