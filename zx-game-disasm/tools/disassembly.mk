@@ -21,6 +21,7 @@
 #   make lint-array-elements  Gate: every array record annotated individually
 #   make lint-images          Gate: every image macro put an image under html/
 #   make lint-baseline        Re-record the gating checks' findings as the baseline
+#                             (it can only shrink the file; it fails on growth)
 #   make verify-frag FRAG=…  Round-trip one Worker fragment in isolation
 #   make tap      A loadable .tap of the fixed build — the disassembly as a
 #                 playable rebuild, not only a byte-check
@@ -322,31 +323,56 @@ lint-images: html/.stamp
 	    --baseline $(BASELINE)
 
 # Re-record the gating checks' findings as the project's accepted baseline. Run it
-# when a fix clears a finding — the shrunk file is the evidence — and once when a
-# project first adopts a check. Never to bury a finding you just introduced: each
-# run names the keys the file gains, and a run that gains one is a run to throw
-# away. Each check rewrites only its own lines, so re-recording one leaves the
-# other's alone.
+# when a fix clears a finding — the shrunk file is the evidence. It cannot do the
+# opposite: a check whose rewrite would add a key writes nothing, names the keys
+# and exits with BASELINE_REFUSED, so this target has no route to burying a
+# finding you introduced. Adopting a check for the first time — or a finding kind
+# the check has gained since — is the one growth that is legitimate, and it is
+# deliberately not reachable from here — see `references/build-verify.md`.
+#
+# They run in one shell so that a refusal by one does not stop the rest: each
+# check rewrites only its own lines, so a check that shrinks must still be able to
+# record that while another check is red. The refuser leaves its own section as it
+# found it, so every section the file ends with is one its check would write, and
+# the accumulated status fails the target. The leading `@` hides the command, not
+# the exit status.
+#
+# A check that exits any other way did not refuse — it crashed, or was called with
+# an argument it does not take — so the run stops there rather than reporting a
+# refusal that did not happen and letting the checks after it rewrite the file
+# from a state nobody has read.
 #
 # It depends on the built site because one of the checks it re-records reads the
 # images the build produced: an outcome cannot be baselined without the outcome.
+
+# The status `ctl_baseline.write` refuses with: see REFUSED_EXIT in
+# `scripts/ctl_baseline.py`. Anything else non-zero is a check that failed to run.
+BASELINE_REFUSED = 3
+sift_baseline_status = s=$$?; \
+    if [ $$s -eq $(BASELINE_REFUSED) ]; then refused=1; \
+    elif [ $$s -ne 0 ]; then \
+        echo "make lint-baseline: the check above exited $$s without recording anything — that is not a refusal, it is a check that could not run."; \
+        exit $$s; fi
+
 lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
-	@$(SCRIPTS)/validate_ctl_identity.py $(CTL) \
-	    --baseline $(BASELINE) --write-baseline
-	@$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
+	@refused=0; \
+	$(SCRIPTS)/validate_ctl_identity.py $(CTL) \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
 	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
-	    --baseline $(BASELINE) --write-baseline
-	@$(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
 	    --org $(ORG) --size $(SIZE) --skool $(SKOOL) \
-	    --baseline $(BASELINE) --write-baseline
-	@$(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) \
-	    --baseline $(BASELINE) --write-baseline
-	@$(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) \
-	    --baseline $(BASELINE) --write-baseline
-	@$(SCRIPTS)/validate_ctl_array_elements.py $(CTL) \
-	    --baseline $(BASELINE) --write-baseline
-	@$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
-	    --baseline $(BASELINE) --write-baseline
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/validate_ctl_array_elements.py $(CTL) \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	[ $$refused -eq 0 ] || { echo "make lint-baseline: a check refused to record a key $(BASELINE) does not list, so it keeps what it said — the gate still fails on the finding."; exit $(BASELINE_REFUSED); }
 
 # Every element of an array of records must be annotated individually. An array
 # laid out as one directive - or as none at all, with the record size stated only
@@ -445,10 +471,11 @@ tap: $(TAP_FIXED)
 $(TAP_FIXED): $(BIN_FIXED)
 	$(BIN2TAP) --org $(ORG) --start $(PC) --stack $(SP) $< $@
 
-# Every site ships the skill's default theme: dark responsive layout,
-# JetBrains Mono listing, Z80 syntax highlighting, comment-group hover, and a
-# card-grid index (assets/theme.{ref,css,js}). The theme ref is passed before
-# the project's refs, so a project overrides it by restating a parameter and
+# Every site ships the skill's default theme: dark responsive layout, the listing
+# in the platform's own monospace face, Z80 syntax highlighting, comment-group
+# hover, and a card-grid index (assets/theme.{ref,css,js}). The theme names no
+# face it does not load — see `references/html-docs.md`. The theme ref is passed
+# before the project's refs, so a project overrides it by restating a parameter and
 # layers its identity by appending its own stylesheet
 # (StyleSheet=skoolkit.css;theme.css;$(GAME).css). `-a` renders operands as
 # label names — `CALL draw_sprite`, never `CALL $F0A2`.
