@@ -2,9 +2,16 @@
 """
 Validate that line-level comments in a SkoolKit .ctl file don't have redundant lengths.
 
-This script processes lines that start with two spaces, followed by $ADDRESS,LENGTH.
-If the length equals the difference between this address and the next address,
-it reports a violation since the length is redundant and can be omitted.
+This script processes indented lines of the form $ADDRESS,LENGTH. If the length
+equals the difference between this address and the next address, it reports a
+violation since the length is redundant and can be omitted.
+
+Any indent counts, both when reading a length and when finding the next address,
+as `validate_ctl_array_elements.py` and `validate_ctl_instruction_order.py` read
+it: SkoolKit renders a four-space comment exactly as it renders a two-space one.
+A depth this check ignored would be a comment it did not see, and the gap it then
+measured would run past it - which reports a legitimately explicit length as
+redundant and fails the build on correct annotation.
 """
 
 import re
@@ -13,11 +20,11 @@ import sys
 
 def parse_address_line(line):
     """
-    Parse a line starting with '  $ADDRESS,LENGTH'.
+    Parse an indented line of the form '$ADDRESS,LENGTH'.
     Returns (address, length, rest_of_line) or None if not matching.
     Only matches lines with exactly 2 comma-separated values (not 3+).
     """
-    match = re.match(r'^  \$([0-9A-Fa-f]+),(\d+)([^,].*)$', line)
+    match = re.match(r'^ +\$([0-9A-Fa-f]+),(\d+)([^,].*)$', line)
     if match:
         address = int(match.group(1), 16)
         length = int(match.group(2))
@@ -28,13 +35,12 @@ def parse_address_line(line):
 
 def get_next_address(lines, start_index):
     """
-    Find the next comment line starting with '  $ADDRESS' (two spaces).
+    Find the next comment line of the form '$ADDRESS' at any indent.
     Returns the address as an integer or None.
     """
     for i in range(start_index + 1, len(lines)):
         line = lines[i]
-        # Only match lines starting with exactly two spaces, then $ADDRESS
-        match = re.match(r'^  \$([0-9A-Fa-f]+)', line)
+        match = re.match(r'^ +\$([0-9A-Fa-f]+)', line)
         if match:
             return int(match.group(1), 16)
     return None

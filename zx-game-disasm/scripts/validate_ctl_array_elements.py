@@ -52,6 +52,7 @@ Usage: validate_ctl_array_elements.py CTL [--min-records N] [--min-span N]
 Exit 0 when clean, 1 when any array is unannotated.
 """
 import argparse
+import collections
 import re
 import sys
 
@@ -59,6 +60,12 @@ import ctl_baseline
 import validate_ctl_data_structure as schema
 
 CHECK = 'array-elements'
+
+# The two floors, in one place: `main()` takes them as its argparse defaults and
+# `unannotated_arrays` as its keyword defaults, so the gauge that calls the
+# function measures what the gate measures without restating a number.
+MIN_RECORDS = 10
+MIN_SPAN = 40
 
 # Addresses take the same forms the sibling linters accept - `$HEX` or plain
 # decimal - so a .ctl that has not been through ctl_to_hex.py gets reported on
@@ -152,12 +159,79 @@ def is_geometry(length, stride):
             and stride & (stride - 1) == 0)
 
 
+Run = collections.namedtuple('Run', 'kind entry line address records missing span')
+
+
+def unannotated_arrays(lines, by_address=None,
+                       min_records=MIN_RECORDS, min_span=MIN_SPAN):
+    """
+    Return every array span a .ctl leaves unannotated, in file order.
+
+    This is the one place that decides *which spans qualify*. `main()` turns the
+    result into findings and `coverage_report.py` counts it as the ARRAYS metric,
+    so the gate and the gauge cannot answer differently about the same file: an
+    exemption added here reaches both, and neither can gain one the other lacks.
+
+    `lines` is the .ctl split into lines. `by_address` is the block map from
+    `validate_ctl_data_structure.parse_ctl`, which is what the RENDER exemption
+    reads; pass `None` to run without it - every other exemption still applies,
+    and rendered assets then come back as findings.
+
+    Each item is a `Run`:
+
+      kind     'UNINDEXED' - one sub-directive stands in for `records` records
+               and `missing` of them carry no annotation of their own;
+               'UNDECLARED' - an array-sized span with no sub-directive at all
+      entry    1-based line of the entry head
+      line     1-based line the finding sits on: the sub-directive for
+               UNINDEXED, the entry head for UNDECLARED
+      address  the entry's address
+      records  records the directive stands in for; 0 for UNDECLARED
+      missing  records carrying no annotation; 0 for UNDECLARED, where nothing
+               declares a record at all
+      span     bytes the span covers
+    """
+    runs = []
+    for i, typ, addr, nxt, subs, comments in blocks(lines):
+        if typ not in 'bgwt':
+            continue
+        block = (by_address or {}).get(addr)
+        if block is not None and schema.is_rendered_asset(block, by_address):
+            continue
+
+        if not subs:
+            # `w` answers the question in the entry type: one `DEFW` per word is
+            # one element per row, so nothing about the element size is left in
+            # prose. Whether those words carry names is `lint-identity`'s.
+            if typ == 'w':
+                continue
+            span = (nxt - addr) if nxt else 0
+            if span >= min_span:
+                runs.append(Run('UNDECLARED', i + 1, i + 1, addr, 0, 0, span))
+            continue
+
+        for j, s in subs:
+            shape = layout(s.group(3))
+            if shape is None:
+                continue
+            length, stride = shape
+            if stride <= 1 or length < min_span or is_geometry(length, stride):
+                continue
+            if length // stride < min_records:
+                continue
+            missing = unannotated(parse_address(s.group(2)), length, stride, comments)
+            if missing >= min_records:
+                runs.append(Run('UNINDEXED', i + 1, j + 1, addr,
+                                length // stride, missing, length))
+    return runs
+
+
 def main():
     ap = argparse.ArgumentParser(
         description='Validate that every record of an array in a .ctl is annotated.')
     ap.add_argument('ctl')
-    ap.add_argument('--min-records', type=int, default=10)
-    ap.add_argument('--min-span', type=int, default=40)
+    ap.add_argument('--min-records', type=int, default=MIN_RECORDS)
+    ap.add_argument('--min-span', type=int, default=MIN_SPAN)
     ctl_baseline.add_arguments(ap)
     a = ap.parse_args()
 
@@ -170,41 +244,17 @@ def main():
         return 1
 
     findings = []
-    for i, typ, addr, nxt, subs, comments in blocks(lines):
-        if typ not in 'bgwt':
-            continue
-        block = by_address.get(addr)
-        if block is not None and schema.is_rendered_asset(block, by_address):
-            continue
-
-        if not subs:
-            # `w` answers the question in the entry type: one `DEFW` per word is
-            # one element per row, so nothing about the element size is left in
-            # prose. Whether those words carry names is `lint-identity`'s.
-            if typ == 'w':
-                continue
-            span = (nxt - addr) if nxt else 0
-            if span >= a.min_span:
-                findings.append((i + 1, 'UNDECLARED',
-                                 f'{span} bytes with no sub-directive - the record size is '
-                                 f'stated in prose only, so no element is annotated'))
-            continue
-
-        for j, s in subs:
-            shape = layout(s.group(3))
-            if shape is None:
-                continue
-            length, stride = shape
-            if stride <= 1 or length < a.min_span or is_geometry(length, stride):
-                continue
-            if length // stride < a.min_records:
-                continue
-            missing = unannotated(parse_address(s.group(2)), length, stride, comments)
-            if missing >= a.min_records:
-                findings.append((j + 1, 'UNINDEXED',
-                                 f'one directive stands in for {length // stride} records, '
-                                 f'{missing} of them unannotated - give each record its '
-                                 f'own named line'))
+    for run in unannotated_arrays(lines, by_address,
+                                  min_records=a.min_records, min_span=a.min_span):
+        if run.kind == 'UNDECLARED':
+            findings.append((run.line, run.kind,
+                             f'{run.span} bytes with no sub-directive - the record size is '
+                             f'stated in prose only, so no element is annotated'))
+        else:
+            findings.append((run.line, run.kind,
+                             f'one directive stands in for {run.records} records, '
+                             f'{run.missing} of them unannotated - give each record its '
+                             f'own named line'))
 
     if a.write_baseline:
         if not a.baseline:

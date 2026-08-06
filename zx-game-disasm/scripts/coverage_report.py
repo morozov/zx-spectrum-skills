@@ -296,42 +296,50 @@ def main():
     admissions = len(re.findall(
         r'not yet|to be (?:named|identified)|\bTODO\b|unnamed|as identified|provisional',
         blob, re.I))
-    # Unindexed arrays: a single B/W run spanning many records inside a block with
-    # no commented element sub-lines and no inline render is an opaque blob — a
-    # reader must count bytes to find record N. Advisory (a uniform blob can be
-    # legitimate); blocks whose content is rendered by an image macro are exempt.
-    unindexed = []
-    RUN_RE = re.compile(r'^([BW]) \$?[0-9A-Fa-f]+,(\d+),(\d+)\s*$')
-    ELEM_RE = re.compile(r'^  \$[0-9A-Fa-f]+,[0-9:,*bcdhn]+ +\S')
-    LABEL_LINE_RE = re.compile(r'^@ \$?[0-9A-Fa-f]+ label=(\S+)')
-    cur_name, pend_name = None, None
-    cur_max_records, cur_elem_comments, cur_has_macro = 0, 0, False
-
-    def flush_block():
-        if cur_name and cur_max_records >= 10 and not cur_elem_comments and not cur_has_macro:
-            unindexed.append((cur_name, cur_max_records))
-
-    for ln in ctl_text.splitlines():
-        lm = LABEL_LINE_RE.match(ln)
-        if lm:
-            pend_name = lm.group(1)
-            continue
-        if re.match(r'^[bcgistuwz] \$', ln):
-            flush_block()
-            cur_name = pend_name or ln.split()[1]
-            pend_name = None
-            cur_max_records, cur_elem_comments, cur_has_macro = 0, 0, False
-            continue
-        if not cur_name:
-            continue
-        rm = RUN_RE.match(ln)
-        if rm and int(rm.group(3)):
-            cur_max_records = max(cur_max_records, int(rm.group(2)) // int(rm.group(3)))
-        if ELEM_RE.match(ln):
-            cur_elem_comments += 1
-        if re.search(GFX, ln):
-            cur_has_macro = True
-    flush_block()
+    # Arrays whose records carry no annotation of their own: a reader must count
+    # bytes to find record N. Advisory here — `lint-array-elements` is the gate —
+    # and read through that check's own `unannotated_arrays`, which is the single
+    # definition of which spans qualify and at which floors. Two instruments
+    # measuring one thing must share the predicate or they contradict each other
+    # on the same file, and a copy diverges the moment either side gains an
+    # exemption. Both of the check's kinds are counted, UNINDEXED and UNDECLARED:
+    # a span with no sub-directive at all fails the gate, so a gauge that skipped
+    # it would report arrays clean on a project `make lint` refuses.
+    arrays = []
+    if ctl:
+        try:
+            import validate_ctl_array_elements as array_elements
+            ctl_lines = ctl_text.splitlines()
+            try:
+                _, _, by_address = array_elements.schema.parse_ctl(ctl)
+            except Exception as e:
+                by_address = None
+                print(f"  (array scan without render exemptions: {e})")
+            LABEL_AT_RE = re.compile(r'^@ (\$?[0-9A-Fa-f]+) label=(\S+)')
+            named = {}
+            for ln in ctl_lines:
+                lm = LABEL_AT_RE.match(ln)
+                if lm:
+                    named[array_elements.parse_address(lm.group(1))] = lm.group(2)
+            # One row per entry, carrying its widest run: an entry with six
+            # unannotated sub-directives is one array to go and fix, and the
+            # gauge counts things to fix rather than findings to clear.
+            widest = {}
+            for run in array_elements.unannotated_arrays(ctl_lines, by_address):
+                best = widest.get(run.entry)
+                if best is None or run.records > best.records:
+                    widest[run.entry] = run
+            for _, run in sorted(widest.items()):
+                arrays.append((named.get(run.address) or f'${run.address:04X}',
+                               f'{run.records} records' if run.kind == 'UNINDEXED'
+                               else f'{run.span} bytes, no sub-directive'))
+        except Exception as e:
+            # The import is guarded because the gauge is one report over ~20
+            # metrics: a syntax error anywhere in the imported chain must cost
+            # this metric, not the other nineteen. `None` is "not measured" —
+            # distinct from the empty list, which is a clean measurement.
+            arrays = None
+            print(f"  (array scan unavailable: {e})")
 
     # Sound footprint: the ULA speaker ($FE) and the AY-3 sound chip ($FFFD/$BFFD,
     # used for tunes). If there is sound code and no #AUDIO, the audio is undocumented
@@ -416,11 +424,14 @@ def main():
           f" {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS,"
           f" {open_markers} OPEN (gate the verdict); {stamp} STAMP (advisory)"
           + ("  — run `make lint-comments` for the line-level list" if prose else ""))
-    print(f"  ARRAYS       : {len(unindexed)} unindexed array run(s) of >=10 records"
-          + (" — " + ", ".join(f"{n} ({r} records)" for n, r in unindexed[:4])
-             + (", …" if len(unindexed) > 4 else "")
-             + "  (advisory: mark up record-by-record, one commented sub-line per element)"
-             if unindexed else ""))
+    if arrays is None:
+        print("  ARRAYS       : not measured — the array check did not load (see the note above)")
+    else:
+        print(f"  ARRAYS       : {len(arrays)} array(s) with unannotated records"
+              + (" — " + ", ".join(f"{n} ({d})" for n, d in arrays[:4])
+                 + (", …" if len(arrays) > 4 else "")
+                 + "  (advisory: mark up record-by-record, one commented sub-line per element)"
+                 if arrays else ""))
     if not baseline_present:
         print(f"  BASELINE     : no {os.path.basename(baseline)} — this project has recorded "
               "no accepted findings, which says nothing about whether the gating checks "
@@ -448,8 +459,9 @@ def main():
         gaps.append(f"{len(placeholders)} placeholder label(s)")
     if stamp:
         gaps.append(f"{stamp} STAMP flag(s) — review for family-head refactors")
-    if unindexed:
-        gaps.append(f"{len(unindexed)} unindexed array run(s) (e.g. {unindexed[0][0]}) — element-index them")
+    if arrays:
+        gaps.append(f"{len(arrays)} array(s) with unannotated records "
+                    f"(e.g. {arrays[0][0]}) — one named line per record")
 
     # NOT done if most routines are unexplained, sound is unrendered or lives
     # only in the .ref index, the catalog is auto-labeled, the generated .asm
