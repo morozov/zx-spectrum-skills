@@ -85,7 +85,7 @@ Get this wrong and the table documents addresses the bytes do not contain. It is
 - **`#UDGARRAYwidth(...)`** — a grid of UDGs: a full multi-cell sprite, a tile set, an animation strip. Supports per-cell masks and crops.
 - **`#UDGSwidth,height(...)(uframe)`** — a UDG array populated dynamically via frame references with `$x`/`$y` placeholders (procedural layouts).
 - **`#FONTaddr[,chars,...](text)`** — render the game's own character set, or a sample string in it.
-- **`#SCR[scale,x,y,w,h,...]`** — a screenshot assembled from the display and attribute files: show an actual screen the game builds.
+- **`#SCR[scale,x,y,w,h,df,af,...]`** — a screenshot assembled from the display and attribute files: show an actual screen the game builds. The captured loading screen is the standard case; it is covered below.
 - **`#FRAMES`, `#COPY`, `#PLOT`, `#OVER`** — compose, copy, edit pixels in, and superimpose frames to build animations or annotated diagrams from real data.
 
 Masking (`mask=1` OR-AND, `mask=2` AND-OR), `{x,y,w,h}` cropping, `scale`, and `flip`/`rotate` apply across the image macros. Render sprites *with their mask* so transparency reads correctly.
@@ -98,6 +98,21 @@ The annotation *is* the deliverable — annotate the asset in place so `skool2ht
 - **In the index (the `.ref`)** — the digest view where the reader sees all assets of a type at once: the animation's frames grouped into a `#FRAMES` sequence, the sprite gallery, the sound list. This is where frames are assembled into a moving whole; the blocks render them one at a time.
 
 Make the index *usable*: group images by what each thing *is*, a labeled grid or table reading value → function → image, not a flat unlabeled dump of cells.
+
+**The loading screen is a resource, and it is one picture.** When the screen the tape painted survives into the snapshot, it is a captured asset like any other and it occupies two blocks: 6144 bytes of display file and 768 bytes of attributes, at `$4000` and `$5800`. Those are two halves of one image, not two data blocks that happen to be adjacent — 768 bytes of color with no pixels to color document nothing, and a page headed "loading screen attributes" tells a reader less than the picture does. So the screen is **one entry**, headed by what it is, covering both halves, with the render on it. Split it per screen address and you get a run of pages that each say the same thing about a different corner of one picture, with the picture itself nowhere — the shape `lint-publication` reports as FRAGMENTED (see `references/ctl-authoring.md`).
+
+`#SCR[scale,x,y,w,h,df,af,...][{crop}](fname)` covers both halves in one macro: `x,y,w,h` are character cells and default to the whole 32×24 screen, and `df`/`af` are the display- and attribute-file base addresses, defaulting to `$4000` and `$5800`. A screen sitting at those addresses therefore needs no coordinates at all — the whole render is the `D` of the entry at the display-file address:
+
+```
+g $4000 Loading screen
+D $4000 … #UDGTABLE { #SCR2(loading_screen) } TABLE#
+```
+
+A screen held somewhere other than screen RAM names both bases in the sixth and seventh slots — `#SCR2,0,0,32,24,$A000,$B800(title_screen)`. There is no second macro for the attribute half; it is already in this one. Then the graphics catalog collects it like any other asset, linking back to the block.
+
+**The letter still follows the writes.** A picture is not exempt from what `b` promises. Where the front-end prints into the captured screen — a menu line, a score readout, an options page — the program writes those bytes as it runs, so the entry is `g`. A captured screen nothing writes — one the loader parked in a buffer, one the program only blits from — is `b`. `lint-publication` reports a `b` entry the code stores into, and it misses the ones written through `HL` or an `LDIR`, so read the writers rather than waiting for it. The repair is the letter and never a split: carving the written cells into their own entry is exactly the run of pages this rule exists to prevent. See "What `b`, `g` and `u` promise" in `references/ctl-authoring.md`.
+
+Inside the entry, name the cells that earn a name — the fixed screen addresses the front-end writes into, each with a `label` and a comment where its bytes are. The spans between them exist only to cut the bitmap at those addresses, so give them **no element size**: a display-file byte belongs to one scanline of one character row, and nothing there repeats at a fixed width. The render is the block's schema.
 
 **The catalog bar: every asset identified and named.** A finished catalog has one entry per thing the game draws — each sprite, enemy, object, pickup, effect — *identified from the code and named for what it is*, never left as an auto-label (`f9440`, `a9440`) or a "not yet named" row. Give each entry its frames, dimensions, behavior, and the handler that drives it; render its animation with `#FRAMES`; and trace every claim to the code. The shape is a `[Graphic:id:Title]` section per entity (player, each enemy, each effect) with its own prose and frames. `scripts/coverage_report.py` counts auto-labeled and "not-yet" entries as **draft** — a catalog that still identifies objects by their address is breadth, not done.
 
