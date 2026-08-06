@@ -63,8 +63,9 @@ Compose prose and tables into their own pages via ref sections:
 - **Data tables** — level layouts, enemy stats, object records. A `[Page:...]` with `#TABLE`s, linked from the index.
 - **Notes** — implementation notes, the memory map, the boot sequence.
 - **Glossary** — the domain terms the comments use, defined once.
+- **Conventions** — what an address on a page means, and what this project's relocatability claim is. Both are below; neither is answerable from anything else the site publishes.
 
-Group them under index headings in the main `.ref` (`[Index:Reference:Reference]`) so the site has a navigable structure rather than a flat list of routine pages.
+Group them under index headings in the main `.ref` (`[Index:Reference:Reference]`, which `assets/game.ref.template` already declares with `Notes` and `Glossary` under it) so the site has a navigable structure rather than a flat list of routine pages.
 
 ## Decode the game's formats
 
@@ -103,6 +104,44 @@ static-images/GameWindow.png=static-images
 ```
 
 These pages are the reader's on-ramp; the catalogs and the behavior spec assume a reader who already knows what the game is.
+
+## An address on the page needs a page that explains it
+
+A routine page carries addresses in four forms and marks none of them. All four can sit on one page, say `asm/8A00.html`:
+
+- the **address column** — `8A00`, `8A01`, `8A03` — bare hex, no `$`: where the byte sits in the snapshot the disassembly was cut from;
+- an operand rendered as a **label** — `JR NZ,draw_border`, `LD A,(player_lives)` — the site is built with `-a`, so an operand the source resolves to a symbol shows the symbol and links to the block that defines it;
+- a **plain raw address** — `LD HL,$5986` at `$8A14`, linking nowhere;
+- a **linked raw address** — `LD HL,$5980` at `$8A19`, two instructions later, pointing at `4000.html#5980`.
+
+The last two mean the same kind of thing and render differently. Both are attribute-file addresses in one routine, and `$5980` links only because it lands on a line start in the loading-screen block while `$5986` lands six bytes inside one. Turning on `LinkOperands` for `LD`, per *"Link every operand the reader will chase"* below, is what makes the difference visible: it converts an invisible property of the block's line breaks into a typographic distinction the reader can see and will read as meaning something. It means nothing.
+
+**A raw address on the page does not mean the deliverable has one.** The `html` target runs `skool2html -H -a`; the shipped `.asm` is rendered by `skool2asm --create-labels -f 1 $(ASM_FIXED_FLAGS)`. A directive that fires only under `-f` or `-s` therefore reaches the file and not the page. An `@isub=LD (BUFFER_BASE+$2E0),A` at `$9C15` puts `LD (BUFFER_BASE+$2E0),A` in `{game}.asm`, while the routine's page renders that same instruction `LD ($F2E0),A`, linked to `F000.html#f2e0`. One source, one address, two forms, and only the file's tracks the symbol: re-express `BUFFER_BASE` and the instruction follows, while `$F2E0` on the page is a literal that does not.
+
+Tracking the symbol is not the same as moving with the program. A buffer whose block is pinned with `@ $F000 org` — say a routine reaches it from a map pointer with three `INC H`, so it sits exactly three pages above a map base that is itself pinned — cannot move at all, whatever its operands are called. What the symbolic form buys is a name and one place to change it — not relocation, which is the section below and a separate question.
+
+The reader who is handed the site and not the terminal cannot decode what they are looking at. Give them a conventions page. It is a reference page like the others listed under *"Reference pages"* above, grouped with them under `[Index:Reference:Reference]` — add it there rather than inventing a second place for it. The questions it has to answer, none of which anything else on the site answers:
+
+- **what the address column is** — the address in the original image, and that page filenames and anchors use the same hex base as the `.ctl`;
+- **what a name in an operand is** — a label the disassembly assigned to that address, and a link to where it is defined;
+- **what a `$XXXX` operand is** — an address the source did not resolve to a symbol: fixed hardware the program cannot move (ROM, screen, attributes, ports), or an in-image address still unlabeled. Say explicitly that whether one is hyperlinked carries no information about which it is.
+- **that the page is not the `.asm`** — both come from the same `.skool` under different flags, and where an operand renders raw on the page the `.asm` may carry a symbolic form the page does not.
+
+Keep it to one page: a convention restated per routine has one place to edit and forty to go stale.
+
+## "Relocatable" is a result the site has to state
+
+`make coverage` prints `RELOCATABLE : 0 raw operand(s) into the game region`, and carries the caveat with it — 0 there is label-clean, not proven. `references/build-verify.md` holds the proof, its two non-obvious constraints, and the four things the operand count cannot see; agree with that file rather than re-deriving it. The reader of the built site gets neither. A project that has run the shift-and-run proof and a project that has only ever been read statically render page-for-page identically.
+
+The distinction the site must not blur: `skool2asm -s` proves the source is **label-clean** — no in-image operand renders as a raw address. It does not prove the program still works somewhere else in memory. "The build is green and `-s` passes, so the code is relocatable" is a false inference: a program can read `RELOCATABLE 0` and still break when a byte moves, and `references/build-verify.md` says why.
+
+Put the project's actual status in one sentence on the conventions page, in one of three shapes:
+
+- **Proof run** — name what was moved, by how much, what was observed running, and where it is recorded. "The program was rebuilt with its blocks permuted and played to level 3 under an emulator with identical behavior" is a claim a reader can weigh. "Relocatable" alone is not.
+- **Proof not run** — "the source is label-clean: every in-image operand renders as a label. The program has not been rebuilt at a different address, so it is not known to be relocatable." Then stop.
+- **Not claimed yet** — a project still in the labeling sweep opts out of the strict render by setting `ASM_FIXED_FLAGS =` empty in its Makefile. Nothing then gates the `.asm` on being label-clean, so neither shape above is available: say "the disassembly is still being labeled and makes no relocatability claim", and give the gauge's raw-operand count as the progress it is.
+
+Silence defaults to the stronger claim, because the word already appears in the gauge output and the `.asm` a reader may also have, and these pages render exactly like a finished project's. Writing nothing makes a project that has run the proof look the same as one that has not.
 
 ## Defect catalogs carry IDs and evidence
 
