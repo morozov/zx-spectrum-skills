@@ -131,7 +131,7 @@ Keep it to one page: a convention restated per routine has one place to edit and
 
 ## "Relocatable" is a result the site has to state
 
-`make coverage` prints `RELOCATABLE : 0 raw operand(s) into the game region`, and carries the caveat with it — 0 there is label-clean, not proven. `references/build-verify.md` holds the proof, its two non-obvious constraints, and the four things the operand count cannot see; agree with that file rather than re-deriving it. The reader of the built site gets neither. A project that has run the shift-and-run proof and a project that has only ever been read statically render page-for-page identically.
+`make coverage` prints `RELOCATABLE : 0 raw operand(s) into the game region`, and carries the caveat with it — 0 there is label-clean, not proven. `references/build-verify.md` holds the proof, its two non-obvious constraints, and the four things the operand count cannot see; agree with that file rather than re-deriving it. The reader of the built site gets neither. A project that has run the move-and-run proof and a project that has only ever been read statically render page-for-page identically.
 
 The distinction the site must not blur: `skool2asm -s` proves the source is **label-clean** — no in-image operand renders as a raw address. It does not prove the program still works somewhere else in memory. "The build is green and `-s` passes, so the code is relocatable" is a false inference: a program can read `RELOCATABLE 0` and still break when a byte moves, and `references/build-verify.md` says why.
 

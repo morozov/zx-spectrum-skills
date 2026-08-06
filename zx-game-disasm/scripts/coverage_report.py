@@ -414,10 +414,12 @@ def main():
           + ("  — must be labels; the bar is ~0." if raw_ops else "")
           + " (Static proxy only — 0 here is label-clean, not proven: an absolute"
             " pointer in a data table passes every operand check. Relocatability is"
-            " claimed only after the shifted program runs identically under"
-            " zx-fuse-driver, recorded as its own commit. Shift the program alone,"
-            " by 257 — not the whole image, and not by a multiple of 256; see"
-            " references/build-verify.md.)")
+            " claimed only after the moved program runs identically under"
+            " zx-fuse-driver, recorded as its own commit. Move the program's own"
+            " blocks, never the whole image — the captured loading screen stays at"
+            " $4000 — by a displacement with both bytes non-zero (257 is the"
+            " smallest). Permuting one block is the primary form: it needs no spare"
+            " space; see references/build-verify.md.)")
     print(f"  PLACEHOLDERS : {len(placeholders)} placeholder labels"
           + (f" (e.g. {', '.join(sorted(set(placeholders))[:5])})" if placeholders else ""))
     print(f"  PROSE        : {ret_group} RET_GROUP, {selflink} SELFLINK, {diary} DIARY,"
@@ -518,9 +520,9 @@ def main():
         print("Open gaps: " + "; ".join(gaps) + ".")
     print("(This is a floor check. Whether each comment is correct, whether the"
           " catalogs and behavior spec are complete and code-derived, and whether the"
-          " code is *actually* relocatable — proven by reassembling at a shifted ORG and"
-          " running it under the emulator (zx-fuse-driver), not by a label-clean static"
-          " read — is beyond this gauge.)")
+          " code is *actually* relocatable — proven by moving the program's own blocks"
+          " and running the result under the emulator (zx-fuse-driver), not by a"
+          " label-clean static read — is beyond this gauge.)")
     return 0
 
 
