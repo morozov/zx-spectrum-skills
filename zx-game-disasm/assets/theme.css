@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
-
 /* ── Reset & variables ───────────────────── */
 
 *, *::before, *::after {
@@ -9,6 +7,17 @@
 }
 
 :root {
+  /* Text faces. A built site is a directory of files opened from disk, so its
+     text must render without a network fetch: no @font-face, no webfont import.
+     Every name below is a face the platform already has, and the generic at the
+     end is reached only by a system carrying none of them — an unstyled generic
+     is what puts a serif slab (Courier New on Windows) under a code listing.
+     A project that wants a webfont declares its own @font-face and prepends the
+     family here; the fallbacks stay behind it. */
+  --font-sans: system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+               'DejaVu Sans Mono', 'Liberation Mono', monospace;
+
   /* A neutral, game-agnostic palette. A project's stylesheet overrides these
      variables with colors derived from the game itself. */
   --bg:          #16181d;
@@ -34,7 +43,7 @@ html {
 body {
   background-color: var(--bg);
   color: var(--text);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   min-height: 100vh;
 }
 
@@ -80,7 +89,7 @@ td.logo {
 }
 
 td.logo a {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 600;
   letter-spacing: 1px;
   font-size: 10px;
@@ -90,7 +99,7 @@ td.logo a {
 
 td.page-header {
   flex: 0 0 auto;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 3px;
   text-transform: uppercase;
@@ -120,7 +129,7 @@ header {
 }
 
 .eyebrow {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 5px;
   text-transform: uppercase;
@@ -130,7 +139,7 @@ header {
 }
 
 .game-title {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 600;
   letter-spacing: 1px;
   font-size: clamp(24px, 5.5vw, 52px);
@@ -139,7 +148,7 @@ header {
 }
 
 .subtitle {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 300;
   letter-spacing: 4px;
@@ -189,7 +198,7 @@ nav {
 .section { --section-color: var(--text-dim); }
 
 .section-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 3px;
   text-transform: uppercase;
@@ -266,7 +275,7 @@ table.asm-navigation {
 table.asm-navigation td {
   background: transparent;
   padding: 8px 0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-dim);
 }
@@ -282,7 +291,7 @@ table.asm-navigation td.next { width: 30%; text-align: right; }
 /* ── Routine description ─────────────────── */
 
 div.description {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 700;
   color: var(--yellow);
@@ -294,7 +303,7 @@ div.description {
 }
 
 div.details {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.7;
   color: var(--text-dim);
@@ -302,7 +311,7 @@ div.details {
 }
 
 div.comments {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.75;
   color: var(--text);
@@ -320,7 +329,7 @@ div.paragraph {
 table.disassembly {
   width: 100%;
   border-collapse: collapse;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.6;
   margin-bottom: 24px;
@@ -328,13 +337,13 @@ table.disassembly {
 
 td.routine-comment {
   padding: 4px 0;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   color: var(--text);
   border: none;
 }
 
 td.address-1 {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-dim);
   vertical-align: top;
   padding: 1px 14px 1px 0;
@@ -343,7 +352,7 @@ td.address-1 {
 }
 
 td.address-2 {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--red);
   font-weight: 700;
   vertical-align: top;
@@ -353,7 +362,7 @@ td.address-2 {
 }
 
 td.asm-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--cyan);
   font-weight: 700;
   vertical-align: top;
@@ -362,7 +371,7 @@ td.asm-label {
 }
 
 td.bytes {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   color: var(--text-dim);
   vertical-align: top;
   padding: 1px 14px 1px 0;
@@ -371,7 +380,7 @@ td.bytes {
 }
 
 td.instruction {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   color: #8a9099; /* punctuation / unrecognized tokens */
   vertical-align: top;
   padding: 1px 14px 1px 0;
@@ -389,7 +398,7 @@ td.comment-0 {
   color: var(--text-dim);
   vertical-align: top;
   padding: 1px 0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-style: italic;
   font-size: 12px;
 }
@@ -403,7 +412,7 @@ td.comment-1 {
   padding: 1px 14px;
   vertical-align: top;
   width: 45%;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   line-height: 1.6;
 }
@@ -429,7 +438,7 @@ table.disassembly tr.asm-group-hover > td.comment-1 {
 
 span.register {
   color: var(--cyan);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
 }
 
 /* ── Input/output register tables ─────────── */
@@ -444,7 +453,7 @@ table.input th,
 table.output th {
   background: rgba(255, 255, 255, 0.07);
   color: var(--text-dim);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -456,7 +465,7 @@ table.input td,
 table.output td {
   background: rgba(255, 255, 255, 0.035);
   color: var(--text);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   padding: 4px 12px;
 }
@@ -482,7 +491,7 @@ table.map {
 table.map th {
   background: rgba(255, 255, 255, 0.07);
   color: var(--text-dim);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -508,7 +517,7 @@ table.map td {
 /* Address cells by entry type */
 td.map-c, td.map-g, td.map-b, td.map-w, td.map-s, td.map-u,
 td.map-page, td.map-byte {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   white-space: nowrap;
 }
@@ -520,7 +529,7 @@ td.map-s, td.map-u { color: var(--text-dim); }
 td.map-page, td.map-byte { color: var(--text-dim); text-align: center; }
 
 td.map-length {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-dim);
   text-align: center;
@@ -538,14 +547,14 @@ td.map-u-desc,
 td.map-t-desc { color: var(--text); }
 
 div.map-entry-title-10 {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 500;
   color: var(--text);
 }
 
 div.map-entry-title-11 {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
@@ -579,7 +588,7 @@ div.box-2 {
 }
 
 div.box-title {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 700;
   color: var(--yellow);
@@ -606,7 +615,7 @@ div.list-entry-1 { background: rgba(255, 255, 255, 0.035); }
 div.list-entry-2 { background: rgba(8, 18, 50, 0.4); }
 
 div.list-entry-title {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 700;
   color: var(--yellow);
@@ -640,7 +649,7 @@ table table.default th,
 table.default th {
   background: rgba(255, 255, 255, 0.07);
   color: var(--text-dim);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -676,7 +685,7 @@ ul.contents {
 }
 
 ul.contents li a {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--cyan);
   text-decoration: none;
@@ -739,7 +748,7 @@ footer {
   padding: 20px 0 32px;
   border-top: 1px solid var(--border);
   text-align: center;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-dim);
 }
@@ -762,7 +771,7 @@ table.targets-table td:nth-child(2) { text-align: right; }
 /* ── Inline code ─────────────────────────── */
 
 code {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.88em;
   color: var(--cyan);
   background: rgba(255, 255, 255, 0.06);
@@ -771,6 +780,6 @@ code {
 }
 
 a[href*="asm/"] {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.88em;
 }

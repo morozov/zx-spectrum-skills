@@ -119,8 +119,8 @@ Each entry pairs the claim with rendered evidence (the sprite showing the stray 
 **Every site gets the skill's default theme — unconditionally.** The framework's `html` target passes `assets/theme.ref` (with `assets/theme.css` and `assets/theme.js`) and builds with `-H -a`, so by default every disassembly ships with:
 
 - a dark, responsive layout (viewport meta, card-grid index, header bar);
-- the code listing in a monospace face (JetBrains Mono) with prose in a reading face (Inter); the theme ships **no accent face and no game palette** — its `:root` colors are deliberately neutral;
-- **Z80 syntax highlighting** (highlight.js with a registered Z80 grammar: mnemonics, registers, immediates, strings, comments each colored);
+- the code listing in a monospace face with prose in a reading face, both named once in `:root` as `--font-mono` and `--font-sans` and resolved from faces the reader's platform already has; the theme ships **no accent face and no game palette** — its `:root` colors are deliberately neutral;
+- **Z80 syntax highlighting** (highlight.js with a registered Z80 grammar: mnemonics, registers, immediates, strings, comments each colored) — the library is fetched from a CDN, which is the open case named under Styling below;
 - **operands rendered as label names** — `CALL draw_sprite`, never `CALL $8A42` — via `--asm-labels`, which is why the 0-auto-label bar matters to the HTML too;
 - comment-group hover: the rows a shared comment spans light up together, and only those — an uncommented row stays dark (see the empty-cell rule below).
 
@@ -131,6 +131,8 @@ html/.stamp: $(wildcard *.css) $(INI)
 ```
 
 - **Derive the visual identity from the game.** Colors come from the game's own attribute bytes — the palette the player actually sees on the playfield, HUD, and border — not from a designer's swatch. The logo is rendered from the game's glyph bitmaps with their own attributes (`Logo=#UDGARRAY…` over the title-screen data), never an imported image. The site should read as the game documenting itself.
+- **A stylesheet must not name a face it does not load.** Every family in a `font-family` has to be either a face the page itself ships (an `@font-face` whose `src` is a file next to the stylesheet) or a face the reader's platform already has. A bare webfont name plus a generic — `'JetBrains Mono', monospace` — is neither: it renders in the named face for whoever installed it and in an unknown substitute for everyone else. Pulling the face from a third party over `@import` does not fix it, it only moves the failure onto the network. A built site is a directory of files someone opens from disk, so text that depends on a fetch is text that disappears offline, behind a blocker, or on an air-gapped machine — and it leaks every reader's IP to the font host on every page. The theme's two stacks are the pattern: name real per-platform faces, and reach the generic only on a system that has none of them. This is the defect class whose author is the last person able to see it, so it gets a trap entry below with the render that forces it.
+- **The same argument reaches one thing the theme still does, and it is open.** `assets/theme.ref` loads highlight.js from `cdnjs.cloudflare.com` in its `[Template:Layout]`, and the Z80 syntax highlighting listed above as a shipped default is that fetch. Every clause of the rule applies to it verbatim: a reader who is offline, behind a blocker or air-gapped gets an unhighlighted listing, and every page view tells a CDN who is reading. The listing is legible without it, which is why this is a known open case and not a broken build — but do not read the rule as satisfied. Closing it means vendoring the library and its Z80 grammar next to `theme.css`, which is a decision about what the skill ships, not a stylesheet fix.
 - **A custom game font is an accent, not the text face.** When the game's 8x8 font is extracted to a webfont (`Font={game}.woff2;{game}.ttf`), use it for headers, the logo, and small accents only; body prose and the code listing keep a proper reading face. A bitmap font at paragraph size is atmosphere on one line and an eyesore on a page.
 - **The disassembly table lays out from its content.** Column widths are content-driven and code lines never wrap — a wrapped instruction reads as two. The source-side half of this rule is the 24-char label cap (`lint-label-length`): styling cannot fix a gutter a label forced open.
 - **An empty comment cell is column, not annotation.** SkoolKit marks the comment class per *entry* — `<td class="comment-{annotated}">` — so every row of an annotated routine carries a `comment-1` cell, including the ones with nothing to say. Those come out exactly empty, with no whitespace inside. A `{game}.css` that restyles `td.comment-1` must leave `td.comment-1:empty` free of anything that reads as content: the background and the left edge carry the column band and have to run unbroken, but a box rule around a blank cell makes a bare `RET` look annotated. The theme's hover skips empty cells for the same reason.
@@ -154,6 +156,23 @@ How to render one page, with `$CHROME` the Chrome binary, `$SITE` the absolute p
 ```
 
 Then open the PNG and look at it. For overflow, a measurement beats an eyeball: append a `<script>` to a copy of the page that reports `document.documentElement.scrollWidth` against `window.innerWidth`, and run Chrome with `--dump-dom`. Anything wider than the viewport is horizontal scroll.
+
+### The listing goes serif on a reader's machine
+
+**Symptom.** The listing comes out in a serif face beside sans-serif prose. A disassembly page is mostly monospace — addresses, labels, byte columns, instructions, the whole listing — so a substituted mono face changes the shape of nearly every row, while the prose column beside it does not move. **Cause.** A stylesheet names `'Inter', sans-serif` and `'JetBrains Mono', monospace` and pulls both from `fonts.googleapis.com` with an `@import`. What the reader gets therefore depends on the reader: the same page renders in JetBrains Mono and Inter when that host is reachable, and in the browser's *generic* families when it is not. Those generics are a per-browser preference, not a constant. A profile that maps `monospace` to Menlo and `sans-serif` to Helvetica hides the defect; a profile whose fixed-width font is Courier New puts a serif slab under the entire listing against Arial prose. The fetch fails for a reader who is offline, behind a content blocker, or on an air-gapped machine — and a built site is a directory of files opened from disk, so those are ordinary conditions, not edge cases. **Check.** A screenshot on the author's machine proves the opposite of what is needed: it has the network, and may have the fonts installed besides. Force both halves of the failing case — cut the font hosts *and* pin the generic to a serif:
+
+```
+mkdir -p "$WORK/p/Default" && printf '%s' \
+  '{"webkit":{"webprefs":{"fonts":{"fixed":{"Zyyy":"Courier New"}}}}}' \
+  > "$WORK/p/Default/Preferences"
+"$CHROME" --headless \
+  --disable-gpu --hide-scrollbars --window-size=1280,1050 \
+  --user-data-dir="$WORK/p" \
+  --host-resolver-rules="MAP fonts.googleapis.com 0.0.0.0, MAP fonts.gstatic.com 0.0.0.0" \
+  --screenshot="$WORK/page.png" "file://$SITE/{game}/asm/{ADDR}.html"
+```
+
+To name the faces rather than eyeball them, attach over `--remote-debugging-port` and call `CSS.getPlatformFontsForNode` on a `td.instruction` and a `td.comment-1`: it reports the family Chrome actually drew, which is the only answer `getComputedStyle` cannot give. **Fix.** The theme declares `--font-sans` and `--font-mono` in `:root` as stacks of real per-platform faces and every rule reads them, so no page waits on a download and the generic is reached only by a system carrying none of the named faces. The Styling rule *"A stylesheet must not name a face it does not load"* above is the general form. **Audit, not yet a gate:** `grep -n 'font-family' *.css` and confirm every value is a `var(--font-*)` or a stack whose first entry is either shipped by an `@font-face` next to the sheet or present on the platform. A project sheet re-opens the defect the moment it writes a bare webfont name.
 
 ### An empty comment cell is styled as an annotation
 
