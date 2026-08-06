@@ -202,14 +202,11 @@ def unannotated_arrays(lines, by_address=None,
         covered = set()
         if block is not None:
             covered = schema.rendered_coverage(block, by_address)
-            if covered is None:
-                # A macro whose extent the text does not state draws whatever it
-                # is asked about; `lint-data-structure` reads it the same way.
-                continue
-            if block['size'] is None and covered:
-                # The file names no address after its last block, so there is no
-                # extent to measure a remainder against and presence is all
-                # either check can read there.
+            if schema.render_discharges(block, covered):
+                # Drawn whole, or drawn by a macro whose extent the text does not
+                # state. `lint-data-structure` asks such a block nothing further,
+                # and asking it here would be the same exemption at two
+                # granularities: one definition, one verdict, both checks.
                 continue
 
         if not subs:

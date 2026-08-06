@@ -295,8 +295,8 @@ def address_range(spec, index, width):
 
     `xN` appends N copies of the range, exactly as SkoolKit does. It names no new
     byte, but the list *length* is what the callers count: an attribute list is
-    read positionally and truncated at the array's cell count, so collapsing the
-    repeats slides every later address into a slot SkoolKit never reaches and
+    read positionally and stops at the end of the array's last row, so collapsing
+    the repeats slides every later address into a slot SkoolKit never reaches and
     claims bytes it never reads. N copies of a long range can outrun the address
     space, and a spec that does comes back unmeasurable rather than huge.
     """
@@ -354,8 +354,12 @@ def udgarray_extent(text, index):
     The macro is `#UDGARRAYwidth[,attr,scale,step,inc,flip,rotate,mask,…]
     (UDGSPEC[;UDGSPEC…])[[ATTRSPEC[;ATTRSPEC…]]]`, and each UDGSPEC is an address
     range with its own optional `,attr,step,inc` and `:mask` tail. Attribute
-    addresses are one byte per cell, and SkoolKit reads only as many as the array
-    has cells, so a spec listing more does not stretch the extent.
+    addresses are one byte per cell, read positionally and stopped at the end of
+    the array's last row, which SkoolKit pads out to the full width, so a spec
+    listing more addresses than that does not stretch the extent. A lone row
+    shorter than the width is the shape SkoolKit leaves unpadded: an attribute
+    spec that overruns it raises instead of reading, so the rounded-up count is a
+    ceiling over a macro no build renders.
 
     `#UDGARRAY*frame…` builds an animation out of frames other macros defined and
     names no address of its own, so it comes back None.
@@ -549,20 +553,22 @@ def uncovered_runs(address, size, covered):
     return runs
 
 
-def is_rendered_asset(block, by_address):
+def render_discharges(block, covered):
     """
-    Whether a render declares every byte of a block, its own or a partner's.
+    Whether the coverage a render declares accounts for a whole block.
 
-    True is the discharge: the block needs no further schema, because something
-    exercised draws all of it. A block a render covers in part is False here and
-    reports its remainder — `check_untyped` reads the runs rather than this
-    verdict, and holds the covered part exempt while asking about the rest.
+    True is the discharge: nothing further is asked of the block, because
+    something exercised draws all of it. False leaves the block's spans to be
+    asked about one at a time, and `covered` is what answers them — a caller
+    tests a span against the same set it passed here, so the block granularity
+    and the span granularity cannot answer differently about one file.
 
-    The last block in the file is the one case still read as presence: the file
-    states no address after it, so there is no extent to measure a remainder
-    against.
+    `covered` is what `rendered_coverage` returned for this block. None is
+    unmeasured coverage: a macro that states no byte range draws whatever it is
+    asked about. The last block in the file is the other case read as presence —
+    the file states no address after it, so there is no extent to measure a
+    remainder against.
     """
-    covered = rendered_coverage(block, by_address)
     if covered is None:
         return True
     if block['size'] is None:
@@ -612,18 +618,11 @@ def check_untyped(block, threshold, by_address):
     # The discharge reaches only as far as the macro reads, so what it leaves is
     # asked about below exactly as if no macro were there.
     covered = rendered_coverage(block, by_address)
-    if covered is None:
+    if render_discharges(block, covered):
         return violations
-    if size is None:
-        # The file states no address after its last block, so there is no extent
-        # to measure a remainder against and presence is all this can read there.
-        if covered:
-            return violations
-        uncovered = []
-    else:
+    uncovered = []
+    if size is not None:
         uncovered = uncovered_runs(block['address'], size, covered)
-        if not uncovered:
-            return violations
 
     if not block['spans']:
         if block['type'] == 'w':

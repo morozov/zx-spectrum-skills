@@ -365,7 +365,12 @@ test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 # `CHECK_<name>`, and both the standalone target and the sweep use it. That is the
 # gate's copy only: `lint-baseline` invokes the baselined checks with
 # `--write-baseline`, `scripts/verify_fragment.sh` invokes its own set over a
-# spliced fragment, and both spell out their own argument lists.
+# spliced fragment, and both spell out their own argument lists — the same check
+# takes a different file and a different baseline mode in each.
+#
+# The loop is not theirs to restate. It lives in `scripts/lint_sweep.sh`, sourced
+# here and by `verify_fragment.sh`, so a fix to how a count is read or an
+# unreadable one reported reaches every sweep at once.
 #
 # This is deliberately narrower than `make -k`. `-k` keeps going after *any*
 # failed target, which changes what a red build means everywhere: a broken
@@ -388,10 +393,10 @@ test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 # never ran must never be reported as a check with no findings.
 #
 # `lint-images` runs its own one-element sweep, because it reads what the HTML
-# build wrote and so cannot run beside the rest. Both sweeps end in one
-# `LINT PASS:`/`LINT FAIL:` line in the same format, and the gate adds up every
-# such line it finds — so a verdict counts every check even though they ran in
-# two places.
+# build wrote and so cannot run beside the rest. Both of the gate's sweeps end in
+# one `LINT PASS:`/`LINT FAIL:` line in the same format, and the gate adds up
+# every such line it finds — so a verdict counts every check even though they ran
+# in two places.
 LINT_CHECKS = address-order instruction-order lengths label-length identity \
               data-structure publication names byte-counts array-elements
 
@@ -401,64 +406,23 @@ LINT_CHECKS = address-order instruction-order lengths label-length identity \
 # letting its count read as the whole of the distance to green.
 LINT_TOTAL := $(words $(LINT_CHECKS) images)
 
-# Run one check and tally its outcome. Its output is captured rather than
-# streamed so the count can be read back out of it: a check reports findings as
-# `Found <n> …`, and a baseline line it no longer reports as `<check>: <n>
-# baseline entry(ies) …`. Both are things the reader has to act on, and a check
-# can fail on the second with none of the first.
+# The sweep the gate runs its checks under: `lint_begin`, `lint_run <name>
+# <command…>`, `lint_report <checks swept>`, all in one shell. See
+# `scripts/lint_sweep.sh` for what each outcome is reported as and why.
 #
-# An exit status the checks do not define, an uncaught exception, and a failure
-# that printed neither count, are each reported as themselves. Printing `0
-# findings` for a check whose output nobody could parse would be the same defect
-# one level down.
-#
-# The traceback test is not redundant with the exit-status test: an uncaught
-# Python exception exits 1, the same status a check uses to report findings, so
-# without it a crashed check is filed as a failure whose count could not be read
-# — which sends the reader to "its findings are in the output above" over a
-# traceback.
-lint_run = echo; echo "--- lint-$(1) ---"; \
-    out=$$($(CHECK_$(1)) 2>&1); s=$$?; [ -z "$$out" ] || printf '%s\n' "$$out"; \
-    n=$$(printf '%s\n' "$$out" | sed -n 's/^Found \([0-9][0-9]*\) .*/\1/p' | head -1); \
-    d=$$(printf '%s\n' "$$out" | sed -n 's/^[^ ]*: \([0-9][0-9]*\) baseline entr.*/\1/p' | head -1); \
-    if [ $$s -eq 0 ]; then echo "lint-$(1): ok"; \
-    elif [ $$s -ne 1 ]; then \
-      failed=$$((failed+1)); list="$$list lint-$(1) (could not run),"; \
-      echo "lint-$(1): COULD NOT RUN, exit $$s. That is not a finding count of zero."; \
-    elif printf '%s\n' "$$out" | grep -q '^Traceback (most recent call last):'; then \
-      failed=$$((failed+1)); list="$$list lint-$(1) (crashed),"; \
-      echo "lint-$(1): CRASHED — its output is a traceback, not findings. That is not a finding count of zero."; \
-    elif [ -z "$$n$$d" ]; then \
-      failed=$$((failed+1)); list="$$list lint-$(1) (count unread),"; \
-      echo "lint-$(1): FAIL, and its output carries no finding count — read it above."; \
-    else \
-      c=$$(($${n:-0}+$${d:-0})); failed=$$((failed+1)); findings=$$((findings+c)); \
-      list="$$list lint-$(1) $$c,"; echo "lint-$(1): FAIL, $$c finding(s)."; \
-    fi;
-
-# The one line the verdict is built from. Its shape is load-bearing: `gate` reads
-# the failing count from field 3, the number of checks this sweep accounted for
-# from field 5, the finding count from field 8, and the per-check split from
-# everything after the second colon. A sweep that reports nothing failing still
-# states its total, so the verdict can say how many checks stood behind a green
-# one.
-#
-# Field 5 is what the sweep ran, not what the gate holds a project to, and the two
-# differ whenever a sweep did not happen: with `lint-images` unreached this line
-# counts fewer than $(LINT_TOTAL). The verdict's denominator is $(LINT_TOTAL) so
-# that two runs of the same tree are comparable — which sweeps got to run depends
-# on the scheduler, and a column of stored verdict lines whose denominator moved
-# with `-j` compares nothing. The shortfall is reported as its own clause.
-lint_begin  = failed=0; findings=0; list='';
-lint_report = echo; \
-    if [ $$failed -eq 0 ]; then echo "LINT PASS: $(1) of $(1) checks clean."; \
-    else echo "LINT FAIL: $$failed of $(1) checks failed, $$findings finding(s):$${list%,}."; \
-      exit 1; fi
+# `lint_report`'s argument is what this sweep ran, not what the gate holds a
+# project to, and the two differ whenever a sweep did not happen: with
+# `lint-images` unreached that line counts fewer than $(LINT_TOTAL). The verdict's
+# denominator is $(LINT_TOTAL) so that two runs of the same tree are comparable —
+# which sweeps got to run depends on the scheduler, and a column of stored verdict
+# lines whose denominator moved with `-j` compares nothing. The shortfall is
+# reported as its own clause.
+LINT_SWEEP = . $(SCRIPTS)/lint_sweep.sh
 
 lint: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL)
-	@$(lint_begin) \
-	$(foreach c,$(LINT_CHECKS),$(call lint_run,$(c))) \
-	$(call lint_report,$(words $(LINT_CHECKS)))
+	@$(LINT_SWEEP); lint_begin; \
+	$(foreach c,$(LINT_CHECKS),lint_run $(c) $(CHECK_$(c));) \
+	lint_report $(words $(LINT_CHECKS))
 
 # Label naming is a gauge metric, not a build gate. Early on the map is mostly
 # auto-labels and you cannot name a block before you have disassembled it, so a hard
@@ -567,14 +531,13 @@ lint-byte-counts: $(CTL)
 # not SkoolKit input, so a macro written there renders nothing and is not
 # supposed to.
 #
-# It runs through the same sweep as the other checks, over a set of one, so its
-# findings reach the verdict the way theirs do. Reporting it as "the build
-# failed" would put the one check whose subject is an outcome back behind a
-# truncated tail.
+# It runs through the same sweep as the other checks, so its findings reach the
+# verdict the way theirs do. Reporting it as "the build failed" would put the
+# one check whose subject is an outcome back behind a truncated tail.
 CHECK_images = $(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
     --baseline $(BASELINE)
 lint-images: html/.stamp
-	@$(lint_begin) $(call lint_run,images) $(call lint_report,1)
+	@$(LINT_SWEEP); lint_begin; lint_run images $(CHECK_images); lint_report 1
 
 # Re-record the gating checks' findings as the project's accepted baseline. Run it
 # when a fix clears a finding — the shrunk file is the evidence. It cannot do the
