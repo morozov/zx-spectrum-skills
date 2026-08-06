@@ -34,8 +34,8 @@ plus directive name, so re-pointing an `@ label=` is silent and removing it is
 not. Sub-block comment lines are not compared — re-annotating a routine rewrites
 every one of them, so their absence carries no signal.
 
-After splicing, run the `.ctl` linters and `make verify`: the splice is structural;
-byte-identity and correctness are still proven by the build.
+After splicing, run `make`: the splice is structural; byte-identity, the linters
+and correctness are still proven by the build.
 
 Usage: splice_ctl.py <base.ctl> <fragment.ctl> [-o out.ctl]   (default: in place)
        splice_ctl.py --check-only <base.ctl> <fragment.ctl>

@@ -4,8 +4,8 @@
 # disassemblies include $(SKOOLKIT_HOME)/tools/disassembly.mk). SKILL has no
 # default: set it to the zx-game-disasm skill directory.
 #
-#   make          Build the fixed asm + snapshot, verify the round-trip
-#   make verify   Round-trip check (cmp) + the .ctl linters
+#   make          The gate: round-trip cmp + the .ctl linters + the HTML build
+#   make gate     The same gate, logged, ending in one verdict line
 #   make coverage The "is it done?" gauge
 #   make html     Build the HTML site (needs the .ref files)
 #   make clean    Remove all generated files
