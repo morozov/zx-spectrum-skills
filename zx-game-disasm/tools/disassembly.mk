@@ -14,7 +14,8 @@
 #   make coverage The "is it done?" gauge (documentation/naming/relocatability)
 #   make lint-identity        Gate: every entry titled, every sub-block named
 #   make lint-data-structure  Gate: every data entry tiles and declares its stride
-#   make lint-publication     Gate: every page inside the image, one page per thing
+#   make lint-publication     Gate: every page inside the image, one page per thing,
+#                             each entry the type its bytes are
 #   make lint-names           Gate: prose names a labeled slot by its label
 #   make lint-byte-counts     Gate: no instruction comment recites a byte count
 #   make lint-images          Gate: every image macro put an image under html/
@@ -65,8 +66,9 @@ TOOLS_verify-frag         := $(TOOLS_BIN)
 TOOLS_html                := $(TOOLS_SKOOL) skool2html.py
 TOOLS_coverage            := $(TOOLS_SKOOL)
 TOOLS_lint-comments       := $(TOOLS_SKOOL)
-TOOLS_lint                := $(TOOLS_SNAPSHOT)
+TOOLS_lint                := $(TOOLS_SKOOL)
 TOOLS_lint-data-structure := $(TOOLS_SNAPSHOT)
+TOOLS_lint-publication    := $(TOOLS_SKOOL)
 TOOLS_lint-images         := $(TOOLS_html)
 TOOLS_lint-baseline       := $(TOOLS_html)
 
@@ -74,11 +76,12 @@ TOOLS_lint-baseline       := $(TOOLS_html)
 # read one text file, and `gate` re-enters make for the build — the sub-make is
 # preflighted and the gate turns its failure into the verdict line. A goal named
 # neither here nor above — a file target, or one a project added — is held to the
-# default build's set.
+# default build's set. `lint-publication` is not among them: it reads the
+# generated .skool for the addresses the code stores to, so it can need the
+# disassembler to produce one.
 TOOLS_FREE_GOALS := clean gate lint-address-order lint-instruction-order \
                     lint-lengths lint-label-length lint-identity \
-                    lint-publication lint-names lint-byte-counts \
-                    lint-array-elements
+                    lint-names lint-byte-counts lint-array-elements
 
 # Preflight. An absent toolchain is not a state in which "every target is up to
 # date" carries any meaning: with nothing installed and nothing stale, make runs
@@ -274,9 +277,18 @@ lint-data-structure: $(CTL) $(BIN_PRISTINE)
 # what it is. Neither is visible to a check that reads one entry at a time,
 # which is every other check here. $(CTL_EXTRA) is swept alongside $(CTL)
 # because a generated second .ctl is where render-only data goes.
-lint-publication: $(CTL) $(CTL_EXTRA)
+#
+# It also holds each entry to being the type its bytes are, which is the other
+# way a page stands for the wrong thing: a `t` entry that swallows `B`
+# sub-directives files runtime counters under a text title, and bytes the game
+# writes as it plays — a level number, a lives count — publish as load-time data
+# on a `b` page. The second of those is settled from the code, so the .skool is
+# passed and is not optional: the whole point of reading it is that a store
+# instruction is a fact where a description saying "while the timer runs" is a
+# reading of English.
+lint-publication: $(CTL) $(CTL_EXTRA) $(SKOOL)
 	$(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
-	    --org $(ORG) --size $(SIZE) --baseline $(BASELINE)
+	    --org $(ORG) --size $(SIZE) --skool $(SKOOL) --baseline $(BASELINE)
 
 # One name per entity, in the only form arithmetic can settle: a slot family the
 # labels declare (`door_a`/`door_b`) must not be named by position in prose ("the
@@ -317,14 +329,15 @@ lint-images: html/.stamp
 #
 # It depends on the built site because one of the checks it re-records reads the
 # images the build produced: an outcome cannot be baselined without the outcome.
-lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) html/.stamp
+lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 	@$(SCRIPTS)/validate_ctl_identity.py $(CTL) \
 	    --baseline $(BASELINE) --write-baseline
 	@$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
 	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
 	    --baseline $(BASELINE) --write-baseline
 	@$(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
-	    --org $(ORG) --size $(SIZE) --baseline $(BASELINE) --write-baseline
+	    --org $(ORG) --size $(SIZE) --skool $(SKOOL) \
+	    --baseline $(BASELINE) --write-baseline
 	@$(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) \
 	    --baseline $(BASELINE) --write-baseline
 	@$(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) \

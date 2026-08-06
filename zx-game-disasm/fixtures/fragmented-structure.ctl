@@ -10,9 +10,12 @@
 # Expected, with the image this fixture describes ($4000, 6912 bytes):
 #
 #   validate_ctl_publication.py fixtures/fragmented-structure.ctl \
-#       --org 0x4000 --size 6912
+#       --org 0x4000 --size 6912 --skool fixtures/no-stores.skool
 #   -> 2 FRAGMENTED findings, at `b $4000` (6 entries) and `b $4800`
 #      (3 entries), exit 1
+#
+# `--skool` is required, and `fixtures/no-stores.skool` names no write target, so
+# MUTABLE reports nothing and this fixture proves its own kind alone.
 #
 # The $4800 run is the shape the check has to catch and the earlier one does not
 # prove: the titles are not identical, they share a head and each adds a note

@@ -122,8 +122,11 @@ pasmo --bin "$tmp/fixed.asm" "$tmp/fixed.bin" 2>"$tmp/fixed-pasmo.err" \
     --baseline "$BASELINE" --ignore-stale
 "$SCRIPTS/validate_ctl_data_structure.py" "$SPLICED" --bin "$BIN" \
     --org "$ORG" --reloc-floor "$RELOC_FLOOR" --baseline "$BASELINE" --ignore-stale
+# The skool passed here is the one disassembled from the spliced .ctl above, so
+# the MUTABLE check reads the code as the fragment's own map lays it out.
 "$SCRIPTS/validate_ctl_publication.py"    "$SPLICED" \
-    --org "$ORG" --size "$SIZE" --baseline "$BASELINE" --ignore-stale
+    --org "$ORG" --size "$SIZE" --skool "$tmp/game.skool" \
+    --baseline "$BASELINE" --ignore-stale
 
 # The prose sweep runs over the spliced .ctl alone. The `.ref` catalogs are not
 # spliced, so their findings are the project's, not the fragment's, and a Worker

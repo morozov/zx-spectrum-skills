@@ -8,8 +8,12 @@
 #
 # Expected, with the image this fixture describes ($4000, 256 bytes):
 #
-#   validate_ctl_publication.py fixtures/outside-image.ctl --org 0x4000 --size 256
+#   validate_ctl_publication.py fixtures/outside-image.ctl \
+#       --org 0x4000 --size 256 --skool fixtures/no-stores.skool
 #   -> 2 OUTSIDE findings (`b $1000`, `b $1020`), exit 1
+#
+# `--skool` is required, and `fixtures/no-stores.skool` names no write target, so
+# MUTABLE reports nothing and this fixture proves its own kind alone.
 #
 # The two in-image entries and the terminator must not be reported: `i` publishes
 # no page, and the terminator sits at ORG+SIZE by construction.

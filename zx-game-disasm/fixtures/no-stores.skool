@@ -1,0 +1,14 @@
+; A .skool with no absolute store in it, for the fixtures whose subject is the
+; set of pages a .ctl publishes rather than the type of any one entry.
+;
+; `validate_ctl_publication.py` takes the .skool as a required argument - a
+; linter that silently skips half its checks is worse than one that is not wired
+; up - so `fixtures/outside-image.ctl` and `fixtures/fragmented-structure.ctl`
+; are run against this one. It yields no write target, so MUTABLE reports nothing
+; and each fixture is left proving its own kind alone.
+@start
+@org
+; Program entry
+@label=start
+c$4002 XOR A             ;
+ $4003 RET               ;

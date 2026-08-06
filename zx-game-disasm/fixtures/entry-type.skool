@@ -1,0 +1,32 @@
+; The .skool half of `fixtures/entry-type.ctl`: the code whose stores decide
+; which entries are MUTABLE. It stands in for what the build generates, so it is
+; in sna2skool's `--hex` output format and nothing else reads it.
+;
+; The clear loop, the last store and the `DEFM` are the controls. `LD (HL),A`
+; writes the door state map without naming it, which is the incompleteness the
+; check is designed around; the store to $4141 lands inside a `t` entry, which
+; MUTABLE does not test; and the `DEFM` spells a store to $4100 in its text,
+; where the characters are an operand rather than an instruction.
+@start
+@org
+; Program entry
+@label=start
+c$4000 LD A,$01          ; Start on level 1.
+ $4002 LD ($4110),A      ;
+ $4005 LD A,$03          ; Three lives.
+ $4007 LD ($4111),A      ;
+ $400A XOR A             ; The exit door starts shut.
+ $400B LD ($4142),A      ;
+ $400E LD HL,$4112       ; Park the step cursor at the head of the step table.
+ $4011 LD ($4130),HL     ;
+ $4014 LD HL,$4143       ; Clear the door state map through HL.
+ $4017 LD B,$20          ;
+*$4019 LD (HL),A         ;
+ $401A INC HL            ;
+ $401B DJNZ $4019        ;
+ $401D LD A,$1E          ; Arm the idle nudge.
+ $401F LD ($4141),A      ;
+ $4022 RET               ;
+
+; Text: GAME OVER
+t$4132 DEFM "LD ($4100),A" ; A string that spells a store to the bitmap control.

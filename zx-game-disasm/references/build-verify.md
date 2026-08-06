@@ -146,7 +146,7 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 - `validate_ctl_label_length.py` — labels within 24 characters.
 - `validate_ctl_identity.py` — every entry titled, every sub-directive named.
 - `validate_ctl_data_structure.py` — every data entry tiles and declares a stride.
-- `validate_ctl_publication.py` — every page inside the program image, and one page per thing.
+- `validate_ctl_publication.py` — every page inside the program image, one page per thing, and each entry the type its bytes are.
 - `validate_prose_names.py` — prose names a labeled slot by its label.
 - `validate_ctl_byte_counts.py` — no instruction comment recites a byte count the listing already carries.
 
@@ -200,10 +200,12 @@ The exemption reads a macro's presence, not its extent.
 
 ### The publication check
 
-`make lint-publication` runs `scripts/validate_ctl_publication.py`. Every other check reads one entry and asks whether it declares its bytes. This one reads the *set* of entries and asks whether each should be an entry at all — which is a question no amount of per-entry checking reaches. Two kinds:
+`make lint-publication` runs `scripts/validate_ctl_publication.py`. Every other check reads one entry and asks whether it declares its bytes. This one asks whether each entry should be an entry at all, and whether it is the thing its heading says — questions no amount of per-entry byte accounting reaches. Four kinds:
 
 - **OUTSIDE** — an entry at an address the program image does not cover. Generated render-only data (sprite masks a build script produced) declared at `$1000` in a project whose image starts at `$4000` makes `skool2html` publish pages and memory-map rows for RAM the program never occupies, at addresses that are ROM on real hardware. A reader has no way to tell those pages from the ones documenting the game. Render-only data belongs in a `.ref` `[Graphic:]` entry or beside the script that generates it. `i` blocks are exempt: they publish no page, and the terminator sits at `ORG + SIZE` by construction.
 - **FRAGMENTED** — three or more consecutive `b` or `w` entries, each with no sub-directive, all headed by the same thing. That is one structure cut into pages: a loading screen split into one entry per screen address the front-end writes to leaves no page saying what the whole of it is. The fix is one entry with one title and a sub-directive per part.
+- **MIXED** — a `t` entry holding a sub-directive that is not `T`. A `t $9A40 Text: PAUSED` that runs to the next entry and swallows three `B` sub-directives publishes `pause_frames` — a counter the game bumps every frame — on a page headed "Text: PAUSED", under that title in the memory map. The fix is a split, one entry per thing.
+- **MUTABLE** — a `b` entry the code stores into. `b $9A5C Game progress and option settings` publishes bytes the game writes — the level number, the lives count, the difficulty — as data the program was loaded with. The fix is to retype the entry `g`, or to split the written bytes into a `g` entry when the rest of it really is a static table.
 
 Consecutive entries always tile — the next entry's address is where the previous one ends — so contiguity carries no information and is not tested. What carries information is that the run says one thing N times. A row of small *distinct* tables states a distinct title on each and is not reported.
 
@@ -219,13 +221,23 @@ Comparing whole titles calls those three distinct and reports nothing. The disti
 
 Only `b` and `w` are tested. A `g` entry is one status variable and a `t` entry is one message, and having no sub-directive is the normal form for both, so three consecutive `Player N score` entries are the standard idiom rather than a structure cut up. `s` and `u` declare space, which is not a structure at all.
 
-The check takes `--org` and `--size`, which the game Makefile already sets, and sweeps `$(CTL_EXTRA)` alongside `$(CTL)`. A page is a page whichever file declared it, and generated render-only data is exactly what goes in a second `.ctl`, which is why the check reads both.
+MIXED tests `t` and nothing else. A `b` or `g` entry legitimately mixes `B`, `W` and `S`, and a `w` entry carries its own stride with no sub-directive at all; `t` is the one type whose contents are a single kind by construction.
 
-`fixtures/fragmented-structure.ctl` and `fixtures/outside-image.ctl` hold a minimal case of each kind, with the expected finding stated in a header comment. Run them after changing the check:
+**MUTABLE reads the code, not the prose, and only one way round.** A vocabulary match over entry descriptions — "while", "set when", "cleared on", "counts", "current", "progress", "advances" — would flag every `b` entry using one of those words. The count is not the objection; a check firing on many data blocks is affordable if every finding is true. The objection is that nothing in the match is evidence: "non-zero while a bonus round runs" is a sentence, and a linter reading it is guessing at what its author meant. So the check reads the generated `.skool` instead, for the one Z80 addressing mode that names its target in the instruction: `LD (nn),A` and `LD (nn),rr` for BC/DE/HL/SP/IX/IY. A finding is then an instruction address, and there is nothing in it to argue with.
+
+That evidence is sound and incomplete, and the asymmetry is the design. A store to `$9A66` proves `$9A66` is not static; silence proves nothing, because a routine writing through `HL`, `IX` or an `LDIR` names no target. A `g` entry with no absolute store to it can still be a map, a save area or an object record written every frame through a register pair. **A `g` entry that ought to be `b` is therefore not a check**: on this evidence it would report every such entry, and that one has to be found by reading the writers.
+
+The check takes `--org` and `--size`, which the game Makefile already sets, and sweeps `$(CTL_EXTRA)` alongside `$(CTL)`. A page is a page whichever file declared it, and generated render-only data is exactly what goes in a second `.ctl`, which is why the check reads both. It takes `--skool` too, and that argument is required rather than optional, for the reason `lint-data-structure` is passed the image: a linter that silently skips half its checks is worse than one that is not wired up at all. This is why `make lint-publication` can need the disassembler where the other `.ctl` linters need no tool at all. For the same reason the check errors out on a `.skool` it cannot read — one holding no instruction line in the form `sna2skool.py --hex` writes — rather than finding no store in it and reporting the project clean.
+
+`fixtures/fragmented-structure.ctl`, `fixtures/outside-image.ctl` and `fixtures/entry-type.ctl` hold a minimal case of each kind, with the expected finding stated in a header comment. The first two are run against `fixtures/no-stores.skool`, which yields no write target, so each is left proving its own kind alone. Run them after changing the check:
 
 ```
-scripts/validate_ctl_publication.py fixtures/fragmented-structure.ctl --org 0x4000 --size 8192
-scripts/validate_ctl_publication.py fixtures/outside-image.ctl --org 0x4000 --size 256
+scripts/validate_ctl_publication.py fixtures/fragmented-structure.ctl \
+    --org 0x4000 --size 8192 --skool fixtures/no-stores.skool
+scripts/validate_ctl_publication.py fixtures/outside-image.ctl \
+    --org 0x4000 --size 256 --skool fixtures/no-stores.skool
+scripts/validate_ctl_publication.py fixtures/entry-type.ctl \
+    --org 0x4000 --size 512 --skool fixtures/entry-type.skool
 ```
 
 ### The one-name-per-entity check

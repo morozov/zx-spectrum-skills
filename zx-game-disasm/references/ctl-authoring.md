@@ -50,6 +50,22 @@ Wrong block types are the most common cause of an unreassemblable source: data d
 
 The dangerous boundary errors are the ones that *still reassemble*. If a block boundary falls one byte off — the last entry of a table folded into the next block, a sprite row labeled as a table value — the bytes are unchanged, so the round-trip stays green and the mistake is invisible to the build. Fix the boundary from how the code *uses* the data (the indexer's range, the draw routine's row count), not from where the next recognizable thing seems to start. See "What the round-trip does NOT prove" in `references/build-verify.md`.
 
+### What `b` promises, and what `g` promises
+
+`b` and `g` both render as `DEFB`. The letter is the only thing that distinguishes them, so it has to be the truth about the bytes.
+
+`b` says these bytes are what the program was loaded with and stay that way: a table, a glyph set, a constant. `g` says the program writes here as it runs, and SkoolKit heads its page "Game status buffer entry at". The distinction is not cosmetic. It tells a reader whether a value can be trusted across a replay, tells a porter what to allocate rather than initialize, and tells an agent-trainer which addresses are the state its policy observes. A bonus flag that the game sets and clears every level, published as `b`, tells all three of them the wrong thing.
+
+The code settles which letter is right, and nothing else does. An address a routine stores to is not static, whatever the entry's description says about it; `make lint-publication` reads the generated `.skool` and reports a `b` entry the code writes into. The evidence runs one way only: a store proves mutation, while no store proves nothing, because a routine writing through `HL`, `IX` or an `LDIR` names no address in the instruction. So a `g` entry that ought to be `b` is not something a linter can find — settle that one by reading the writers.
+
+That asymmetry also decides the fix. A store proves the entry is not what `b` promises, and the count of stores says nothing about the bytes no instruction names, so retype the entry `g`. Split the written bytes into a `g` entry of their own only when the rest of the entry really is a static table — a table with a runtime cursor glued to its tail — and read the writers to confirm it.
+
+### An entry holds one kind of thing
+
+An entry is one page and one memory-map row, so everything inside it is filed under its title. Keep the contents to the kind the type declares: a `t` entry is a message, and a runtime counter that happens to sit past the message's last character is a separate entry, not a `B` sub-directive riding along on a page headed "Text: PAUSED". `make lint-publication` reports a `t` entry holding a sub-directive that is not `T`.
+
+The other data types are not held to this, and deliberately: a `b` or `g` entry legitimately mixes `B`, `W` and `S`, and a `w` entry carries its own stride with no sub-directive at all. `t` is the one type whose contents are a single kind by construction.
+
 ### Growing the map
 
 The all-bytes baseline grown into code from the entry (see `references/agents.md`) rests on a few operational facts:
@@ -319,11 +335,15 @@ The `g` block is also the agent-facing memory map: a live agent reads game state
 
 ## One page per thing
 
-Every entry in the `.ctl` becomes a page on the site and a row in the memory map. The set of entries is therefore a claim in its own right — *these are the things this disassembly documents* — and it is wrong in four ways that no per-entry check can see. `make lint-publication` gates the first two, `make lint-names` and `make lint-images` the last two, and `build-verify.md` describes them.
+Every entry in the `.ctl` becomes a page on the site and a row in the memory map. The set of entries is therefore a claim in its own right — *these are the things this disassembly documents* — and it is wrong in six ways that no per-entry check can see. `make lint-publication` gates the first four, `make lint-names` and `make lint-images` the last two, and `build-verify.md` describes them.
 
 **Publish only what the program occupies.** An entry outside the program image publishes a page for RAM the program never uses. Generated render-only data — sprite masks a build script produced — declared below the image's origin gets pages and memory-map rows for addresses that are ROM on real hardware, and nothing on those pages tells a reader they are not part of the game. Render-only data belongs in a `.ref` `[Graphic:]` entry or beside the script that generates it, never in the address space.
 
 **One structure is one entry, not a run of pages.** A structure split into one entry per address the code writes to gets a page and a memory-map row per part, and no page anywhere says what the whole of it is. The signature the check reads is a run of three or more consecutive `b` or `w` entries, each with no sub-directive, all headed by the same thing — the clause before the title's first `:`, `;`, `,`, `(` or dash, with any index stripped. Three entries reading "Title-screen bitmap; start cell reused for the lives counter", "…for the timer" and "…for the room number" are one title screen: what follows the semicolon is a note about one address inside the subject the head names, not a second subject. The fix is one entry, one title, and a sub-directive per part — which is what [the tiling contract](#the-tiling-contract) asks for anyway.
+
+**A page holds one kind of thing.** The inverse of the fragmented structure: a `t` entry that runs past its message publishes what follows — a counter the game bumps every frame, say — on a page headed by the message, and under that title in the memory map. The check reads a `t` entry holding a sub-directive that is not `T`; see [What `b` promises, and what `g` promises](#what-b-promises-and-what-g-promises) for why only `t` is held to it. The fix is a split, one entry per thing.
+
+**A page is the type its bytes are.** A `b` entry publishes its bytes as data the program was loaded with, so one holding what the game writes — a level number, a lives count — misstates every one of those bytes. The check reads the generated `.skool` for the addresses the code stores to and reports a `b` entry containing one, so the finding is an instruction address rather than a reading of the entry's prose. Retype the entry `g`, or split the written bytes into a `g` entry of their own when the rest of it really is a static table.
 
 **One entity, one name.** `references/agents.md` states it — one canonical term per concept, anchored to the `@label` identifiers, never a synonym for something a label already names. Three names for two enemy slots ("enemy A", "first/second enemy", "the chasing enemy") against labels `enemy_a` and `enemy_b` read fine page by page and leave a reader crossing pages to translate.
 
@@ -360,7 +380,7 @@ The build runs nine `.ctl` linters; violations fail the build. The first four ke
 4. **Label length** — 24 characters, fixed by renaming.
 5. **Block identity** (`validate_ctl_identity.py`) — every entry titled, every sub-directive described or labeled. See [Nothing anonymous](#nothing-anonymous).
 6. **Data-block schema** (`validate_ctl_data_structure.py`) — every data entry tiles and declares its stride. See [The tiling contract](#the-tiling-contract).
-7. **Publication** (`validate_ctl_publication.py`) — every published page inside the program image, and no structure cut into a run of same-titled pages. See [One page per thing](#one-page-per-thing).
+7. **Publication** (`validate_ctl_publication.py`) — every published page inside the program image, no structure cut into a run of same-titled pages, no `t` entry holding something that is not text, and no `b` entry over bytes the code writes. It takes the generated `.skool` as well as the `.ctl`, because the store instructions are what settle `b` against `g`. See [One page per thing](#one-page-per-thing).
 8. **One name per entity** (`validate_prose_names.py`) — prose names a labeled slot family's member by its label, never by its position. See [One page per thing](#one-page-per-thing).
 9. **No recited lengths** (`validate_ctl_byte_counts.py`) — an instruction comment must not state the size of the span it works on; a rate ("6 bytes per enemy") is the exemption. See `references/comment-style.md`.
 

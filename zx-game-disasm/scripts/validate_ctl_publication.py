@@ -3,9 +3,9 @@
 Validate the set of pages a .ctl publishes: one page per thing, and only things.
 
 Every entry in a .ctl becomes a page on the site and a row in the memory map.
-Two failures put the wrong set of pages there, and both pass the round-trip, the
-tiling check and the identity check, because neither is about the bytes an entry
-declares - it is about whether the entry should be an entry at all.
+Four failures put the wrong page there, and all four pass the round-trip, the
+tiling check and the identity check, because none of them is about the bytes an
+entry declares - it is about whether the entry is the thing its heading says.
 
   OUTSIDE     an entry outside the program image. Generated render-only data -
               sprite masks a build script produced - declared at $1000 in a
@@ -28,10 +28,76 @@ declares - it is about whether the entry should be an entry at all.
               spans them is stated nowhere. The fix is one entry with one title
               and a sub-directive per part.
 
+  MIXED       several things fused into one page, under the heading of the
+              first. A `t $9A00 Text: GAME OVER` that runs on to the next entry
+              swallows the `B` sub-directives after the message, so a runtime
+              counter such as `idle_ticks` publishes on a page headed
+              "Text: GAME OVER" and appears under that title in the memory map.
+              The fix is a split: one entry per thing, each headed by what it
+              is.
+
+  MUTABLE     a `b` entry the program stores into. `b` says these bytes are what
+              the program was loaded with and stay that way - a table, a glyph
+              set, a constant. `g` says the program writes here as it runs, and
+              SkoolKit heads a `g` page "Game status buffer entry at", so the type
+              is what the page tells the reader the bytes are. It also decides
+              what a porter initializes versus allocates, and which addresses an
+              agent-trainer treats as state. `b $9B00 Game progress and option
+              settings` over the level number and the lives count publishes as
+              load-time data bytes the game writes.
+
 Consecutive entries always tile - the next entry's address is where the previous
 one ends - so contiguity carries no information and is not tested. What carries
 information is that the run says one thing N times. A project with a genuine row
 of small distinct tables states a distinct title on each and is not reported.
+
+## Which sub-directive disagreements are real (MIXED)
+
+Only `t` is tested. A `b` entry legitimately mixes `B`, `W` and `S`; a `g` entry
+does the same; a `w` entry carries its own stride and declares no sub-directive
+at all. `t` is the one type whose contents are a single kind by construction -
+characters - so a non-`T` sub-directive inside one is something else riding along
+on a message's page. `M`, a comment spanning sub-blocks, declares no bytes and is
+not a content type, so it never disagrees with anything.
+
+The general form - any entry whose sub-directives disagree with its own type -
+is not safe: it has no definition that the four data types share.
+
+## Why MUTABLE reads the code and not the prose (and why the converse is absent)
+
+A vocabulary match over entry descriptions - "while", "set when", "cleared on",
+"counts", "current", "progress", "advances" - flags many of a project's `b`
+entries. The count is not the objection: a check firing on many data blocks is
+affordable if every finding is true. The objection is that nothing in the match
+is evidence. "Non-zero while a level transition runs" is a sentence, and a
+linter reading it is guessing at what its author meant - the same words sit in
+the description of a static table, saying what the reader does while scanning
+it. A check whose findings have to be argued about one at a time gets switched
+off, which is the failure the baseline mechanism exists to prevent.
+
+The code settles it instead. An address a routine stores to is not what the
+program was loaded with, and the .skool the build already produces carries every
+such store. Z80 has exactly one addressing mode that names its target in the
+instruction - `LD (nn),A` and `LD (nn),rr` for BC/DE/HL/SP/IX/IY - so those
+instructions are read out of the .skool and their targets matched against the
+entries. A finding is then an instruction address, not an adjective.
+
+That evidence is sound and incomplete, and the asymmetry is the whole design. A
+store to `$9B06` proves `$9B06` is not static. Silence proves nothing: a routine
+that writes through `HL`, `IX` or an `LDIR` names no target in the instruction.
+A tile state map, a keyboard save or an object record the game writes only
+through a register pair shows no absolute store at all. So the converse check, a
+`g` entry nothing writes, is not implemented: it would report exactly those
+entries. A `g` entry mistyped the other way has to be found by reading the code,
+not by a linter.
+
+A partly-written `b` entry is reported too, and the message says how many of its
+bytes are written - as the evidence, not as a verdict on the rest. The asymmetry
+holds there as well: one absolute store in a large buffer the game clears
+through `HL` says the buffer is not static, not that one byte of it is. So the
+remedy leads with the retype whatever the count, and offers the split as the
+alternative for the case a reader can confirm from the code - a static table with
+a runtime slot glued to its tail.
 
 ## What "the same thing" means, and why it is the head of the title
 
@@ -56,7 +122,7 @@ so three consecutive `Player N score` entries are the standard idiom rather than
 a structure cut up; `s` and `u` declare space, which is not a structure at all.
 
 Usage: validate_ctl_publication.py CTL [CTL ...] --org ADDR --size N
-                                   [--baseline FILE]
+                                   --skool FILE [--baseline FILE]
 Exit 0 when clean, 1 when the .ctl publishes a page it should not.
 """
 
@@ -84,7 +150,36 @@ STRUCTURE_TYPES = 'bw'
 FRAGMENT_RUN = 3
 
 ENTRY_RE = re.compile(r'^([bcgistuwz]) +(\$?[0-9A-Fa-f]+) *(.*)$')
-SUB_RE = re.compile(r'^[BCSTWM] +\$?[0-9A-Fa-f]+')
+SUB_RE = re.compile(r'^([BCSTWM]) +(\$?[0-9A-Fa-f]+)')
+LABEL_RE = re.compile(r'^@ +(\$?[0-9A-Fa-f]+) +label=(\S+)')
+
+# The one entry type whose contents are a single kind by construction. `M` spans
+# sub-blocks with a comment and declares no bytes, so it is not a content type.
+SINGLE_KIND_SUBS = {'t': 'T'}
+NON_CONTENT_SUB = 'M'
+
+# The type whose whole promise is that the bytes never change.
+STATIC_TYPE = 'b'
+
+# A skool instruction line: the entry-type or branch-marker column, the address,
+# then the instruction. `@label=` and `;` lines are excluded by the leading column.
+SKOOL_INSTR_RE = re.compile(r'^([ *bcgistuw])\$([0-9A-Fa-f]{4}) (.*)$')
+
+# Every Z80 store whose target is in the instruction: `LD (nn),A` and `LD (nn),rr`
+# for BC, DE, HL, SP, IX and IY. A store through a register pair - `LD (HL),A`,
+# `LD (IX+d),A`, `LDIR` - names no target, so the .skool cannot yield one.
+#
+# The `$` is mandatory: the build disassembles with `sna2skool.py --hex`, so an
+# absolute operand is hex, and requiring the sigil keeps a decimal-looking token
+# somewhere else on the line from being read as an address.
+#
+# Case-insensitive because `sna2skool.py --lower` writes the whole listing in
+# lower case, and a store the pattern cannot read is a target the check drops.
+STORE_RE = re.compile(r'\bLD +\((\$[0-9A-Fa-f]+)\),(A|BC|DE|HL|SP|IX|IY)\b', re.I)
+
+# A data directive's operand is bytes, not an instruction. `DEFM "LD ($F128),A"`
+# spells a store without being one, so these lines are not read for targets.
+DATA_DIRECTIVE_RE = re.compile(r'DEF[BWMS]\b', re.I)
 
 # Where the head of a title ends and its note about this fragment begins.
 HEAD_RE = re.compile(r'[:;,(]|\s[—–-]\s')
@@ -111,20 +206,88 @@ def parse_address(text):
 
 
 def parse_ctl(lines):
-    """Return every entry with its line number, type, address, title and sub count."""
+    """
+    Return every entry with its line number, type, address, title and contents.
+
+    `subs` counts the sub-directives inside the entry and `sub_kinds` pairs each
+    one's letter with its address. `end` is the address the entry stops at, taken
+    from the next entry; the last entry in a file has no stated length, so its
+    `end` is None and the checks that need a span skip it.
+    """
     entries = []
     for number, line in enumerate(lines, 1):
         match = ENTRY_RE.match(line.rstrip())
         if match:
             entries.append({'line_number': number, 'type': match.group(1),
                             'address': parse_address(match.group(2)),
-                            'title': match.group(3).strip(), 'subs': 0})
+                            'title': match.group(3).strip(), 'subs': 0,
+                            'sub_kinds': [], 'end': None})
     for index, entry in enumerate(entries):
+        if index + 1 < len(entries):
+            entry['end'] = entries[index + 1]['address']
         end = entries[index + 1]['line_number'] if index + 1 < len(entries) else len(lines) + 1
         for number in range(entry['line_number'], end - 1):
-            if SUB_RE.match(lines[number].rstrip()):
+            match = SUB_RE.match(lines[number].rstrip())
+            if match:
                 entry['subs'] += 1
+                entry['sub_kinds'].append((match.group(1), parse_address(match.group(2))))
     return entries
+
+
+def parse_labels(lines):
+    """Map each address the .ctl names to that label, for naming a byte in a finding."""
+    labels = {}
+    for line in lines:
+        match = LABEL_RE.match(line.rstrip())
+        if match:
+            labels[parse_address(match.group(1))] = match.group(2)
+    return labels
+
+
+def instruction_body(text):
+    """The instruction with its trailing `;` comment removed, quotes respected."""
+    quoted = False
+    for index in range(1, len(text)):
+        if text[index] == '"':
+            quoted = not quoted
+        elif text[index] == ';' and not quoted and text[index - 1] == ' ':
+            return text[:index]
+    return text
+
+
+def read_stores(path):
+    """
+    Map each address the program stores to onto the instruction addresses that do it.
+
+    Only absolute stores are found - see the module docstring: the result is sound
+    evidence that an address is written and no evidence at all that one is not.
+
+    Raises ValueError when no line in the file is an instruction at all. A .skool
+    the pattern cannot read yields no target, and MUTABLE then reports nothing on
+    a project full of `b` entries the code writes - which reads as clean. The
+    check has to say it could not read the file instead.
+    """
+    stores, instructions = {}, 0
+    with open(path, encoding='utf-8') as f:
+        for line in f:
+            match = SKOOL_INSTR_RE.match(line.rstrip())
+            if not match:
+                continue
+            instructions += 1
+            body = instruction_body(match.group(3))
+            if DATA_DIRECTIVE_RE.match(body):
+                continue
+            source = int(match.group(2), 16)
+            for store in STORE_RE.finditer(body):
+                target = parse_address(store.group(1))
+                width = 1 if store.group(2).upper() == 'A' else 2
+                for offset in range(width):
+                    stores.setdefault(target + offset, []).append(source)
+    if not instructions:
+        raise ValueError(f'{path} holds no instruction line this check can read. It expects '
+                         f'the .skool the build generates, which `sna2skool.py --hex` writes '
+                         f'as `c$F000 LD ($9B00),A`')
+    return stores
 
 
 def title_head(title):
@@ -196,6 +359,68 @@ def check_fragmented(entries, path):
     return findings
 
 
+def check_mixed(entries, path):
+    """Report an entry holding something other than what its type declares."""
+    findings = []
+    for entry in entries:
+        expected = SINGLE_KIND_SUBS.get(entry['type'])
+        if not expected:
+            continue
+        foreign = [(kind, address) for kind, address in entry['sub_kinds']
+                   if kind not in (expected, NON_CONTENT_SUB)]
+        if not foreign:
+            continue
+        listed = ', '.join(f'`{kind} ${address:04X}`' for kind, address in foreign[:3])
+        findings.append((
+            entry['line_number'], 'MIXED',
+            f"`{entry['type']} ${entry['address']:04X} {entry['title']}` publishes one page "
+            f"headed as text, but not all of its contents are text: {listed} among its "
+            f"{entry['subs']} sub-directives. Everything inside the entry renders on that page "
+            f"and is filed under that title in the memory map, so a reader looking for those "
+            f"bytes finds them under a message. Split the entry: one entry per thing, each "
+            f"headed by what it is",
+            path, entry['address']))
+    return findings
+
+
+def check_mutable(entries, stores, labels, path):
+    """Report a `b` entry the program stores into."""
+    findings = []
+    for entry in entries:
+        if entry['type'] != STATIC_TYPE or entry['end'] is None:
+            continue
+        written = [address for address in range(entry['address'], entry['end'])
+                   if address in stores]
+        if not written:
+            continue
+        size = entry['end'] - entry['address']
+        cited = ', '.join(
+            f"${address:04X}"
+            + (f" ({labels[address]})" if address in labels else '')
+            + f" from ${stores[address][0]:04X}"
+            for address in written[:3])
+        scope = ('every one of them' if len(written) == size
+                 else f'{len(written)} of them')
+        # The count is evidence, never a verdict on the bytes no store names: a
+        # buffer written wholesale through `HL` can show one absolute store in
+        # hundreds of bytes. So the retype leads at any count, and the split is
+        # the alternative for a reader who can confirm the rest is static.
+        remedy = ('Retype the entry `g`'
+                  + ('' if len(written) == size else
+                     ', or - if the rest of it really is a static table with a runtime slot '
+                     'glued to its tail - split the written bytes into a `g` entry of their own'))
+        findings.append((
+            entry['line_number'], 'MUTABLE',
+            f"`{entry['type']} ${entry['address']:04X} {entry['title']}` publishes "
+            f"{size} byte{'' if size == 1 else 's'} as data the program was loaded with, and the "
+            f"code stores to {scope}: {cited}. Bytes the program writes as it runs are `g`, the "
+            f"page SkoolKit heads \"Game status buffer entry at\" — the type is what tells a "
+            f"reader whether a value survives a replay, a porter what to allocate rather than "
+            f"initialize, and an agent-trainer which addresses are state. {remedy}",
+            path, entry['address']))
+    return findings
+
+
 def token(finding):
     """The baseline's third field: the address of the entry the finding points at."""
     return f'${finding[4]:04X}'
@@ -211,8 +436,22 @@ def main():
                         help='address the program image loads at')
     parser.add_argument('--size', type=lambda s: int(s, 0), required=True,
                         help='length of the program image in bytes')
+    parser.add_argument('--skool', required=True,
+                        help='the .skool the build generates from these .ctl files; it '
+                             'is the witness for MUTABLE, and passing it is not optional '
+                             'because a linter that silently skips half its checks is '
+                             'worse than one that is not wired up')
     ctl_baseline.add_arguments(parser)
     args = parser.parse_args()
+
+    try:
+        stores = read_stores(args.skool)
+    except FileNotFoundError:
+        print(f'Error: File not found: {args.skool}')
+        return 1
+    except ValueError as error:
+        print(f'Error: {error}')
+        return 1
 
     findings, published = [], 0
     for path in args.ctl:
@@ -225,7 +464,9 @@ def main():
         entries = parse_ctl(lines)
         published += sum(1 for e in entries if e['type'] in PUBLISHED_TYPES)
         findings += (check_outside(entries, args.org, args.size, path)
-                     + check_fragmented(entries, path))
+                     + check_fragmented(entries, path)
+                     + check_mixed(entries, path)
+                     + check_mutable(entries, stores, parse_labels(lines), path))
     findings.sort(key=lambda f: (f[3], f[0]))
 
     if args.write_baseline:
@@ -249,7 +490,8 @@ def main():
             print()
     elif not held and not stale:
         print(f'publication: {published} page(s), every one inside '
-              f'${args.org:04X}..${args.org + args.size - 1:04X} and standing for one thing')
+              f'${args.org:04X}..${args.org + args.size - 1:04X}, standing for one thing, and '
+              f'no `b` page over any of the {len(stores)} address(es) the code stores to')
 
     ctl_baseline.report(args.baseline, CHECK, held, stale)
     return 1 if new or stale else 0
