@@ -257,9 +257,9 @@ def check_untyped(block, threshold, by_address):
     render one `DEFW` per word whether or not a `W` repeats the stride, so the
     directive this check would demand changes nothing published; and a word that
     names a labeled address assembles as that label, which is the relocation the
-    untyped-span defect costs. Whether those words group into multi-word records,
-    and whether each element is annotated, is what
-    `validate_ctl_array_elements.py` asks.
+    untyped-span defect costs. `validate_ctl_array_elements.py` exempts a bare `w`
+    entry for the same reason; it is a `W` sub-directive that it asks whether its
+    words group into multi-word records and whether each element is annotated.
     """
     violations = []
     size = block['size']

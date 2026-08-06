@@ -18,9 +18,9 @@
 #                             each entry the type its bytes are
 #   make lint-names           Gate: prose names a labeled slot by its label
 #   make lint-byte-counts     Gate: no instruction comment recites a byte count
+#   make lint-array-elements  Gate: every array record annotated individually
 #   make lint-images          Gate: every image macro put an image under html/
 #   make lint-baseline        Re-record the gating checks' findings as the baseline
-#   make lint-array-elements  Advisory: every array record annotated individually
 #   make verify-frag FRAG=…  Round-trip one Worker fragment in isolation
 #   make tap      A loadable .tap of the fixed build — the disassembly as a
 #                 playable rebuild, not only a byte-check
@@ -218,7 +218,8 @@ test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 	cmp $(BIN_PRISTINE) $(BIN_NON_FIXED)
 
 lint: lint-address-order lint-instruction-order lint-lengths lint-label-length \
-      lint-identity lint-data-structure lint-publication lint-names lint-byte-counts
+      lint-identity lint-data-structure lint-publication lint-names lint-byte-counts \
+      lint-array-elements
 
 # Label naming is a gauge metric, not a build gate. Early on the map is mostly
 # auto-labels and you cannot name a block before you have disassembled it, so a hard
@@ -342,6 +343,8 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 	    --baseline $(BASELINE) --write-baseline
 	@$(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) \
 	    --baseline $(BASELINE) --write-baseline
+	@$(SCRIPTS)/validate_ctl_array_elements.py $(CTL) \
+	    --baseline $(BASELINE) --write-baseline
 	@$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
 	    --baseline $(BASELINE) --write-baseline
 
@@ -350,15 +353,16 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 # in prose - documents the span, not the contents: the reader gets "64 bytes per
 # level" and no way to find level 12. Catches both forms (UNINDEXED: one directive
 # standing in for >= 10 records; UNDECLARED: an array-sized span with no
-# sub-directive), and both are fixed the same way, one annotated sub-line per
-# record naming it.
+# sub-directive), and both are fixed the same way, one annotated line per record
+# naming it.
 #
-# Advisory, and unlike lint-data-structure it cannot simply take a baseline and
-# join the gate: its two thresholds decide what counts as an array, and byte runs
-# that are not record arrays at all - a bitmap span, a cell grid - trip it. Settle
-# that exemption before promoting it into `lint`.
+# What is not a record array is exempt, because this check gates: baselining a
+# bitmap span or a cell grid would use the baseline to bury a false finding,
+# which is the one thing it must never do. A render macro, a `w` entry, a
+# one-byte stride and a page-sized region cut at a power-of-two width all
+# disqualify a span - see the script and `references/ctl-authoring.md`.
 lint-array-elements: $(CTL)
-	$(SCRIPTS)/validate_ctl_array_elements.py $(CTL)
+	$(SCRIPTS)/validate_ctl_array_elements.py $(CTL) --baseline $(BASELINE)
 
 # Advisory comment-quality pre-filter (RET / RESTATE / PLACEHOLDER / SELFLINK /
 # OPERAND_ECHO / ELLIPSIS / DIARY / REFPOINTER / STAMP). Advisory, so it is not in the default `make` gate

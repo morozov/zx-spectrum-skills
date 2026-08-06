@@ -72,6 +72,13 @@ if not inserted:
 print('\n'.join(out))
 PY
 
+# Name every `@` directive the splice above deleted because the fragment does not
+# carry it forward. Reporting only: a fragment whose task was to remove a
+# directive is indistinguishable from one that lost it, so this never fails the
+# check. It exits non-zero only for a fragment with no block-entry line, which the
+# splice already rejected.
+"$SCRIPTS/splice_ctl.py" --check-only "$CTL" "$FRAG"
+
 # Disassemble; no overlapping-instruction or other warning is allowed.
 sna2skool.py --hex "$Z80" --ctl "$SPLICED" > "$tmp/game.skool" 2>"$tmp/sna.err" \
   || { cat "$tmp/sna.err" >&2; exit 1; }
@@ -107,8 +114,8 @@ pasmo --bin "$tmp/fixed.asm" "$tmp/fixed.bin" 2>"$tmp/fixed-pasmo.err" \
   || { cat "$tmp/fixed-pasmo.err" >&2; exit 1; }
 
 # Every .ctl linter that gates the real build, so a fragment cannot pass here and
-# fail the Manager's `make`. The two content checks read the project's baseline:
-# its key is the directive's address, so a finding the fragment inherited is still
+# fail the Manager's `make`. The content checks read the project's baseline: its
+# key is the directive's address, so a finding the fragment inherited is still
 # held after the splice moves its line.
 "$SCRIPTS/validate_ctl_address_order.py"     "$SPLICED"
 "$SCRIPTS/validate_ctl_instruction_order.py" "$SPLICED"
@@ -126,6 +133,8 @@ pasmo --bin "$tmp/fixed.asm" "$tmp/fixed.bin" 2>"$tmp/fixed-pasmo.err" \
 # the MUTABLE check reads the code as the fragment's own map lays it out.
 "$SCRIPTS/validate_ctl_publication.py"    "$SPLICED" \
     --org "$ORG" --size "$SIZE" --skool "$tmp/game.skool" \
+    --baseline "$BASELINE" --ignore-stale
+"$SCRIPTS/validate_ctl_array_elements.py" "$SPLICED" \
     --baseline "$BASELINE" --ignore-stale
 
 # The prose sweep runs over the spliced .ctl alone. The `.ref` catalogs are not

@@ -242,7 +242,35 @@ Each record is addressable: the `D` carries the schema, the stride renders the 1
 
 Name records by what the reader is looking for, not by ordinal position, and use the number the game *shows*. Where a counter is 0-based and the caption prints it plus one, record 0 is annotated `Room 1` — and the `D` states that convention, so the two readings cannot be confused.
 
-`make lint-array-elements` checks this (`scripts/validate_ctl_array_elements.py`): it flags a directive standing in for ≥10 records, and an array-sized span with no sub-directive at all — the second being the form that hides from every other check, since declaring nothing leaves nothing to inspect.
+`make lint-array-elements` checks this (`scripts/validate_ctl_array_elements.py`): it flags a directive standing in for ≥10 records, and an array-sized span with no sub-directive at all — the second being the form that hides from every other check, since declaring nothing leaves nothing to inspect. It is in the build gate, against the baseline.
+
+Either spelling of the annotation satisfies it, because both put one named row per record in the listing. One `B` per record carries the name in its own description, as `room_maps` does above; one `B` carrying the stride, with a `  $ADDRESS text` line comment per record, carries it on the rendered statement, which is the cheaper form for a long table because the stride is written once:
+
+```
+b $7D80 Per-type starting energy
+D $7D80 Indexed by enemy type (0 to $0F). #R$7DA0 copies the entry for its type into a
+D $7D80 new enemy's record +$04, its starting energy.
+B $7D80,16,1
+  $7D80 Type $00: no enemy
+  $7D81 Type $01: spider
+…
+```
+
+#### What is not a record array
+
+A byte run is not a record array just because a number divides into it, and the check must not ask a bitmap to name its pixel rows. Four things disqualify a span, and each is the `.ctl` already saying what the bytes are — so the exemption is earned by a declaration, never asserted in prose:
+
+- **A render covers the block** — a macro in its own prose, or on a code partner the two name each other through, exactly as the [tiling contract](#the-tiling-contract) reads it. A sprite's pixel rows, a screen's cells and a tune's note bytes are not records to index; the render is the schema and drawing it is the proof.
+- **The entry is `w`** — the entry type declares the element. One `DEFW` per word is one element per row, so no record size is left in prose. A `W` sub-directive that groups words into multi-word records is still asked to name them.
+- **The stride is one byte** — a scalar has no fields, so there is no record layout to state. What the index means belongs in the block's `D`, and the tiling contract gates that the block has one.
+- **A page or more at a power-of-two stride of ≥16 bytes** — a record size is whatever its fields sum to (3, 5, 6, 96) and lands on a power of two by coincidence. A page-sized region cut at a power-of-two width is a geometry: a screen, a sprite bank, a tile grid, a work buffer. This is the loosest of the four and it costs something — a genuine array of 16- or 32-byte records spanning a page goes unasked — but the tiling contract still holds that span to declaring its stride and covering the block.
+
+Two floors sit under all four, and neither is a declaration — they are sizes below which the check does not ask at all:
+
+- **Too small to be a table** — a span under `--min-span` (40 bytes), or one cut into fewer than `--min-records` (10) records, is not reported. This is what keeps a sprite's eight pixel rows and a nine-byte record out of the findings without any exemption being earned.
+- **Nearly complete counts as complete** — a span is reported only once `--min-records` of its records carry no line comment. A table with 91 of its 100 records annotated reads clean; the check is after the array nobody indexed, not after the last nine rows of one somebody did.
+
+The first of the four is the one to reach for. When a span is silent only because it is a geometry, a scalar run, or under a floor, that is the check declining to ask, not a statement that the bytes are understood.
 
 ### The tiling contract
 
@@ -250,7 +278,7 @@ Everything above is advice until something checks it, and advice is what gets sk
 
 The contract is on the *entry*, not on the letter that groups its page. What an undeclared byte becomes differs by type — `DEFS` under `s`, `DEFB` under `b`, `g` and `u`, `DEFM` under `t`, `DEFW` under `w` — and only under `s` is it unused space, under a note that says what it is. Under every other type it is worse: the byte is *published as data* on a page whose title says the block was digested, and no directive anywhere claims it. A `u` entry titled "Undetermined 5-byte block" that carries one five-byte `B` but runs on for two kilobytes publishes every byte past that directive as `DEFB` under that title.
 
-`w` is the one type that answers the schema question by itself, so it is exempt from UNTYPED. Its bytes render one `DEFW` per word whether or not a `W` repeats that stride, and a word that names a labeled address assembles as that label — so there is no stride left to declare and nothing left to hide as a literal. A `w` entry still has to tile, and whether its words group into multi-word records is the array-element question `make lint-array-elements` asks, above.
+`w` is the one type that answers the schema question by itself, so it is exempt from UNTYPED. Its bytes render one `DEFW` per word whether or not a `W` repeats that stride, and a word that names a labeled address assembles as that label — so there is no stride left to declare and nothing left to hide as a literal. A `w` entry still has to tile, and a `W` sub-directive that groups its words into multi-word records still has to name them — that is the array-element question `make lint-array-elements` asks, above. What that check does *not* ask of a bare `w` entry is a record size, for the same reason: the entry type already gave one.
 
 This matters because prose is free. It can describe a span convincingly without committing to one verifiable claim, and a byte block is where code goes to hide: held as data, an embedded address is a literal byte that no shifted build relocates, and every other check still reads green. The tiling moves the claim somewhere arithmetic can test it. It invents no notation — every directive below is stock SkoolKit. The vocabulary was always there; only the contract was missing.
 
@@ -372,7 +400,7 @@ In comment text, reference addresses with `#R$XXXX` (SkoolKit resolves it to the
 
 ## Validation rules
 
-The build runs nine `.ctl` linters; violations fail the build. The first four keep the `.ctl` mechanically consistent so diffs stay clean and `sna2skool` never silently reorders; the last five hold it to the contracts above.
+The build runs ten `.ctl` linters; violations fail the build. The first four keep the `.ctl` mechanically consistent so diffs stay clean and `sna2skool` never silently reorders; the last six hold it to the contracts above.
 
 1. **Address order** — every directive in ascending address order.
 2. **Instruction order** — directives at the *same* address follow the canonical sequence: `@` → block type (`c`/`b`/…) → `D` → `N` → `R` → line comment.
@@ -383,9 +411,10 @@ The build runs nine `.ctl` linters; violations fail the build. The first four ke
 7. **Publication** (`validate_ctl_publication.py`) — every published page inside the program image, no structure cut into a run of same-titled pages, no `t` entry holding something that is not text, and no `b` entry over bytes the code writes. It takes the generated `.skool` as well as the `.ctl`, because the store instructions are what settle `b` against `g`. See [One page per thing](#one-page-per-thing).
 8. **One name per entity** (`validate_prose_names.py`) — prose names a labeled slot family's member by its label, never by its position. See [One page per thing](#one-page-per-thing).
 9. **No recited lengths** (`validate_ctl_byte_counts.py`) — an instruction comment must not state the size of the span it works on; a rate ("6 bytes per enemy") is the exemption. See `references/comment-style.md`.
+10. **Array elements** (`validate_ctl_array_elements.py`) — every record of an array of records is named on its own line, and a span that is not a record array is exempt by a declaration rather than by assertion. See [Data structures and tables](#data-structures-and-tables).
 
-A tenth check, `validate_rendered_images.py` (`make lint-images`), gates the built site rather than the `.ctl`: every image macro must name an output file, and every named file must be under `html/`. It runs after `make html`, because its subject is what the build produced.
+An eleventh check, `validate_rendered_images.py` (`make lint-images`), gates the built site rather than the `.ctl`: every image macro must name an output file, and every named file must be under `html/`. It runs after `make html`, because its subject is what the build produced.
 
 Run the `.ctl` ones yourself while editing (`python3 scripts/validate_ctl_address_order.py {game}.ctl`) rather than waiting for the full build.
 
-Checks 5 through 9 land red on a mature `.ctl`, so a project records the findings it starts with in `lint-baseline.txt` (`make lint-baseline`) and the gate holds that line: a finding the file does not list fails the build, and a line it lists that the check does not report fails the build too, so a fix takes its baseline entry with it in the same commit. The file only ever shrinks. Never hand-edit it to silence something you introduced — see [build-verify.md](build-verify.md#the-known-failing-baseline).
+Checks 5 through 10 land red on a mature `.ctl`, so a project records the findings it starts with in `lint-baseline.txt` (`make lint-baseline`) and the gate holds that line: a finding the file does not list fails the build, and a line it lists that the check does not report fails the build too, so a fix takes its baseline entry with it in the same commit. The file only ever shrinks. Never hand-edit it to silence something you introduced — see [build-verify.md](build-verify.md#the-known-failing-baseline).

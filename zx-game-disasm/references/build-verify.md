@@ -138,7 +138,7 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 
 ## The linters
 
-`make` runs nine `.ctl` linters (also runnable standalone as `make lint`, or from `scripts/`):
+`make` runs ten `.ctl` linters (also runnable standalone as `make lint`, or from `scripts/`):
 
 - `validate_ctl_address_order.py` — directives in ascending address order.
 - `validate_ctl_instruction_order.py` — at one address: `@` → block type → `D` → `N` → `R` → line comment.
@@ -149,8 +149,9 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 - `validate_ctl_publication.py` — every page inside the program image, one page per thing, and each entry the type its bytes are.
 - `validate_prose_names.py` — prose names a labeled slot by its label.
 - `validate_ctl_byte_counts.py` — no instruction comment recites a byte count the listing already carries.
+- `validate_ctl_array_elements.py` — every record of an array is annotated individually.
 
-The first four exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff. The last five are content checks, and they carry a baseline — see below.
+The first four exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff. The last six are content checks, and they carry a baseline — see below.
 
 `make` then runs one more check that is not a `.ctl` linter at all, because its subject is the built site:
 
@@ -194,7 +195,7 @@ The exemption reads a macro's presence, not its extent.
 
 **The contract is on the entry, not on the letter that groups its page.** What an undeclared byte renders as does differ by type — `DEFS` under `s`, `DEFB` under `b`, `g` and `u`, `DEFM` under `t`, `DEFW` under `w` — but only under `s` is it unused space. Under every other type it is published as data on a page whose title implies the block was digested, with no directive anywhere claiming it, which is worse than a visible hole. A `u $C748` titled "Undetermined 5-byte block" that carries one `B $C748,5` while the entry runs on to $CFFF publishes everything past that directive as `DEFB`, declared by nothing.
 
-`w` is the exception to UNTYPED, and only to UNTYPED. Its bytes render one `DEFW` per word whether or not a `W` directive repeats that stride, so "declare the stride" is a demand for a directive that changes nothing published; and a word that names a labeled address assembles as that label, which is the relocation an untyped byte span costs. A `w` entry still has to tile, and what its words owe beyond that — do they group into records, is each element annotated — is `make lint-array-elements`' question.
+`w` is the exception to UNTYPED, and only to UNTYPED. Its bytes render one `DEFW` per word whether or not a `W` directive repeats that stride, so "declare the stride" is a demand for a directive that changes nothing published; and a word that names a labeled address assembles as that label, which is the relocation an untyped byte span costs. A `w` entry still has to tile, and a bare one owes nothing beyond that: `make lint-array-elements` exempts it for the same reason, one `DEFW` per word being one element per row with no record size left in prose. A `W` sub-directive is asked the rest — do its words group into records, is each element annotated.
 
 **Honest limit: tiling proves accounting, not meaning.** A wrong stride that happens to divide will pass, and a mis-typed field will tile. It is necessary, not sufficient. Its job is to make an unparsed span impossible to leave behind — not to prove the parse is right. Only the render, the round-trip and the relocation proof test meaning.
 
@@ -291,7 +292,7 @@ Where a macro states its filename is not the same for every macro, and the check
 
 ### The known-failing baseline
 
-`lint-identity`, `lint-data-structure`, `lint-names`, `lint-byte-counts` and `lint-images` land red on a mature project. That is not a reason to keep them out of the gate — it is the reason the baseline exists.
+`lint-identity`, `lint-data-structure`, `lint-publication`, `lint-names`, `lint-byte-counts`, `lint-array-elements` and `lint-images` land red on a mature project. That is not a reason to keep them out of the gate — it is the reason the baseline exists.
 
 Left advisory, a check is never run: a defect it reports ships under `make gate` printing GATE PASS, while the check has the defect in its output the whole time.
 
