@@ -50,29 +50,29 @@ class InstructionInfo:
         return f"Line {self.line_number}: {self.instruction_type} ${self.address:04X}"
 
 
+# Both address forms the sibling linters accept: `$HEX` or plain decimal. A .ctl
+# that has not been through ctl_to_hex.py is read and reported on rather than
+# matching nothing and passing clean. Decimal is digits alone: a bare hex word
+# would swallow the `B`/`C`/`D`/`E` of an indented sub-directive as an address.
+ADDR = r'(\$[0-9A-Fa-f]+|[0-9]+)'
+
+
 def parse_address(addr_str: str) -> Optional[int]:
     """
-    Parse a .ctl address (hex) to an integer. The `.ctl` is hex by convention, so
-    addresses are `$XXXX` (the `$` may already be stripped by the caller's regex).
-
-    NOTE: every pattern that feeds this requires the `$`, so a line of a
-    *decimal* .ctl (a bare `61708`) is skipped, not checked, and so is a line
-    comment with no `,LEN`. An ordering violation on such a line goes
-    unreported — one more reason the `.ctl` must be hex. See
-    `references/ctl-authoring.md`.
+    Return the integer value of a .ctl address, or None if it is neither form.
 
     Args:
-        addr_str: Address string, optionally prefixed with '$'
+        addr_str: `$XXXX` for hex, bare digits for decimal
 
     Returns:
         Integer address or None if parsing fails
     """
     addr_str = addr_str.strip()
-    if addr_str.startswith('$'):
-        addr_str = addr_str[1:]
 
     try:
-        return int(addr_str, 16)
+        if addr_str.startswith('$'):
+            return int(addr_str[1:], 16)
+        return int(addr_str, 10)
     except ValueError:
         return None
 
@@ -91,19 +91,21 @@ def extract_instructions(ctl_file_path: str) -> Dict[int, List[InstructionInfo]]
 
     # Patterns for different instruction types
     # Main directives: c, g, b, t, u, s, w, i (followed by address)
-    main_directive_pattern = re.compile(r'^([cgbtuswi])\s+\$([0-9A-Fa-f]+)')
+    main_directive_pattern = re.compile(r'^([cgbtuswi])\s+%s' % ADDR)
 
     # Annotation directives: @ (followed by address)
-    annotation_pattern = re.compile(r'^@\s+\$([0-9A-Fa-f]+)')
+    annotation_pattern = re.compile(r'^@\s+%s' % ADDR)
 
     # EQU directives: > (followed by address)
-    equ_pattern = re.compile(r'^>\s+\$([0-9A-Fa-f]+)')
+    equ_pattern = re.compile(r'^>\s+%s' % ADDR)
 
     # Sub-directives: N, D, R, E (followed by address)
-    sub_directive_pattern = re.compile(r'^([NDRE])\s+\$([0-9A-Fa-f]+)')
+    sub_directive_pattern = re.compile(r'^([NDRE])\s+%s' % ADDR)
 
-    # Line-level comment directives: address,length (e.g., "  $F0D2,3 Comment")
-    line_comment_pattern = re.compile(r'^\s+\$([0-9A-Fa-f]+),')
+    # Line-level comment directives: the length is optional, and the lengths
+    # linter rejects a redundant one, so `  $F0D2 Comment` is the common form and
+    # `  $F0D2,3 Comment` the exception.
+    line_comment_pattern = re.compile(r'^\s+%s(?:,|\s|$)' % ADDR)
 
     with open(ctl_file_path, 'r', encoding='utf-8') as f:
         for line_number, line in enumerate(f, start=1):
