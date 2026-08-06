@@ -84,8 +84,8 @@ FuseX's Z80 profiler charges each instruction's t-states to the address it start
 
 `profile_finish` writes one CSV line per address that accumulated any t-states — `0x5b2a,1606` — and omits the rest, so the file *is* the set of addresses an instruction began at. Two things about the pair are not in its name:
 
-- **A failed write returns like a successful one.** An unwritable path makes `profile_finish` print one line to stderr and return, having written no file *and* left `profile_active` set. The return type is `void`, so a driver that reads the file back gets a stale map or a `FileNotFoundError` with nothing naming the cause. Check `ctypes.c_int.in_dll(lib, "profile_active").value` after the call: 0 means the map was written.
-- **Only `profile_start` zeroes the totals.** `profile_finish` leaves them standing, so `start … finish … step … finish` writes a second map that still carries the first run's counts. One `profile_start` per map.
+- **A failed write returns like a successful one.** An unwritable path makes `profile_finish` return at the `fopen`, having written no file *and* left `profile_active` set. It routes one line to stderr on the way out, but that path drops a message identical to one printed in the last 50 frames, so a second failure can be silent. The return type is `void`, so a driver that reads the file back gets a stale map or a `FileNotFoundError` with nothing naming the cause. Check `ctypes.c_int.in_dll(lib, "profile_active").value` after the call: 0 means the map was written.
+- **Only `profile_start` zeroes the totals.** `profile_finish` leaves them standing, so `start … step … finish … step … finish` writes a second map that still carries the first segment's counts. One `profile_start` per map.
 
 Wrap an RZX playback in the pair to get a map of a reproducible run rather than of whatever happened this time. Bound the stepping by the recording, not by a frame count: a fixed count large enough to play the RZX out keeps free-running once it ends, and everything after that point is this session's own behavior, not the recording's.
 
