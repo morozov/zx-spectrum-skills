@@ -108,7 +108,21 @@ When a *specific region* is tightly coupled — a shared variable block, a coupl
 
 ## The reader pass
 
-Every other check reads a *claim*: the Challenger verifies one annotation, the linter matches one pattern, `make coverage` counts. None of them reads the deliverable the way its audience does — start to finish, as a person. The reader pass is that read, over the **built HTML** and the `.ref` pages behind it, and it is the only check that catches:
+Every other check reads a *claim*: the Challenger verifies one annotation, the linter matches one pattern, `make coverage` counts. None of them reads the deliverable the way its audience does — start to finish, as a person. The reader pass is that read.
+
+**It is a render, and only a render counts.** The pass is performed on pages *displayed by a browser* — pixels on a screen, at a real viewport width — and its evidence is a screenshot, looked at, of every page the pass reports on. On a site too large to shoot page by page, the floor is one of each of the six page types the styling checklist enumerates (`references/html-docs.md`, *"Prove it by looking at it"*: a code routine, a data block, a text block, a graphics-heavy page, a reference/catalog page, the index), plus every page the prose read gave a reason to doubt. Six screenshots of a 200-page site is a spot check, not the pass; if that is what you ran, report it as one. Reading the generated HTML, the `.ref` sources or the CSS is not a reader pass and cannot stand in for one: the whole second half of what this pass exists to catch is markup that reads correctly and *renders* wrong, and no amount of source reading reaches it. If no screenshot was taken, the pass did not happen. Render headless — the browser need not be visible, only the page:
+
+```
+# CHROME: the Chrome or Chromium binary; SITE: the built site's absolute path
+mkdir -p build/review/screenshots
+"$CHROME" --headless \
+  --disable-gpu --hide-scrollbars --window-size=1280,1400 \
+  --screenshot=build/review/screenshots/index.png "file://$SITE/index.html"
+```
+
+Then **look at the PNG**. Reading it back with an image-capable tool is the pass; producing the file is not.
+
+What a linear read of the prose catches:
 
 - typos and broken sentences;
 - **link duplication** — `name (name)`, where a `#R` renders the label already written beside it;
@@ -116,6 +130,17 @@ Every other check reads a *claim*: the Challenger verifies one annotation, the l
 - **metronome prose** — one template stamped per sibling, identical in rhythm all the way down a family of blocks and invisible while you read one block at a time;
 - a table that transcribes the data block beside it instead of adding to it;
 - **register and altitude** defects — investigation vocabulary on a reader-facing page, a header pitched at the wrong level, a fact with two homes, a data block left unindexed.
+
+And what only the render catches — the class the source is blind to, because in the source nothing is wrong:
+
+- a cell that is *styled* as though it were annotated when it is empty;
+- a title that pushes the page sideways, or crowds the logo beside it;
+- an image macro whose picture is not there, leaving the sentence that introduces it standing over a hole;
+- a large image that flows as a word in a paragraph instead of sitting as a figure;
+- a page whose paragraphs all ran together into one wall of text;
+- a ref field left unset, rendering as an empty slot rather than as nothing.
+
+Each of those is written up — symptom, cause, how to check, and whether a gate catches it — as **the rendered-page traps** in `references/html-docs.md`. Read that list before the pass; it is the checklist of what to look *for*.
 
 Run it twice over a project's life:
 

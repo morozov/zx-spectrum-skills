@@ -137,4 +137,44 @@ html/.stamp: $(wildcard *.css) $(INI)
 - **Link every operand the reader will chase.** Extend `LinkOperands` beyond the call/jump defaults — `LinkOperands=CALL,DEFW,DJNZ,JP,JR,LD` — so pointer-table entries and immediate address loads hyperlink like calls do.
 - **Bitmap art scales pixelated.** Every game image on the site is chunky 8x8-derived art; scale it with `image-rendering: pixelated` so it stays crisp at integer multiples. A blurred sprite is a wrong sprite.
 - **A name and credit line are the author's call.** `Release=` names the disassembly and its version; `Copyright=` sets the site's credit line. The theme already sets hex page filenames and anchors (`CodeFiles={address:04X}.html`, hex `AddressAnchor`) to match the hex-addressed `.ctl` — one base everywhere, per `references/ctl-authoring.md`.
-- **Prove it by looking at it.** After any styling change, render one sample of each page type — a code routine, a data block, a text block, a graphics-heavy page, a reference/catalog page, the index — in Chrome and check it reads decently: columns sized to content, no wrapped code lines, no gutter blowout, images at integer scale, sprites floating on the page (no opaque paper-color rectangle around a figure — see the transparency rule in `references/expressive-palette.md`), the accent font confined to accents. A stylesheet edit is verified by a rendered page, never by reading the CSS.
+- **Prove it by looking at it.** After any styling change, render one sample of each page type — a code routine, a data block, a text block, a graphics-heavy page, a reference/catalog page, the index — in Chrome and check it reads decently: columns sized to content, no wrapped code lines, no gutter blowout, images at integer scale, sprites floating on the page (no opaque paper-color rectangle around a figure — see the transparency rule in `references/expressive-palette.md`), the accent font confined to accents. A stylesheet edit is verified by a rendered page, never by reading the CSS. What to look for while you are there is the trap list below.
+
+## The rendered-page traps
+
+This is the skill's one home for the defects that are invisible in the generated markup and obvious the moment a browser draws it. No linter and no reading of HTML finds them; rendering the site does. They belong here rather than scattered through the role files because they are the *content* of the render the checklist above and the reader pass in `references/orchestration.md` both demand: that pass is the procedure, this list is what it is looking for.
+
+Read an entry as symptom → cause → check. Where a check is mechanical the entry says so and names the gate: **a documented trap is a gate not yet written**.
+
+How to render one page, with `$CHROME` the Chrome binary, `$SITE` the absolute path of the directory `skool2html` writes the site into, and `$WORK` a temporary directory:
+
+```
+"$CHROME" --headless \
+  --disable-gpu --hide-scrollbars --window-size=1280,1400 \
+  --screenshot="$WORK/page.png" "file://$SITE/{game}/Graphics.html"
+```
+
+Then open the PNG and look at it. For overflow, a measurement beats an eyeball: append a `<script>` to a copy of the page that reports `document.documentElement.scrollWidth` against `window.innerWidth`, and run Chrome with `--dump-dom`. Anything wider than the viewport is horizontal scroll.
+
+### An empty comment cell is styled as an annotation
+
+**Symptom.** A bare `RET`, or any row of an annotated routine with nothing to say, looks annotated: its comment cell carries the box rules, borders or hover highlight of a real comment, so a reader counts annotations that are not there. **Cause.** SkoolKit sets the comment class per *entry*, not per row — `<td class="comment-{annotated}">` — so every row of an annotated routine gets a `comment-1` cell, the empty ones included. **Check.** Render a routine that has uncommented rows and look down the comment column. **Theme default, not a gate:** the theme draws no top or bottom rule on an empty `comment-1` cell, and `theme.js` keeps the hover off those rows, so a site on the stock theme does not show the defect. A project stylesheet re-opens it by restyling `td.comment-1` without an `:empty` carve-out — the Styling rule above states the constraint.
+
+### A long page title pushes the page sideways
+
+**Symptom.** A long page title overflows the header: the logo keeps its natural width, the title cell grows, and past the viewport width the whole page, header and body, scrolls horizontally. A project stylesheet that puts `td.page-header` in a wider face makes it worse, and the theme on top of it widens the title cell further. **Cause.** `td.page-header` is `white-space: nowrap` and `td.logo` is `flex: 0 0 auto`, so the title sets a floor under the page width and the logo never gives ground. **Check.** Render the page with the longest `[Titles]`/`[PageHeaders]` string at 800 px and compare `scrollWidth` to `innerWidth`; shorten the title until they match.
+
+### An image macro that renders nothing leaves a hole
+
+**Symptom.** A paragraph introduces a sprite, and no sprite follows: the reader cannot tell whether the picture failed or was never claimed. **Cause.** A frame-only macro — `#UDGARRAY…(*name)` — defines a frame and writes no file; a frame renders nowhere unless some `#FRAMES`, `#UDGS` or `#COPY` macro consumes it and that macro itself names a file. A macro that names a file the build did not produce fails the same way. **Check — a gate.** `make lint-images` reports NOFILE for a macro that names no file and UNRENDERED for a named file the site does not have (`references/build-verify.md` has the full invariant). The render check that remains is the layout hole itself. A gate proves the picture exists, not that the paragraph around it reads.
+
+### A large image alone on a line is not a block
+
+**Symptom.** On a Graphics page the loading screen — a 512×384 image with nothing beside it — sits hard against the left margin, and the paragraph that follows it begins on the image's **last line**, tucked into the empty space at its bottom right. The page reads as though the prose collided with the picture. **Cause.** A `[Page:*]`'s `PageContent` is emitted into the page verbatim — macros expanded, nothing else added — and `#SCR` / `#UDGARRAY` expand to a bare `<img>`. An `<img>` is inline, so a full-screen picture flows as one very large word inside a paragraph and the next sentence continues on its baseline. **Check.** Render the page — the markup shows the `<img>` alone between two blank lines and looks entirely correct. **Fix.** Wrap a solo image in a block (`<div>`/`<p>`, centered) rather than leaving the macro loose in the text.
+
+### Blank lines in a `.ref` page are not paragraphs
+
+**Symptom.** A `[Page:*]` of several sections renders as a single unbroken wall of text, with its bold section headings sitting mid-line inside the paragraph above them instead of opening a section. **Cause.** The same verbatim emission as above: the ref section's blank lines survive into `<div class="page-content">` as whitespace, and HTML collapses whitespace. In the `.ref` source, and in the built markup, the paragraphs are visibly separated. **Check.** Render the page. This one is invisible in every other view — the source, a diff and a grep all show structure that the browser does not draw. **Fix.** Emit real block elements: `<p>` per paragraph, a heading element per heading.
+
+### An unset ref field renders as an empty slot, not as nothing
+
+**Symptom.** The index opens with a blank band under the game title. **Cause.** `[Game]` sets no `Released=`, `Release=` or `Copyright=`, but the theme's index template emits `.eyebrow`, `.subtitle`, `.release` and `.copyright` regardless. The empty `.eyebrow` and `.subtitle` are 0 px tall and still hold their margins, so they reserve vertical space for lines that render nothing. **Check.** Render the index with those fields unset and look for empty space under the title. Whether the site carries a version or credit line is the author's call, so an unset field has to take no space. The theme feeds `.eyebrow` from `Released=` and `.subtitle` from `Release=`; `footer .release, footer .copyright` are `display: none` in the stock theme, so `Copyright=` renders nowhere.
