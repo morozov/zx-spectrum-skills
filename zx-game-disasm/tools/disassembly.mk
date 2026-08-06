@@ -188,8 +188,13 @@ gate:
 # so a Worker can self-check before reporting; the Manager still proves the
 # integrated result with the full `make`. The multi-step logic lives in the script
 # so this recipe stays one line. Usage: make verify-frag FRAG=build/frags/my.ctl
+#
+# $(ASM_FIXED_FLAGS) goes last and unquoted: it is the same flag list the
+# fixed-asm rule below passes, so the fragment check gates on exactly what the
+# Manager's `make` will, and a project that has opted out (empty) expands to no
+# argument here just as it does there.
 verify-frag: $(Z80_PRISTINE) $(BIN_PRISTINE)
-	@$(SCRIPTS)/verify_fragment.sh "$(CTL)" "$(FRAG)" "$(Z80_PRISTINE)" "$(BIN_PRISTINE)" "$(SCRIPTS)" "$(BASELINE)" "$(ORG)" "$(RELOC_FLOOR)" "$(SIZE)"
+	@$(SCRIPTS)/verify_fragment.sh "$(CTL)" "$(FRAG)" "$(Z80_PRISTINE)" "$(BIN_PRISTINE)" "$(SCRIPTS)" "$(BASELINE)" "$(ORG)" "$(RELOC_FLOOR)" "$(SIZE)" $(ASM_FIXED_FLAGS)
 
 # Download and convert the original tape to the pristine snapshot.
 $(Z80_PRISTINE): $(T2S)
@@ -381,6 +386,12 @@ $(BIN_NON_FIXED): $(ASM_NON_FIXED)
 # any unresolved in-image operand, so a project still in the breadth/labeling
 # sweep opts OUT until the sweep is done by setting `ASM_FIXED_FLAGS =` (empty) in
 # its Makefile, then removes that line to restore the standard gate.
+#
+# This is the one place the flags are stated. `verify-frag` reads the same
+# variable, and renders and assembles the fixed source the same way this rule and
+# $(BIN_FIXED) do, so a Worker's self-check and the Manager's `make` gate a
+# fragment identically — strict where the project is strict, permissive where it
+# has opted out.
 ASM_FIXED_FLAGS ?= -s
 $(ASM_FIXED): $(SKOOL)
 	@$(SKOOL2ASM) --create-labels -f 1 $(ASM_FIXED_FLAGS) $(SKOOL) > $@.tmp 2> $@.stderr; rc=$$?; \
