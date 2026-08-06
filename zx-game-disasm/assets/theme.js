@@ -2,7 +2,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* ── Disassembly row-group hover ─────────────────────────────── */
 
-  document.querySelectorAll('td.comment-1[rowspan]').forEach(function (cell) {
+  /* :empty skips the cells SkoolKit emits for uncommented rows of an annotated
+     entry — highlighting a run that documents nothing claims a comment it has not
+     got. The emitted cell holds no whitespace, so :empty matches it. */
+  document.querySelectorAll('td.comment-1[rowspan]:not(:empty)').forEach(function (cell) {
     var rowspan = parseInt(cell.getAttribute('rowspan'), 10);
 
     var rows = [];

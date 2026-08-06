@@ -408,6 +408,16 @@ td.comment-1 {
   line-height: 1.6;
 }
 
+/* SkoolKit puts a comment-1 cell on every row of an annotated entry, so rows with
+   nothing to say get one too, with no whitespace inside it. Keep the column's
+   background and left edge — they are the band, and a gap in it reads as a broken
+   table — but drop the rules that box a comment block, so a blank cell does not
+   read as a fourth annotation. theme.js keeps the hover off these rows. */
+td.comment-1:empty {
+  border-top: none;
+  border-bottom: none;
+}
+
 table.disassembly tr.asm-group-hover > td {
   background: rgba(255, 255, 255, 0.04);
 }
