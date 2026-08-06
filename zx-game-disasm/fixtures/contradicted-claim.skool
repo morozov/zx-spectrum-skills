@@ -1,0 +1,32 @@
+; The .skool half of `fixtures/contradicted-claim.ctl`: the code whose stores
+; decide which claims are contradicted. It stands in for what the build
+; generates, so it is in sna2skool's `--hex` output format and nothing else reads
+; it.
+;
+; Every store but the last sits in `init_levels`, the entry two of the claims
+; name — `g $4032` by address (`#R$40C2`) and `g $4072` by label — because a
+; writer the prose names is not a writer the prose denies. The store to $4052
+; lands in the first half of the back buffer, outside the range the `N $405A`
+; note speaks for; the store to $406C lands inside the range `N $406A` speaks
+; for, which is the one sub-block claim that is contradicted.
+@start
+@org
+; Enable gate
+@label=enable_gate
+c$40A2 LD A,$C9          ; Patch the gate byte in place.
+ $40A4 LD ($40A7),A      ;
+ $40A7 RET               ;
+
+; Level setup
+@label=init_levels
+c$40C2 XOR A             ; Zero the whole block.
+ $40C3 LD ($4002),A      ;
+ $40C6 LD ($4012),A      ;
+ $40C9 LD ($4022),A      ;
+ $40CC LD ($4032),A      ;
+ $40CF LD ($4042),A      ;
+ $40D2 LD ($4052),A      ;
+ $40D5 LD ($406C),A      ;
+ $40D8 LD ($4072),A      ;
+ $40DB LD ($4082),A      ;
+ $40DE RET               ;

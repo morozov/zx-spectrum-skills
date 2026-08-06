@@ -38,7 +38,7 @@ Every region of the snapshot gets a block type. This is the stage-2 map. The let
 | `w` | Words | `DEFW` |
 | `s` | Space (zeros/uninitialized) | `DEFS` |
 | `g` | Game-status buffer | labeled `DEFB`/`DEFW` variables |
-| `u` | Unused | excluded or marked |
+| `u` | Unused: nothing reads or writes it | excluded or marked |
 
 ```
 c $6F00 Start the game
@@ -50,15 +50,35 @@ Wrong block types are the most common cause of an unreassemblable source: data d
 
 The dangerous boundary errors are the ones that *still reassemble*. If a block boundary falls one byte off — the last entry of a table folded into the next block, a sprite row labeled as a table value — the bytes are unchanged, so the round-trip stays green and the mistake is invisible to the build. Fix the boundary from how the code *uses* the data (the indexer's range, the draw routine's row count), not from where the next recognizable thing seems to start. See "What the round-trip does NOT prove" in `references/build-verify.md`.
 
-### What `b` promises, and what `g` promises
+### What `b`, `g` and `u` promise
 
 `b` and `g` both render as `DEFB`. The letter is the only thing that distinguishes them, so it has to be the truth about the bytes.
 
 `b` says these bytes are what the program was loaded with and stay that way: a table, a glyph set, a constant. `g` says the program writes here as it runs, and SkoolKit heads its page "Game status buffer entry at". The distinction is not cosmetic. It tells a reader whether a value can be trusted across a replay, tells a porter what to allocate rather than initialize, and tells an agent-trainer which addresses are the state its policy observes. A bonus flag that the game sets and clears every level, published as `b`, tells all three of them the wrong thing.
 
-The code settles which letter is right, and nothing else does. An address a routine stores to is not static, whatever the entry's description says about it; `make lint-publication` reads the generated `.skool` and reports a `b` entry the code writes into. The evidence runs one way only: a store proves mutation, while no store proves nothing, because a routine writing through `HL`, `IX` or an `LDIR` names no address in the instruction. So a `g` entry that ought to be `b` is not something a linter can find — settle that one by reading the writers.
+`u` is the third promise, and the strongest of them: nothing in the image reads this region and nothing writes it. It is for bytes that are in the address space because the loader left them there — a zero-fill tail, a gap between structures, whatever sat in RAM before boot — and SkoolKit heads its page "Unused RAM at". A store into a `u` region breaks that promise exactly as it breaks `b`'s, and the repair is the same letter: bytes the program writes are `g`.
+
+The code settles which letter is right, and nothing else does. An address a routine stores to is not static, whatever the entry's description says about it; `make lint-publication` reads the generated `.skool` and reports a `b` or `u` entry the code writes into. The evidence runs one way only: a store proves mutation, while no store proves nothing, because a routine writing through `HL`, `IX` or an `LDIR` names no address in the instruction. So a `g` entry that ought to be `b` is not something a linter can find — settle that one by reading the writers.
 
 That asymmetry also decides the fix. A store proves the entry is not what `b` promises, and the count of stores says nothing about the bytes no instruction names, so retype the entry `g`. Split the written bytes into a `g` entry of their own only when the rest of the entry really is a static table — a table with a runtime cursor glued to its tail — and read the writers to confirm it.
+
+**The letter is not the only place the promise is made.** Consider this entry:
+
+```
+@ $7F20 label=unused_7f20
+b $7F20 Undetermined - no reader or writer found in the image
+```
+
+Three claims, one fact. The letter says load-time data, the title says nothing in the image touches these bytes, the label says unused — and the listing three lines further down the same page shows the code storing to three of its sixteen bytes: `spawn_timer` from `$9C10`, `wave_index` from `$9C2E`, `shot_count` from `$A3B4`. The letter is the smallest of the three errors. A reader who has learned to distrust a `b` still has no way to distrust a sentence, and `unused_7f20` is the string he greps for.
+
+So settle all three from the one fact, and `make lint-publication` holds all three: it reports text that says nothing writes these bytes over an address the code stores to. Four things keep that a fact rather than a reading of prose.
+
+- It reads a denial of a **writer** only. "No reader found in the image" is a claim a store leaves standing, and a byte written and never read is a real thing to document.
+- A denial that **names the writer it excludes** is not denying that writer, so it is not reported: "nothing writes them individually; the only writer is the room reset (`#R$6C40`)". Name it either way the listing offers — the address, or the label, which is what the listing actually prints.
+- Text written **inside** the entry speaks for its own bytes. The title and a `D`/`N` at the entry's address speak for everything it publishes; a `D`/`N` further in, or the description on a sub-directive, speaks from its address to the next address carrying text. So `N $F3A0 Spare bytes after the font` is checked against $F3A0 onwards and not against the whole entry.
+- A bare `unused` / `unreferenced` / `orphan` in the title or the `@label` is read as a denial on every type **but `g`**, whose letter has already said the program writes these bytes. `orphan_list_head` on a `g` entry names what the list holds; there is no claim there to strike and no letter to correct. A denial with a verb is read on `g` too — an entry saying "nothing writes these" over a store contradicts itself whatever its letter is.
+
+Write what the code shows instead. Name the routine that sets the bytes. Where you have not found what uses them, say that and no more: "purpose undetermined" is honest, while "no writer found in the image" is a claim, and a claim has to have been checked.
 
 ### An entry holds one kind of thing
 
@@ -363,15 +383,17 @@ The `g` block is also the agent-facing memory map: a live agent reads game state
 
 ## One page per thing
 
-Every entry in the `.ctl` becomes a page on the site and a row in the memory map. The set of entries is therefore a claim in its own right — *these are the things this disassembly documents* — and it is wrong in six ways that no per-entry check can see. `make lint-publication` gates the first four, `make lint-names` and `make lint-images` the last two, and `build-verify.md` describes them.
+Every entry in the `.ctl` becomes a page on the site and a row in the memory map. The set of entries is therefore a claim in its own right — *these are the things this disassembly documents* — and it is wrong in seven ways that no per-entry check can see. `make lint-publication` gates the first five, `make lint-names` and `make lint-images` the last two, and `build-verify.md` describes them.
 
 **Publish only what the program occupies.** An entry outside the program image publishes a page for RAM the program never uses. Generated render-only data — sprite masks a build script produced — declared below the image's origin gets pages and memory-map rows for addresses that are ROM on real hardware, and nothing on those pages tells a reader they are not part of the game. Render-only data belongs in a `.ref` `[Graphic:]` entry or beside the script that generates it, never in the address space.
 
 **One structure is one entry, not a run of pages.** A structure split into one entry per address the code writes to gets a page and a memory-map row per part, and no page anywhere says what the whole of it is. The signature the check reads is a run of three or more consecutive `b` or `w` entries, each with no sub-directive, all headed by the same thing — the clause before the title's first `:`, `;`, `,`, `(` or dash, with any index stripped. Three entries reading "Title-screen bitmap; start cell reused for the lives counter", "…for the timer" and "…for the room number" are one title screen: what follows the semicolon is a note about one address inside the subject the head names, not a second subject. The fix is one entry, one title, and a sub-directive per part — which is what [the tiling contract](#the-tiling-contract) asks for anyway.
 
-**A page holds one kind of thing.** The inverse of the fragmented structure: a `t` entry that runs past its message publishes what follows — a counter the game bumps every frame, say — on a page headed by the message, and under that title in the memory map. The check reads a `t` entry holding a sub-directive that is not `T`; see [What `b` promises, and what `g` promises](#what-b-promises-and-what-g-promises) for why only `t` is held to it. The fix is a split, one entry per thing.
+**A page holds one kind of thing.** The inverse of the fragmented structure: a `t` entry that runs past its message publishes what follows — a counter the game bumps every frame, say — on a page headed by the message, and under that title in the memory map. The check reads a `t` entry holding a sub-directive that is not `T`; see [What `b`, `g` and `u` promise](#what-b-g-and-u-promise) for why only `t` is held to it. The fix is a split, one entry per thing.
 
-**A page is the type its bytes are.** A `b` entry publishes its bytes as data the program was loaded with, so one holding what the game writes — a level number, a lives count — misstates every one of those bytes. The check reads the generated `.skool` for the addresses the code stores to and reports a `b` entry containing one, so the finding is an instruction address rather than a reading of the entry's prose. Retype the entry `g`, or split the written bytes into a `g` entry of their own when the rest of it really is a static table.
+**A page is the type its bytes are.** A `b` entry publishes its bytes as data the program was loaded with, so one holding what the game writes — a level number, a lives count — misstates every one of those bytes. The check reads the generated `.skool` for the addresses the code stores to and reports a `b` or `u` entry containing one, so the finding is an instruction address rather than a reading of the entry's prose. Retype the entry `g`, or split the written bytes into a `g` entry of their own when the rest of it really is untouched.
+
+**A page does not deny what its own listing shows.** A title, description or label saying that nothing writes the bytes is contradicted by the listing on the same page when it shows the code storing to them. The same store that settles the letter settles the sentence and the label, and the check reports all three — see [What `b`, `g` and `u` promise](#what-b-g-and-u-promise) for what it reads as a denial and what it deliberately does not.
 
 **One entity, one name.** `references/agents.md` states it — one canonical term per concept, anchored to the `@label` identifiers, never a synonym for something a label already names. Three names for two enemy slots ("enemy A", "first/second enemy", "the chasing enemy") against labels `enemy_a` and `enemy_b` read fine page by page and leave a reader crossing pages to translate.
 
@@ -408,7 +430,7 @@ The build runs ten `.ctl` linters; violations fail the build. The first four kee
 4. **Label length** — 24 characters, fixed by renaming.
 5. **Block identity** (`validate_ctl_identity.py`) — every entry titled, every sub-directive described or labeled. See [Nothing anonymous](#nothing-anonymous).
 6. **Data-block schema** (`validate_ctl_data_structure.py`) — every data entry tiles and declares its stride. See [The tiling contract](#the-tiling-contract).
-7. **Publication** (`validate_ctl_publication.py`) — every published page inside the program image, no structure cut into a run of same-titled pages, no `t` entry holding something that is not text, and no `b` entry over bytes the code writes. It takes the generated `.skool` as well as the `.ctl`, because the store instructions are what settle `b` against `g`. See [One page per thing](#one-page-per-thing).
+7. **Publication** (`validate_ctl_publication.py`) — every published page inside the program image, no structure cut into a run of same-titled pages, no `t` entry holding something that is not text, no `b` or `u` entry over bytes the code writes, and no entry whose title, description or label denies a writer the listing shows. It takes the generated `.skool` as well as the `.ctl`, because the store instructions are what settle `b` against `g` — and what settle the sentence. See [One page per thing](#one-page-per-thing).
 8. **One name per entity** (`validate_prose_names.py`) — prose names a labeled slot family's member by its label, never by its position. See [One page per thing](#one-page-per-thing).
 9. **No recited lengths** (`validate_ctl_byte_counts.py`) — an instruction comment must not state the size of the span it works on; a rate ("6 bytes per enemy") is the exemption. See `references/comment-style.md`.
 10. **Array elements** (`validate_ctl_array_elements.py`) — every record of an array of records is named on its own line, and a span that is not a record array is exempt by a declaration rather than by assertion. See [Data structures and tables](#data-structures-and-tables).

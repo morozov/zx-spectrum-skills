@@ -3,7 +3,7 @@
 Validate the set of pages a .ctl publishes: one page per thing, and only things.
 
 Every entry in a .ctl becomes a page on the site and a row in the memory map.
-Four failures put the wrong page there, and all four pass the round-trip, the
+Five failures put the wrong page there, and all five pass the round-trip, the
 tiling check and the identity check, because none of them is about the bytes an
 entry declares - it is about whether the entry is the thing its heading says.
 
@@ -36,15 +36,26 @@ entry declares - it is about whether the entry is the thing its heading says.
               The fix is a split: one entry per thing, each headed by what it
               is.
 
-  MUTABLE     a `b` entry the program stores into. `b` says these bytes are what
-              the program was loaded with and stay that way - a table, a glyph
-              set, a constant. `g` says the program writes here as it runs, and
-              SkoolKit heads a `g` page "Game status buffer entry at", so the type
-              is what the page tells the reader the bytes are. It also decides
-              what a porter initializes versus allocates, and which addresses an
-              agent-trainer treats as state. `b $9B00 Game progress and option
-              settings` over the level number and the lives count publishes as
-              load-time data bytes the game writes.
+  MUTABLE     a `b` or `u` entry the program stores into. `b` says these bytes are
+              what the program was loaded with and stay that way - a table, a
+              glyph set, a constant; `u` says nothing in the image reads or writes
+              them at all, which is that promise and more. `g` says the program
+              writes here as it runs, and SkoolKit heads a `g` page "Game status
+              buffer entry at", so the type is what the page tells the reader the
+              bytes are. It also decides what a porter initializes versus
+              allocates, and which addresses an agent-trainer treats as state.
+              `b $9B00 Game progress and option settings` over the level number
+              and the lives count publishes as load-time data bytes the game
+              writes.
+
+  CONTRADICTED an entry that says nothing writes these bytes, over an address
+              the code stores to. `b $F100 Undetermined - no reader or writer
+              found in the image`, labeled `unused_f100`, can publish bytes the
+              listing on that same page sets: `slot_1_x` from $9100, `slot_2_x`
+              from $9105, `hit_side` from $9200. MUTABLE reports the letter, and
+              the letter is the smaller error - a reader who distrusts a `b`
+              still has no reason to distrust a sentence, and `unused_f100` is
+              what he greps for.
 
 Consecutive entries always tile - the next entry's address is where the previous
 one ends - so contiguity carries no information and is not tested. What carries
@@ -99,6 +110,55 @@ remedy leads with the retype whatever the count, and offers the split as the
 alternative for the case a reader can confirm from the code - a static table with
 a runtime slot glued to its tail.
 
+`u` is held to the same evidence, because it makes the same promise the other way
+round: the skill's own rule is that a region nothing reads or writes is `u` rather
+than `b`, so an absolute store into one is the same mistyping and takes the same
+`g`. Settling `b`, `g` and `u` in the prose and gating two of the three would
+leave the third stated and unheld.
+
+## Why CONTRADICTED reads the prose, where MUTABLE refuses to
+
+The objection above is to a word standing in for evidence, not to reading words.
+"Non-zero while a level transition runs" is a guess about the author's meaning.
+"No writer found in the image" is a statement of the same fact `read_stores`
+already returns, and the file returns the opposite - so the finding is still an
+instruction address, and the sentence is the thing it convicts. Every part of the
+check exists to keep that anchor:
+
+- **The evidence is a writer, so only a writer is contradicted.** A store proves
+  nothing about readers, and a byte written and never read is a real thing to
+  document. "No reader found in the image" is a claim a store leaves standing;
+  only the writer half of "no reader or writer" is read.
+- **A one-word characterization is read where it names the entry: the title and
+  the `@label`.** Inside a paragraph `unused` is about whatever the paragraph
+  discusses - an object record its handlers write through IY can say "+$02 to
+  +$06 are unused by the handlers" about five of its fields. A denial with a
+  verb ("nothing writes", "no writer", "never written") is a statement about
+  writers wherever it stands, so it is read in the entry's `D` and `N` too.
+- **The word is not read on a `g` entry at all.** That letter already says the
+  program writes these bytes, so the store the check would convict it with is the
+  store the letter promised, and `orphan_list_head` over the head of an
+  orphaned-object list is a name rather than a denial. There would be nothing to
+  strike and nothing to retype in such a finding, which is a build broken over a
+  naming choice. A verb denial is still read there: an entry saying "nothing
+  writes these" over a store contradicts itself whatever its letter.
+- **A claim inside the entry is read over its own bytes.** `D`/`N` at the entry's
+  address, and the entry's title, speak for everything it publishes. Text written
+  at an address inside it - a `D`/`N` further in, a description on a
+  sub-directive - speaks for that sub-block, from its address to the next address
+  carrying text. `N $D0E0 Unused tail of the back-buffer page` sits inside
+  `b $D000` and is about $D0E0 onwards, not about $D000.
+- **A writer the prose names is not a writer the prose denies.** "So these 52
+  bytes are never written by it" carries a denial and names its writer two
+  clauses earlier (#R$9C80). A store is evidence only when neither its own
+  address nor the address of the .skool entry containing it is named in text that
+  speaks for those bytes - the entry's own, and the sub-block's own for a claim
+  written there. Both forms of naming count: the address, and the label, which is
+  what the listing prints and therefore what an author writes.
+- **`c` entries are not read.** A routine's description is about the data it
+  touches, not about its own bytes: a routine carrying one of these denials is
+  speaking of a table living somewhere else.
+
 ## What "the same thing" means, and why it is the head of the title
 
 A fragment of a structure is written the way a reader writes a caption: the
@@ -150,16 +210,66 @@ STRUCTURE_TYPES = 'bw'
 FRAGMENT_RUN = 3
 
 ENTRY_RE = re.compile(r'^([bcgistuwz]) +(\$?[0-9A-Fa-f]+) *(.*)$')
-SUB_RE = re.compile(r'^([BCSTWM]) +(\$?[0-9A-Fa-f]+)')
+SUB_RE = re.compile(r'^([BCSTWM]) +(\$?[0-9A-Fa-f]+)(\S*) *(.*)$')
 LABEL_RE = re.compile(r'^@ +(\$?[0-9A-Fa-f]+) +label=(\S+)')
+NOTE_RE = re.compile(r'^[DN] +(\$?[0-9A-Fa-f]+) *(.*)$')
+
+# An identifier in prose, for the label a denial names its writer by.
+WORD_RE = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 
 # The one entry type whose contents are a single kind by construction. `M` spans
 # sub-blocks with a comment and declares no bytes, so it is not a content type.
 SINGLE_KIND_SUBS = {'t': 'T'}
 NON_CONTENT_SUB = 'M'
 
-# The type whose whole promise is that the bytes never change.
-STATIC_TYPE = 'b'
+# The types whose letter promises the bytes are not written as the program runs.
+# `b` says they are what the program was loaded with; `u` says nothing in the
+# image reads or writes them at all, which is the same promise and more. A store
+# breaks either one, and the repair is the same letter.
+UNWRITTEN_TYPES = 'bu'
+UNWRITTEN_PROMISE = {'b': 'data the program was loaded with',
+                     'u': 'a region nothing in the image reads or writes'}
+UNWRITTEN_REST = {'b': 'the rest of it really is a static table with a runtime slot '
+                       'glued to its tail',
+                  'u': 'the rest of it really is untouched'}
+
+# Types whose own text is about their own bytes. A routine's description is
+# about the data it touches, so a `c` entry saying "never read" means a sound
+# table living somewhere else.
+CLAIMING_TYPES = 'bgstuw'
+
+# The type whose letter already says the program writes these bytes. A one-word
+# characterization on a `g` entry is therefore not a denial of a writer: the page
+# is headed "Game status buffer entry at", so `orphan_list_head` over the head of
+# an orphaned-object list names what the list holds, and the store that would
+# convict it is the store the letter promised. A denial with a verb is still read
+# there - an entry saying "nothing writes these" over a store contradicts itself
+# whatever its letter is.
+WRITTEN_TYPE = 'g'
+
+# A denial with a verb: a statement about writers wherever it stands, so it is
+# read in the entry's title and in its `D`/`N`. The bounded gap carries "no reader
+# or writer" and "nothing in the image writes"; `\w+` cannot cross the punctuation
+# that would end the clause, so the two halves stay in one sentence.
+WRITER_DENIAL_RE = re.compile(
+    r'\bno(?:\s+\w+){0,3}\s+writers?\b'
+    r'|\bnothing(?:\s+\w+){0,4}\s+writes\b'
+    r'|\b(?:never|not)\s+written\b', re.I)
+
+# A one-word characterization, read only where it names the entry as a whole -
+# the title and the `@label`. Inside a paragraph it is about whatever the
+# paragraph discusses: an object record the game writes every frame says "+$02 to
+# +$06 are unused by the handlers" about five of its fields.
+#
+# All three words deny any use, which is what makes a store contradict them: a
+# block a routine stores to is not unused, not unreferenced and not an orphan.
+# "No reader" is the denial a store leaves standing, and it is not read here.
+UNUSED_RE = re.compile(r'\bunused\b|\bunreferenced\b|\borphan\b', re.I)
+UNUSED_LABEL_RE = re.compile(r'(?:^|_)(?:unused|unreferenced|orphan)(?:_|$)', re.I)
+
+# An address the entry's text names, in the `#R$9C40` cross-reference or bare. A
+# writer the text names is a writer the text does not deny.
+CITED_RE = re.compile(r'\$([0-9A-Fa-f]{4})\b')
 
 # A skool instruction line: the entry-type or branch-marker column, the address,
 # then the instruction. `@label=` and `;` lines are excluded by the leading column.
@@ -205,14 +315,24 @@ def parse_address(text):
     return int(text, 10)
 
 
-def parse_ctl(lines):
+def parse_ctl(lines, image_end=None):
     """
     Return every entry with its line number, type, address, title and contents.
 
     `subs` counts the sub-directives inside the entry and `sub_kinds` pairs each
     one's letter with its address. `end` is the address the entry stops at, taken
-    from the next entry; the last entry in a file has no stated length, so its
-    `end` is None and the checks that need a span skip it.
+    from the next entry; the last entry in a file states no length of its own, so
+    it takes `image_end` - the end of the program image, which is where the
+    disassembly stops - and is `None` only when even that is unknown or behind it.
+
+    `note` is the entry's own description: the `D` and `N` text at the entry's
+    address, which speaks for every byte the entry publishes.
+
+    `sub_claims` is the text written at an address *inside* the entry - a `D` or
+    `N` further in, and the description on a sub-directive - each with the byte
+    range it speaks for, which runs to the next address carrying text. A comment
+    on one sub-block is about those bytes, so it is read about those bytes and
+    not about the entry.
     """
     entries = []
     for number, line in enumerate(lines, 1):
@@ -221,27 +341,60 @@ def parse_ctl(lines):
             entries.append({'line_number': number, 'type': match.group(1),
                             'address': parse_address(match.group(2)),
                             'title': match.group(3).strip(), 'subs': 0,
-                            'sub_kinds': [], 'end': None})
+                            'sub_kinds': [], 'end': None, 'note': '',
+                            'sub_claims': []})
     for index, entry in enumerate(entries):
         if index + 1 < len(entries):
             entry['end'] = entries[index + 1]['address']
+        elif image_end is not None and image_end > entry['address']:
+            entry['end'] = image_end
         end = entries[index + 1]['line_number'] if index + 1 < len(entries) else len(lines) + 1
+        note, inside = [], {}
         for number in range(entry['line_number'], end - 1):
-            match = SUB_RE.match(lines[number].rstrip())
+            text = lines[number].rstrip()
+            match = SUB_RE.match(text)
             if match:
                 entry['subs'] += 1
-                entry['sub_kinds'].append((match.group(1), parse_address(match.group(2))))
+                address = parse_address(match.group(2))
+                entry['sub_kinds'].append((match.group(1), address))
+                if match.group(4).strip():
+                    claim = inside.setdefault(address, {'line_number': number + 1, 'text': []})
+                    claim['text'].append(match.group(4).strip())
+            match = NOTE_RE.match(text)
+            if match:
+                address = parse_address(match.group(1))
+                if address == entry['address']:
+                    note.append(match.group(2).strip())
+                else:
+                    claim = inside.setdefault(address, {'line_number': number + 1, 'text': []})
+                    claim['text'].append(match.group(2).strip())
+        entry['note'] = ' '.join(note)
+        addresses = sorted(inside)
+        for position, address in enumerate(addresses):
+            following = (addresses[position + 1] if position + 1 < len(addresses)
+                         else entry['end'])
+            entry['sub_claims'].append({'line_number': inside[address]['line_number'],
+                                        'address': address, 'end': following,
+                                        'text': ' '.join(inside[address]['text'])})
     return entries
 
 
 def parse_labels(lines):
-    """Map each address the .ctl names to that label, for naming a byte in a finding."""
-    labels = {}
+    """
+    Map each address the .ctl names to that label, and back.
+
+    Returns (labels, addresses_by_label): the first names a byte in a finding,
+    the second reads a label out of prose, which is how an entry names the
+    routine that writes it - the listing prints the label, not the address.
+    """
+    labels, addresses = {}, {}
     for line in lines:
         match = LABEL_RE.match(line.rstrip())
         if match:
-            labels[parse_address(match.group(1))] = match.group(2)
-    return labels
+            address = parse_address(match.group(1))
+            labels[address] = match.group(2)
+            addresses[match.group(2)] = address
+    return labels, addresses
 
 
 def instruction_body(text):
@@ -257,37 +410,49 @@ def instruction_body(text):
 
 def read_stores(path):
     """
-    Map each address the program stores to onto the instruction addresses that do it.
+    Return (stores, owners) read from the .skool the build generates.
 
-    Only absolute stores are found - see the module docstring: the result is sound
-    evidence that an address is written and no evidence at all that one is not.
+    `stores` maps each address the program stores to onto the instruction
+    addresses that do it. Only absolute stores are found - see the module
+    docstring: the result is sound evidence that an address is written and no
+    evidence at all that one is not.
+
+    `owners` maps each of those instruction addresses onto the address of the
+    .skool entry holding it, which is the address prose cites when it names a
+    writer: an entry's text says "#R$9C40", never the address of the `LD` inside
+    it.
 
     Raises ValueError when no line in the file is an instruction at all. A .skool
     the pattern cannot read yields no target, and MUTABLE then reports nothing on
     a project full of `b` entries the code writes - which reads as clean. The
     check has to say it could not read the file instead.
     """
-    stores, instructions = {}, 0
+    stores, owners, instructions, entry = {}, {}, 0, None
     with open(path, encoding='utf-8') as f:
         for line in f:
             match = SKOOL_INSTR_RE.match(line.rstrip())
             if not match:
                 continue
             instructions += 1
+            source = int(match.group(2), 16)
+            # The entry-type column carries a letter on an entry's first line and
+            # a space or `*` on every line after it.
+            if match.group(1) != ' ' and match.group(1) != '*':
+                entry = source
             body = instruction_body(match.group(3))
             if DATA_DIRECTIVE_RE.match(body):
                 continue
-            source = int(match.group(2), 16)
             for store in STORE_RE.finditer(body):
                 target = parse_address(store.group(1))
                 width = 1 if store.group(2).upper() == 'A' else 2
                 for offset in range(width):
                     stores.setdefault(target + offset, []).append(source)
+                owners[source] = entry
     if not instructions:
         raise ValueError(f'{path} holds no instruction line this check can read. It expects '
                          f'the .skool the build generates, which `sna2skool.py --hex` writes '
                          f'as `c$F000 LD ($9B00),A`')
-    return stores
+    return stores, owners
 
 
 def title_head(title):
@@ -384,10 +549,10 @@ def check_mixed(entries, path):
 
 
 def check_mutable(entries, stores, labels, path):
-    """Report a `b` entry the program stores into."""
+    """Report a `b` or `u` entry the program stores into."""
     findings = []
     for entry in entries:
-        if entry['type'] != STATIC_TYPE or entry['end'] is None:
+        if entry['type'] not in UNWRITTEN_TYPES or entry['end'] is None:
             continue
         written = [address for address in range(entry['address'], entry['end'])
                    if address in stores]
@@ -407,17 +572,144 @@ def check_mutable(entries, stores, labels, path):
         # the alternative for a reader who can confirm the rest is static.
         remedy = ('Retype the entry `g`'
                   + ('' if len(written) == size else
-                     ', or - if the rest of it really is a static table with a runtime slot '
-                     'glued to its tail - split the written bytes into a `g` entry of their own'))
+                     f", or - if {UNWRITTEN_REST[entry['type']]} - split the written bytes "
+                     f"into a `g` entry of their own"))
         findings.append((
             entry['line_number'], 'MUTABLE',
             f"`{entry['type']} ${entry['address']:04X} {entry['title']}` publishes "
-            f"{size} byte{'' if size == 1 else 's'} as data the program was loaded with, and the "
+            f"{size} byte{'' if size == 1 else 's'} as {UNWRITTEN_PROMISE[entry['type']]}, and the "
             f"code stores to {scope}: {cited}. Bytes the program writes as it runs are `g`, the "
             f"page SkoolKit heads \"Game status buffer entry at\" — the type is what tells a "
             f"reader whether a value survives a replay, a porter what to allocate rather than "
             f"initialize, and an agent-trainer which addresses are state. {remedy}",
             path, entry['address']))
+    return findings
+
+
+def acknowledged_addresses(text, addresses_by_label):
+    """
+    Every writer address the text names: an address it cites, or a label it uses.
+
+    `#R$9C40` and a bare `$9C40` are the citation; `init_levels` is the same
+    statement in the form a reader of the page actually sees, since the listing
+    prints the label and not the address. Both are the entry saying what writes
+    the bytes, which is the opposite of denying that anything does.
+    """
+    named = {int(match, 16) for match in CITED_RE.findall(text)}
+    named |= {addresses_by_label[word] for word in WORD_RE.findall(text)
+              if word in addresses_by_label}
+    return named
+
+
+def unacknowledged_stores(start, end, stores, owners, cited):
+    """
+    Map each written address in `start`..`end` onto a store `cited` does not name.
+
+    `cited` is every writer address named by text that speaks for these bytes. A
+    store is acknowledged when that text names the instruction's own address or
+    the address of the .skool entry containing it: "nothing writes them
+    individually; the only writer is the level-setup clear (#R$9C40)" names its
+    writer, and a sentence that names a writer is not denying one. Addresses whose
+    every store is acknowledged are left out.
+    """
+    found = {}
+    for address in range(start, end):
+        for source in stores.get(address, []):
+            if source in cited or owners.get(source) in cited:
+                continue
+            found[address] = source
+            break
+    return found
+
+
+def entry_claims(entry, labels):
+    """
+    Every claim the entry publishes, with the bytes each one speaks for.
+
+    The entry's own text - title, `@label`, `D`/`N` at its address - speaks for
+    all of its bytes. Text at an address inside it speaks for that sub-block:
+    `N $D0E0 Unused tail of the back-buffer page` inside `b $D000` is a statement
+    about $D0E0 onwards, so it is read there and not over the whole entry.
+
+    A one-word characterization is read only where it names bytes the letter does
+    not already declare written. On a `g` entry the store is what the letter
+    promised, so `orphan_list_head` is a name, not a denial; a denial with a verb
+    is read on any type.
+    """
+    label = labels.get(entry['address'], '')
+    words = entry['type'] != WRITTEN_TYPE
+    claims = []
+
+    stated = []
+    for where, text in (('title', entry['title']), ('description', entry['note'])):
+        denial = WRITER_DENIAL_RE.search(text) or (
+            UNUSED_RE.search(text) if where == 'title' and words else None)
+        if denial:
+            stated.append(f'its {where} says "{denial.group(0)}"')
+    if words and UNUSED_LABEL_RE.search(label):
+        stated.append(f'it is labeled `{label}`')
+    if stated:
+        claims.append({'line_number': entry['line_number'], 'start': entry['address'],
+                       'end': entry['end'], 'stated': stated, 'text': '',
+                       'lead': f"`{entry['type']} ${entry['address']:04X} "
+                               f"{entry['title']}` publishes"})
+
+    for sub in entry['sub_claims']:
+        if sub['end'] is None:
+            continue
+        denial = WRITER_DENIAL_RE.search(sub['text'])
+        if not denial:
+            continue
+        claims.append({'line_number': sub['line_number'], 'start': sub['address'],
+                       'end': sub['end'], 'text': sub['text'],
+                       'stated': [f'the text on ${sub["address"]:04X} says '
+                                  f'"{denial.group(0)}"'],
+                       'lead': f"`{entry['type']} ${entry['address']:04X} "
+                               f"{entry['title']}` describes ${sub['address']:04X} over"})
+    return claims
+
+
+def check_contradicted(entries, stores, owners, labels, addresses_by_label, path):
+    """Report a claim that nothing writes bytes the code stores to."""
+    findings = []
+    for entry in entries:
+        if entry['type'] not in CLAIMING_TYPES or entry['end'] is None:
+            continue
+        # Acknowledgment reaches as far as the claim does. The entry's own text
+        # speaks for every byte it publishes, so a writer named there answers any
+        # claim inside it; a sub-block's text answers only its own. A writer named
+        # on some other sub-block, fifty bytes away, is not this claim naming it.
+        entry_text = f"{entry['title']} {entry['note']}"
+
+        for claim in entry_claims(entry, labels):
+            acknowledged = acknowledged_addresses(f"{entry_text} {claim['text']}",
+                                                  addresses_by_label)
+            written = unacknowledged_stores(claim['start'], claim['end'],
+                                            stores, owners, acknowledged)
+            if not written:
+                continue
+            size = claim['end'] - claim['start']
+            cited = ', '.join(
+                f"${address:04X}"
+                + (f" ({labels[address]})" if address in labels else '')
+                + f" from ${written[address]:04X}"
+                for address in sorted(written)[:3])
+            # `g` is already the letter for bytes the program writes, so only the
+            # sentence is wrong there; on any other type the same store settles
+            # both, and saying so is the whole fix rather than half of it.
+            letter = ('' if entry['type'] == WRITTEN_TYPE else
+                      ' The same store settles the letter: what the program writes is `g`, '
+                      'and `u` is the type for a region nothing reads or writes.')
+            findings.append((
+                claim['line_number'], 'CONTRADICTED',
+                f"{claim['lead']} "
+                f"{size} byte{'' if size == 1 else 's'} and claims nothing writes them — "
+                f"{', and '.join(claim['stated'])} — while the code stores to {len(written)} "
+                f"of them: {cited}. Nothing there names those writers, so the page states the "
+                f"opposite of what the listing on it shows, and a sentence is the one part a "
+                f"reader has no way to check. Strike the claim and say what writes the "
+                f"bytes.{letter}",
+                path, claim['start']))
     return findings
 
 
@@ -445,7 +737,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        stores = read_stores(args.skool)
+        stores, owners = read_stores(args.skool)
     except FileNotFoundError:
         print(f'Error: File not found: {args.skool}')
         return 1
@@ -461,12 +753,15 @@ def main():
         except FileNotFoundError:
             print(f'Error: File not found: {path}')
             return 1
-        entries = parse_ctl(lines)
+        entries = parse_ctl(lines, image_end=args.org + args.size)
+        labels, addresses_by_label = parse_labels(lines)
         published += sum(1 for e in entries if e['type'] in PUBLISHED_TYPES)
         findings += (check_outside(entries, args.org, args.size, path)
                      + check_fragmented(entries, path)
                      + check_mixed(entries, path)
-                     + check_mutable(entries, stores, parse_labels(lines), path))
+                     + check_mutable(entries, stores, labels, path)
+                     + check_contradicted(entries, stores, owners, labels,
+                                          addresses_by_label, path))
     findings.sort(key=lambda f: (f[3], f[0]))
 
     if args.write_baseline:
@@ -491,7 +786,8 @@ def main():
     elif not held and not stale:
         print(f'publication: {published} page(s), every one inside '
               f'${args.org:04X}..${args.org + args.size - 1:04X}, standing for one thing, and '
-              f'no `b` page over any of the {len(stores)} address(es) the code stores to')
+              f'no page typed `b` or claiming nothing writes it over any of the '
+              f'{len(stores)} address(es) the code stores to')
 
     ctl_baseline.report(args.baseline, CHECK, held, stale)
     return 1 if new or stale else 0

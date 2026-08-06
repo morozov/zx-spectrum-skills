@@ -201,12 +201,13 @@ The exemption reads a macro's presence, not its extent.
 
 ### The publication check
 
-`make lint-publication` runs `scripts/validate_ctl_publication.py`. Every other check reads one entry and asks whether it declares its bytes. This one asks whether each entry should be an entry at all, and whether it is the thing its heading says — questions no amount of per-entry byte accounting reaches. Four kinds:
+`make lint-publication` runs `scripts/validate_ctl_publication.py`. Every other check reads one entry and asks whether it declares its bytes. This one asks whether each entry should be an entry at all, and whether it is the thing its heading says — questions no amount of per-entry byte accounting reaches. Five kinds:
 
 - **OUTSIDE** — an entry at an address the program image does not cover. Generated render-only data (sprite masks a build script produced) declared at `$1000` in a project whose image starts at `$4000` makes `skool2html` publish pages and memory-map rows for RAM the program never occupies, at addresses that are ROM on real hardware. A reader has no way to tell those pages from the ones documenting the game. Render-only data belongs in a `.ref` `[Graphic:]` entry or beside the script that generates it. `i` blocks are exempt: they publish no page, and the terminator sits at `ORG + SIZE` by construction.
 - **FRAGMENTED** — three or more consecutive `b` or `w` entries, each with no sub-directive, all headed by the same thing. That is one structure cut into pages: a loading screen split into one entry per screen address the front-end writes to leaves no page saying what the whole of it is. The fix is one entry with one title and a sub-directive per part.
 - **MIXED** — a `t` entry holding a sub-directive that is not `T`. A `t $9A40 Text: PAUSED` that runs to the next entry and swallows three `B` sub-directives publishes `pause_frames` — a counter the game bumps every frame — on a page headed "Text: PAUSED", under that title in the memory map. The fix is a split, one entry per thing.
-- **MUTABLE** — a `b` entry the code stores into. `b $9A5C Game progress and option settings` publishes bytes the game writes — the level number, the lives count, the difficulty — as data the program was loaded with. The fix is to retype the entry `g`, or to split the written bytes into a `g` entry when the rest of it really is a static table.
+- **MUTABLE** — a `b` or `u` entry the code stores into. `b $9A5C Game progress and option settings` publishes bytes the game writes — the level number, the lives count, the difficulty — as data the program was loaded with. `u` makes the same promise and more — nothing in the image reads or writes these bytes — so a store breaks it the same way. The fix is to retype the entry `g`, or to split the written bytes into a `g` entry when the rest of it really is untouched.
+- **CONTRADICTED** — text that says nothing writes bytes the code stores to. `b $6B3C Undetermined - no reader or writer found in the image`, labeled `unused_6b3c`, over bytes the listing on that same page writes, is one. MUTABLE reports the letter, and the letter is the smaller error: a reader who has learned to distrust a `b` still has no way to distrust a sentence, and `unused_6b3c` is the string he greps for. The fix is to strike the claim and name what writes the bytes.
 
 Consecutive entries always tile — the next entry's address is where the previous one ends — so contiguity carries no information and is not tested. What carries information is that the run says one thing N times. A row of small *distinct* tables states a distinct title on each and is not reported.
 
@@ -230,7 +231,15 @@ That evidence is sound and incomplete, and the asymmetry is the design. A store 
 
 The check takes `--org` and `--size`, which the game Makefile already sets, and sweeps `$(CTL_EXTRA)` alongside `$(CTL)`. A page is a page whichever file declared it, and generated render-only data is exactly what goes in a second `.ctl`, which is why the check reads both. It takes `--skool` too, and that argument is required rather than optional, for the reason `lint-data-structure` is passed the image: a linter that silently skips half its checks is worse than one that is not wired up at all. This is why `make lint-publication` can need the disassembler where the other `.ctl` linters need no tool at all. For the same reason the check errors out on a `.skool` it cannot read — one holding no instruction line in the form `sna2skool.py --hex` writes — rather than finding no store in it and reporting the project clean.
 
-`fixtures/fragmented-structure.ctl`, `fixtures/outside-image.ctl` and `fixtures/entry-type.ctl` hold a minimal case of each kind, with the expected finding stated in a header comment. The first two are run against `fixtures/no-stores.skool`, which yields no write target, so each is left proving its own kind alone. Run them after changing the check:
+**CONTRADICTED reads the prose, where MUTABLE refuses to.** The objection above is to a word standing in for evidence, not to reading words. "No writer found in the image" states the same fact `read_stores` returns, and returns it the other way round, so the finding is still an instruction address and the sentence is what it convicts. Five rules keep that anchor, and each of them drops findings a looser reading would report:
+
+- **Only a writer is contradicted.** A store proves nothing about readers, and a byte written and never read is a real thing to document, so "no reader found in the image" stands.
+- **A one-word characterization is read where it names the entry** — the title and the `@label` — and not inside a paragraph, where `unused` is about whatever the paragraph discusses. It is not read at all on a `g` entry: that letter already says the program writes these bytes, so `orphan_list_head` over the head of an orphaned-object list is a name, and the store that would convict it is the store the letter promised. A denial with a verb ("nothing writes", "never written") is a statement about writers wherever it stands, so it is read on any type and in the `D`/`N` text as well.
+- **A claim written inside an entry is read over its own bytes.** `N $CB20 Spare bytes after the font` sits inside `b $C200` and speaks for $CB20 to the next address carrying text, not for the entry.
+- **A writer the prose names is not a writer the prose denies.** "So these 52 bytes are never written by it" names its writer two clauses earlier. Both forms of naming count: the address, `#R$9BA8` or bare, and the label — `init_levels` is what the listing prints, so it is what an author writes.
+- **`c` entries are not read.** A routine's description is about the data it touches, not its own bytes, so a denial there is about a table living elsewhere.
+
+`fixtures/fragmented-structure.ctl`, `fixtures/outside-image.ctl`, `fixtures/entry-type.ctl` and `fixtures/contradicted-claim.ctl` hold a minimal case of each kind, with the expected finding stated in a header comment. The first two are run against `fixtures/no-stores.skool`, which yields no write target, so each is left proving its own kind alone. Run them after changing the check:
 
 ```
 scripts/validate_ctl_publication.py fixtures/fragmented-structure.ctl \
@@ -239,7 +248,11 @@ scripts/validate_ctl_publication.py fixtures/outside-image.ctl \
     --org 0x4000 --size 256 --skool fixtures/no-stores.skool
 scripts/validate_ctl_publication.py fixtures/entry-type.ctl \
     --org 0x4000 --size 512 --skool fixtures/entry-type.skool
+scripts/validate_ctl_publication.py fixtures/contradicted-claim.ctl \
+    --org 0x4000 --size 256 --skool fixtures/contradicted-claim.skool
 ```
+
+`contradicted-claim.ctl` carries the six controls with it — the `g` label, the paragraph word, the reader denial, the writer named by address, the writer named by label, and the sub-block note whose bytes hold no store — because each of them is a finding the check would report if a rule were dropped.
 
 ### The one-name-per-entity check
 
@@ -299,7 +312,8 @@ Left advisory, a check is never run: a defect it reports ships under `make gate`
 So every one of them is in the default gate, and a project records the findings it starts with:
 
 ```
-make lint-baseline        # writes lint-baseline.txt from the current findings
+make lint-baseline        # re-records the current findings; it can only shrink
+                          # the file, and fails without writing on growth
 ```
 
 `lint-baseline.txt` lists one accepted finding per line, as `<check> <KIND> <$ADDRESS>  <message>`. The first three fields are the key; the message is for the reader. Four rules give it its shape:
@@ -315,18 +329,57 @@ Two checks key on something other than an address, because their findings do not
 
 `verify-frag` splices a Worker's fragment into a copy of the `.ctl` under the project's own filename, so those keys still match; a throwaway name would make every inherited finding look new.
 
-**The file only ever shrinks.** Regenerate it when a fix clears a finding — the shrunk file is the evidence, and the diff is how the debt is visible in review. Each check rewrites only its own lines, so re-recording one leaves the other's alone. Every run names the keys it adds and the keys it drops:
+**The file only ever shrinks, and the tool holds that.** Regenerate it when a fix clears a finding — the shrunk file is the evidence, and the diff is how the debt is visible in review. Each check rewrites only its own lines, so re-recording one leaves the other's alone. A run that would add a key writes nothing, names the keys and exits non-zero, and `make lint-baseline` fails with it:
 
 ```
-identity: recorded 26 finding(s) in lint-baseline.txt
-identity: 1 key(s) NOT in the previous baseline — a key this file gains is debt
-taken on, not debt inherited:
-  + identity UNDESCRIBED $7F29
+byte-counts: REFUSED to write lint-baseline.txt — 1 key(s) it does not list, and a
+key this file gains is debt taken on, not debt inherited:
+  + byte-counts BYTE_SPAN $9861
+lint-baseline.txt is unchanged, so the gate still fails on them. Fix the finding,
+then re-run.
 ```
 
-Regeneration is routine, which makes a silent one the realistic way a defect gets buried, so the names are the point: a run that adds a key is a run to throw away. Never hand-edit the file to silence something you introduced either — the diff would show it growing, which is the same signal from the other direction.
+Refusing is the shape that leaves the tree and the verdict agreeing. Writing the file and failing once would bury the finding just the same: the exit status is gone by the next command, `make gate` is green over the new line, and only a revert undoes it. Because nothing is written, the next thing anyone runs — the gate, the regeneration again, a colleague's build — reaches the same answer.
 
-A project with no `lint-baseline.txt` is gated on everything, which is the right default for a new disassembly. Adopt the baseline only where the findings predate the check.
+The checks run in one shell, so a refusal by one does not stop the rest: a check that has a fix to record still records it while another check is red. The refuser leaves its own lines exactly as it found them.
+
+A rewording is not growth. The message is not part of the key, so when a check's wording changes, a regeneration rewrites the text of the lines it already owns and reports nothing added — the drift shows up as a diff and blocks nothing.
+
+Never hand-edit the file to silence something you introduced either — the diff would show it growing, which is the same signal from the other direction.
+
+#### Adopting a check for the first time
+
+A project with no `lint-baseline.txt` is gated on everything, which is the right default for a new disassembly. The baseline is for a project that predates a check: its findings are debt the check inherited, and recording them is the one growth that is legitimate.
+
+It is deliberately not reachable from `make lint-baseline`, which can only shrink. Adopt one check at a time, by running that check's own command with `--adopt`. `make -n lint-baseline` prints each command line as the project configures it, with the paths this project actually uses; copy the one you are adopting and append the flag:
+
+```
+$SKILL/scripts/validate_ctl_byte_counts.py src/{game}.ctl \
+    --baseline lint-baseline.txt --write-baseline --adopt
+```
+
+The adoption is recorded in the file's own header, one line per adopted entry:
+
+```
+# adopted: byte-counts
+# adopted: identity
+```
+
+Those lines are what the refusal reads, and they are the point of the design. Owning no lines cannot tell "this check has never run here" from "this check ran and came back clean", so if adoption were inferred from the lines, `--adopt` would walk a new finding straight into a clean check's section — the forbidden sequence, one flag deeper. A declared entry is refused whatever it currently lists, including nothing, and every successful regeneration declares the check it rewrote, because a check that regenerates here has run here.
+
+So the file states its own invariant, and a reader needs no history to check it: **for every declared entry the count is non-increasing, and the declared set grows only by a line you can read in the diff.**
+
+One case needs the second granularity. A check that gains a new finding kind reports, on a mature project, debt that predates the kind — the `.ctl` was written before it existed — but it arrives under a check name the header already declares. Without a route it would be unadoptable, and the rational move would be to pin the skill version, which is the failure the baseline exists to prevent. `--adopt-kind` is that route, and it names the kind:
+
+```
+$SKILL/scripts/validate_ctl_publication.py src/{game}.ctl \
+    --org <org> --size <size> --skool build/{game}.skool \
+    --baseline lint-baseline.txt --write-baseline --adopt-kind CONTRADICTED
+```
+
+It records that kind's findings and nothing else — a key of any other kind in the same rewrite is refused — and it writes `# adopted: publication CONTRADICTED`. The tool cannot tell a kind the check has just gained from one it has always had, so this is the point where the diff line is the check: adopting a kind that is not new is visible in review, and it is the only growth review has to look at.
+
+`fixtures/baseline-monotonic.sh` is the regression: it adopts two checks, introduces a finding at a new address and a second finding at an address the file already lists, and asserts both are refused with the file untouched; it rewords a message and clears the finding and asserts both are accepted; then it clears the check's last line and asserts that `--adopt` on that now-empty section is still refused, which is the case the header exists for.
 
 ### The comment-quality pre-filter (advisory)
 
