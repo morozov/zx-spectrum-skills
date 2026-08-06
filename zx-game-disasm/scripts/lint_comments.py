@@ -20,7 +20,10 @@ ones a reviewer would otherwise flag by hand:
                    — type the uncertainty instead, and cite the code, not a run
   - OPERAND_ECHO   a comment #R-referencing the very address its own
                    instruction's operand carries — label-rendered operands
-                   already show and link that symbol on the same row
+                   already show and link that symbol on the same row. Runs on
+                   the rows of a '{ }' group too: a group opens on the row
+                   carrying the operand its first sentence names, which is where
+                   the worst instance of this defect lives
   - ELLIPSIS       a comment spliced across instructions with '...' — one
                    thought spanning rows is a '{ }' comment group, not chained
                    fragments
@@ -44,8 +47,11 @@ precisely, by `skool2asm --create-labels` ("Comment contains address …"), whic
 the verify gate already treats as an error — so it is not duplicated here.
 
 Operates on the .skool (not the .ctl) because only the generated map pairs each
-instruction with its comment and resolves #R references and data sub-blocks. Per-
-instruction checks skip any comment that is part of a multi-line '{ }' group.
+instruction with its comment and resolves #R references and data sub-blocks. The
+checks that read one instruction skip a comment carrying a '{' or '}', whose text
+is wrapped across the group's rows and authored on none of them; a group's
+interior rows carry no brace and are read like any other row. OPERAND_ECHO reads
+every row of a group, brace-carrying or not — see echo_rows() for why.
 
 The catalogs and the behavior spec are the same deliverable, read by the same
 reader, so DIARY runs over them too — any non-.skool argument is scanned line by
@@ -206,6 +212,55 @@ def comment_restates(mnemonic, operands, comment):
     return False
 
 
+def operand_addresses(operands):
+    """Return the addresses an instruction's operand field names, as uppercase hex.
+
+    Both notations count: `$9C40` and the decimal `40000` SkoolKit renders
+    without `--hex`. Decimals are read as addresses only inside the RAM range, so
+    a `LD BC,$00A2` byte count is not mistaken for one.
+    """
+    addrs = {a.upper() for a in re.findall(r'\$([0-9A-Fa-f]{4})\b', operands)}
+    addrs |= {f'{int(n):04X}' for n in re.findall(r'\b(\d{4,5})\b', operands)
+              if 16384 <= int(n) <= 65535}
+    return addrs
+
+
+OPERAND_ECHO_DETAIL = ('the comment re-references its own operand — the '
+                       'instruction already shows and links that symbol; '
+                       'say the action, drop the echo')
+
+
+def echo_rows(rows):
+    """Return the rows whose comment #R-references an address that same row's
+    operand carries.
+
+    `rows` is a list of (lineno, line, comment, operand_addresses): one row for a
+    lone instruction, and every row of a '{ }' comment group. The test is
+    row-local because the defect is: the reader sees the symbol twice, side by
+    side, on one line of the page.
+
+    Scoping it to the whole group instead — every #R in the group's text against
+    every operand anywhere under it — reports the prose doing its job. A group
+    comment names the things its span touches; that is what a paragraph over
+    five instructions is for, and "Seed #R$9A10 to 9" over a span ending in
+    `LD (obj_count),A` is not an echo. Only the row where
+    the symbol lands beside its own operand is the duplicate the rule names.
+
+    The cost of row-locality is that a group's text is soft-wrapped, so which row
+    a reference falls on moves when the text is reflowed, and an echo can wrap
+    off its operand's row and go unreported. It under-reports rather than
+    over-reports, which is the side a gating check has to err on.
+    """
+    hits = []
+    for lineno, line, comment, addrs in rows:
+        for cm in COMMENT_REF_RE.finditer(comment):
+            ref = (cm.group('hex') or f"{int(cm.group('dec')):04X}").upper()
+            if ref in addrs:
+                hits.append((lineno, line))
+                break
+    return hits
+
+
 def normalize_tokens(text):
     """Lowercase words with every address-like token collapsed to '§', so a
     sentence stamped across blocks with only the address swapped still matches.
@@ -309,12 +364,20 @@ def scan(path):
     units = []
     para_lineno, para_text = None, []
     in_group = False  # inside an open '{ }' instruction-comment group
+    group_rows = []   # the open group's (lineno, line, comment, operand addresses)
 
     def close_para():
         nonlocal para_lineno, para_text
         if para_text:
             units.append((para_lineno, normalize_tokens(' '.join(para_text))))
         para_lineno, para_text = None, []
+
+    def close_group():
+        """Report the open group's operand echoes, then forget the group."""
+        nonlocal group_rows
+        for lineno, text in echo_rows(group_rows):
+            add(lineno, 'OPERAND_ECHO', text, OPERAND_ECHO_DETAIL)
+        group_rows = []
 
     for i, raw in enumerate(lines):
         line = raw.rstrip('\n')
@@ -339,9 +402,14 @@ def scan(path):
         elif im is not None:
             instr, comment = split_comment(im.group('body'))
             close_para()
+        elif line.startswith('@'):
+            # An @isub/@ofix/@label directive sits between two instructions of a
+            # group without interrupting it, so it must not close one.
+            continue
         else:
             close_para()
             in_group = False        # a group cannot span a non-instruction line
+            close_group()
 
         if comment is None:
             continue
@@ -355,12 +423,19 @@ def scan(path):
                 add(lineno, 'RET_GROUP', line.strip(),
                     "a '{ }' comment group spans this RET — close the group on "
                     'the last instruction its text describes; the RET stays bare')
-            if '{' in comment and (comment_body(comment) or in_group):
+            opens = '{' in comment and (comment_body(comment) or in_group)
+            if in_group or opens:
+                operands0 = parts0[1] if len(parts0) > 1 else ''
+                group_rows.append((lineno, line.strip(), comment_body(comment),
+                                   operand_addresses(operands0)))
+            if opens:
                 in_group = True
             if '}' in comment:
                 in_group = False
+                close_group()
         else:
             in_group = False        # a block-comment line breaks any group
+            close_group()
 
         # Text-level checks apply to every comment, grouped or not.
         for slre in (SELFLINK_RE, SELFLINK_REV_RE):
@@ -385,7 +460,11 @@ def scan(path):
         # spans a *set* of instructions; its text is wrapped across those lines
         # and is not authored on any single one. Whether such a group spans the
         # right instructions is an expert judgment (the Challenger's), not a
-        # scriptable one — so the per-instruction checks skip these entirely.
+        # scriptable one — so the checks that read one instruction skip these.
+        # The skip is per row, not per group: a group's interior rows carry no
+        # brace, fall through here, and are read like any other row.
+        # OPERAND_ECHO skips nothing — close_group() runs it over every row of
+        # the group, each against the operand standing beside it.
         if '{' in comment or '}' in comment:
             continue
         comment = comment_body(comment)
@@ -400,17 +479,12 @@ def scan(path):
             elif comment_restates(mnemonic, operands, comment):
                 add(lineno, 'RESTATE', line.strip(),
                     'comment only restates the instruction — say the why, not the what')
-            op_addrs = {a.upper() for a in re.findall(r'\$([0-9A-Fa-f]{4})\b', operands)}
-            op_addrs |= {f'{int(n):04X}' for n in re.findall(r'\b(\d{4,5})\b', operands)
-                         if 16384 <= int(n) <= 65535}
-            for cm in COMMENT_REF_RE.finditer(comment):
-                ref = (cm.group('hex') or f"{int(cm.group('dec')):04X}").upper()
-                if ref in op_addrs:
-                    add(lineno, 'OPERAND_ECHO', line.strip(),
-                        'the comment re-references its own operand — the '
-                        'instruction already shows and links that symbol; '
-                        'say the action, drop the echo')
-                    break
+            # A group's interior row reaches here with no brace of its own, and
+            # close_group() already reads it; only an ungrouped row is checked.
+            if not in_group:
+                for echo_lineno, echo_text in echo_rows(
+                        [(lineno, line.strip(), comment, operand_addresses(operands))]):
+                    add(echo_lineno, 'OPERAND_ECHO', echo_text, OPERAND_ECHO_DETAIL)
             stripped = comment.strip()
             if stripped.startswith(('...', '…')) or stripped.endswith(('...', '…')):
                 add(lineno, 'ELLIPSIS', line.strip(),
@@ -418,11 +492,15 @@ def scan(path):
                     "instructions is a '{ }' comment group, not chained fragments")
 
     close_para()
+    close_group()
     for lineno, phrase, count in find_stamps(units):
         add(lineno, 'STAMP', f'"{phrase[:100]}…"' if len(phrase) > 100 else f'"{phrase}"',
             f'phrase stamped across {count} block comments — write it once at '
             'the family head (dispatcher/primitive/table), keep only deltas here')
 
+    # A group's findings are raised when the group closes, and STAMP's when the
+    # file ends, so report order follows the file rather than the check.
+    violations.sort(key=lambda v: v[0])
     return violations
 
 

@@ -16,6 +16,7 @@
 #   make lint-data-structure  Gate: every data entry tiles and declares its stride
 #   make lint-publication     Gate: every page inside the image, one page per thing
 #   make lint-names           Gate: prose names a labeled slot by its label
+#   make lint-byte-counts     Gate: no instruction comment recites a byte count
 #   make lint-images          Gate: every image macro put an image under html/
 #   make lint-baseline        Re-record the gating checks' findings as the baseline
 #   make lint-array-elements  Advisory: every array record annotated individually
@@ -76,7 +77,8 @@ TOOLS_lint-baseline       := $(TOOLS_html)
 # default build's set.
 TOOLS_FREE_GOALS := clean gate lint-address-order lint-instruction-order \
                     lint-lengths lint-label-length lint-identity \
-                    lint-publication lint-names lint-array-elements
+                    lint-publication lint-names lint-byte-counts \
+                    lint-array-elements
 
 # Preflight. An absent toolchain is not a state in which "every target is up to
 # date" carries any meaning: with nothing installed and nothing stale, make runs
@@ -123,7 +125,7 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-identity lint-data-structure lint-publication lint-names lint-images lint-baseline lint-array-elements lint-comments coverage html
+.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-images lint-baseline lint-array-elements lint-comments coverage html
 
 # A recipe that redirects into its own target has already created that target by
 # the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
@@ -213,7 +215,7 @@ test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 	cmp $(BIN_PRISTINE) $(BIN_NON_FIXED)
 
 lint: lint-address-order lint-instruction-order lint-lengths lint-label-length \
-      lint-identity lint-data-structure lint-publication lint-names
+      lint-identity lint-data-structure lint-publication lint-names lint-byte-counts
 
 # Label naming is a gauge metric, not a build gate. Early on the map is mostly
 # auto-labels and you cannot name a block before you have disassembled it, so a hard
@@ -283,6 +285,15 @@ lint-publication: $(CTL) $(CTL_EXTRA)
 lint-names: $(CTL)
 	$(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) --baseline $(BASELINE)
 
+# A length the listing already carries, copied into an instruction comment:
+# "Clear 163 bytes of the tile map" over the `LD BC` that says 163. It
+# buys the reader nothing and rots on the next resize or split. A rate — "9
+# bytes per slot", "22-byte record stride" — is the arithmetic a reader would
+# otherwise do by hand and is exempt; the author declares a rate by writing it
+# as one. See `references/comment-style.md`.
+lint-byte-counts: $(CTL)
+	$(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) --baseline $(BASELINE)
+
 # The outcome check: every image macro named a file, and every named file is on
 # the site. `make` proved the HTML *builds*; nothing proved it contains anything.
 # A rewrite of every `(name)` into the frame-only `(*name)` — which defines a
@@ -315,6 +326,8 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) html/.stamp
 	@$(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
 	    --org $(ORG) --size $(SIZE) --baseline $(BASELINE) --write-baseline
 	@$(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) \
+	    --baseline $(BASELINE) --write-baseline
+	@$(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) \
 	    --baseline $(BASELINE) --write-baseline
 	@$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
 	    --baseline $(BASELINE) --write-baseline

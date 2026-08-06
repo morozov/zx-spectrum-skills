@@ -130,6 +130,8 @@ pasmo --bin "$tmp/fixed.asm" "$tmp/fixed.bin" 2>"$tmp/fixed-pasmo.err" \
 # cannot answer for them here.
 "$SCRIPTS/validate_prose_names.py"        "$SPLICED" \
     --baseline "$BASELINE" --ignore-stale
+"$SCRIPTS/validate_ctl_byte_counts.py"    "$SPLICED" \
+    --baseline "$BASELINE" --ignore-stale
 
 # `lint-images` has no counterpart here: it reads the built site, and a fragment
 # does not build one. The Manager's `make` is where that outcome is checked.

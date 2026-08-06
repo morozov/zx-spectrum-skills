@@ -138,7 +138,7 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 
 ## The linters
 
-`make` runs eight `.ctl` linters (also runnable standalone as `make lint`, or from `scripts/`):
+`make` runs nine `.ctl` linters (also runnable standalone as `make lint`, or from `scripts/`):
 
 - `validate_ctl_address_order.py` — directives in ascending address order.
 - `validate_ctl_instruction_order.py` — at one address: `@` → block type → `D` → `N` → `R` → line comment.
@@ -148,8 +148,9 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 - `validate_ctl_data_structure.py` — every data entry tiles and declares a stride.
 - `validate_ctl_publication.py` — every page inside the program image, and one page per thing.
 - `validate_prose_names.py` — prose names a labeled slot by its label.
+- `validate_ctl_byte_counts.py` — no instruction comment recites a byte count the listing already carries.
 
-The first four exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff. The last four are content checks, and they carry a baseline — see below.
+The first four exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff. The last five are content checks, and they carry a baseline — see below.
 
 `make` then runs one more check that is not a `.ctl` linter at all, because its subject is the built site:
 
@@ -247,6 +248,18 @@ An alias with no positional word in it is settled by the author and held by the 
 
 The sweep covers the `.ctl`, every `.ref` and `spec/*.md`: a term settles wherever nothing looks. Its baseline keys on `<file>:<phrase>` rather than an address, since a finding in a catalog table has no directive address and the phrase is its identity. The file has to be in that key: without it, an accepted phrase in a `.ref` and the same phrase newly written into the `.ctl` are one key with one count, so fixing the catalog pays for the new one and the gate stays green.
 
+### The recited-length check
+
+`make lint-byte-counts` runs `scripts/validate_ctl_byte_counts.py` over the `.ctl`'s instruction comments. One kind:
+
+- **BYTE_SPAN** — a comment stating the size of the span its instructions work on. `Clear 163 bytes of the tile state map` sits on the row whose `LD BC` says so; the number is on the page twice, it buys the reader nothing, and it rots on the next resize or split, because the count is a fact about the current annotation rather than about the game.
+
+A *rate* is the opposite case and is exempt: `6 bytes per enemy`, `8 bytes per tile`, `a 12-byte record stride`, `N bytes/<unit>` state the arithmetic that turns an index into an address, which a reader would otherwise recover by counting rows.
+
+The check cannot tell the two apart by reading — "the 9-byte record" and "the 2848-byte working table" are one grammar, and only the second is a span. So the *author* declares which it is, by writing a rate as a rate. That is what makes the rule applicable: the fix is either to delete the number or to say what it is the size of. See `references/comment-style.md` for the rule and its worked example.
+
+Scoped to instruction comments. A `D` or `N` note is exactly where a structure's shape belongs, stated once for the block; the defect is that sentence copied down onto a row that already carries the number.
+
 ### The rendered-image check
 
 `make lint-images` runs `scripts/validate_rendered_images.py` **after** the site is built, because it reads what the build produced.
@@ -266,7 +279,7 @@ Where a macro states its filename is not the same for every macro, and the check
 
 ### The known-failing baseline
 
-`lint-identity`, `lint-data-structure`, `lint-names` and `lint-images` land red on a mature project. That is not a reason to keep them out of the gate — it is the reason the baseline exists.
+`lint-identity`, `lint-data-structure`, `lint-names`, `lint-byte-counts` and `lint-images` land red on a mature project. That is not a reason to keep them out of the gate — it is the reason the baseline exists.
 
 Left advisory, a check is never run: a defect it reports ships under `make gate` printing GATE PASS, while the check has the defect in its output the whole time.
 
@@ -309,7 +322,9 @@ A project with no `lint-baseline.txt` is gated on everything, which is the right
 It is deliberately small. The two checks that matter most are not scriptable and are the Challenger's responsibility, not the linter's:
 
 - whether a comment adds what the code cannot show (needs comprehension), and
-- whether a multi-line `{ }` comment spans *exactly* the instructions it describes — the comment text is word-wrapped across the grouped lines, so the per-instruction checks skip braced groups entirely and leave their span to an expert reading.
+- whether a multi-line `{ }` comment spans *exactly* the instructions it describes — the comment text is word-wrapped across the grouped lines, so the checks that read one instruction skip the rows carrying a brace and leave their span to an expert reading. A group's interior rows carry none, so those are read like any other row.
+
+`OPERAND_ECHO` is the exception, and it has to be: a group opens on the row that carries the operand its first sentence names, which is where an echo like `LD HL,tile_map ; {Clear … (tile_map)` lives, and skipping the brace-carrying rows would miss every echo on a row that opens or closes a group. It runs per row — each row's `#R` against that row's own operand — not per group. Widening it to the whole span, every reference against every operand under it, would report a group comment naming a routine its span calls, which is a paragraph doing its job, not a duplicate.
 
 Relocatability (a raw address in a comment) is not re-checked here: `skool2asm --create-labels` already emits "Comment contains address …" and the build fails on it, which is both authoritative and more precise than a regex.
 

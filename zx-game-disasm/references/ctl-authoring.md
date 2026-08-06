@@ -352,7 +352,7 @@ In comment text, reference addresses with `#R$XXXX` (SkoolKit resolves it to the
 
 ## Validation rules
 
-The build runs eight `.ctl` linters; violations fail the build. The first four keep the `.ctl` mechanically consistent so diffs stay clean and `sna2skool` never silently reorders; the last four hold it to the contracts above.
+The build runs nine `.ctl` linters; violations fail the build. The first four keep the `.ctl` mechanically consistent so diffs stay clean and `sna2skool` never silently reorders; the last five hold it to the contracts above.
 
 1. **Address order** — every directive in ascending address order.
 2. **Instruction order** — directives at the *same* address follow the canonical sequence: `@` → block type (`c`/`b`/…) → `D` → `N` → `R` → line comment.
@@ -362,9 +362,10 @@ The build runs eight `.ctl` linters; violations fail the build. The first four k
 6. **Data-block schema** (`validate_ctl_data_structure.py`) — every data entry tiles and declares its stride. See [The tiling contract](#the-tiling-contract).
 7. **Publication** (`validate_ctl_publication.py`) — every published page inside the program image, and no structure cut into a run of same-titled pages. See [One page per thing](#one-page-per-thing).
 8. **One name per entity** (`validate_prose_names.py`) — prose names a labeled slot family's member by its label, never by its position. See [One page per thing](#one-page-per-thing).
+9. **No recited lengths** (`validate_ctl_byte_counts.py`) — an instruction comment must not state the size of the span it works on; a rate ("6 bytes per enemy") is the exemption. See `references/comment-style.md`.
 
-A ninth check, `validate_rendered_images.py` (`make lint-images`), gates the built site rather than the `.ctl`: every image macro must name an output file, and every named file must be under `html/`. It runs after `make html`, because its subject is what the build produced.
+A tenth check, `validate_rendered_images.py` (`make lint-images`), gates the built site rather than the `.ctl`: every image macro must name an output file, and every named file must be under `html/`. It runs after `make html`, because its subject is what the build produced.
 
 Run the `.ctl` ones yourself while editing (`python3 scripts/validate_ctl_address_order.py {game}.ctl`) rather than waiting for the full build.
 
-Checks 5 through 8 land red on a mature `.ctl`, so a project records the findings it starts with in `lint-baseline.txt` (`make lint-baseline`) and the gate holds that line: a finding the file does not list fails the build, and a line it lists that the check does not report fails the build too, so a fix takes its baseline entry with it in the same commit. The file only ever shrinks. Never hand-edit it to silence something you introduced — see [build-verify.md](build-verify.md#the-known-failing-baseline).
+Checks 5 through 9 land red on a mature `.ctl`, so a project records the findings it starts with in `lint-baseline.txt` (`make lint-baseline`) and the gate holds that line: a finding the file does not list fails the build, and a line it lists that the check does not report fails the build too, so a fix takes its baseline entry with it in the same commit. The file only ever shrinks. Never hand-edit it to silence something you introduced — see [build-verify.md](build-verify.md#the-known-failing-baseline).

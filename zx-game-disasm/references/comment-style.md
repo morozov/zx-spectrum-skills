@@ -98,6 +98,34 @@ With labels rendered into operands everywhere (`.skool`, `.asm`, the site's `CAL
 
 When one thought genuinely spans several instructions, use a `{ }` comment group over exactly those rows — never `...` fragments stitched line to line.
 
+A group is not an exemption. Its text starts on the row that opens it, which is the row carrying the operand its first sentence names, and that is where the worst instance of this defect lives:
+
+> **Bad:** `LD HL,door_map  ; {Clear the door state map (door_map).`
+>
+> **Good:** `LD HL,door_map  ; {Clear the door state map: every door starts the level shut.`
+
+`OPERAND_ECHO` reads every row of a group against that row's own operand. What it does *not* forbid is a group naming a routine its span calls a few rows down — that is a paragraph doing its job.
+
+## The comment never recites a length the listing carries
+
+The same rule, over numbers. A comment that states the size of the span its instructions work on says nothing the reader cannot see: the count is in the `LD BC` beside it, in the block's own directive, in the `LDIR`. And it rots. The number is a fact about the current annotation, so any resize or split leaves the sentence lying, and nothing arithmetic can check a size written in prose.
+
+The reported line, and what it owed instead:
+
+> **Bad:** `LD HL,door_map  ; {Clear 96 bytes of the door state map (door_map).`
+>
+> **Good:** `LD HL,door_map  ; {Clear the door state map: every door starts the level shut.`
+
+Both halves of the bad line are the listing repeated — the count and the symbol — and neither is what the reader came for. The good line spends the row on the one thing the listing cannot show: *why* the map is cleared here.
+
+**Where the line is drawn.** A *rate* is legitimate and stays: `6 bytes per enemy`, `8 bytes per tile`, `a 12-byte record stride`. That is the arithmetic that turns an index into an address, and a reader who is not told it counts rows by hand. A *span* — the length of the thing this instruction is copying, clearing or skipping — is on the page already.
+
+`BYTE_SPAN` (`make lint-byte-counts`, in the default gate) cannot tell the two apart: "the 6-byte record" and "the 2848-byte working table" are one grammar and only the second is a span. So you declare which you mean by writing a rate as a rate — `N bytes per <unit>`, `N bytes each`, `N bytes/<unit>`, `N-byte <…> stride`. Anything else reads as a span. The fix for a finding is therefore always one of two things: delete the number, or say what it is the size *of*.
+
+The rate is the only exemption. A ROM or hardware size does not get a second one: `Save the calculator memory (MEMBOT, 30 bytes)` opens a group whose `LD BC,$001E` states the same 30, so it is a span like any other. Name the area; the rows carry its length.
+
+This is the instruction-comment altitude. A `D` or `N` note is exactly where a structure's shape belongs — "each enemy record is 6 bytes: +0/+1 the position, +2/+3 the sprite pointer, +5 the active flag" is that note doing its job, written once for the block, and the check does not touch block prose. The defect is that sentence copied down onto a row that already carries the number.
+
 ## Decimal equivalents
 
 Give a decimal equivalent only for a value that means something in the human world — a level number, an iteration count, a pixel distance — not for memory addresses. `$7A26` as an address stays hex; `$0F` as "15 lives" earns its `(15)`.
