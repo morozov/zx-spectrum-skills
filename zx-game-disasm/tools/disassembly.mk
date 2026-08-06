@@ -10,7 +10,8 @@
 #   make          The gate: round-trip cmp + .ctl linters + HTML build (validates
 #                 the .ref catalogs). Build the asm, snapshot, and site.
 #   make gate     The same gate, logged, ending in one verdict line that names
-#                 the SkoolKit it ran under and says whether anything rebuilt
+#                 the SkoolKit and the gate it ran under and says whether
+#                 anything rebuilt
 #   make coverage The "is it done?" gauge (documentation/naming/relocatability)
 #   make lint-identity        Gate: every entry titled, every sub-block named
 #   make lint-data-structure  Gate: every data entry tiles and declares its stride
@@ -21,7 +22,8 @@
 #   make lint-array-elements  Gate: every array record annotated individually
 #   make lint-images          Gate: every image macro put an image under html/
 #   make lint-baseline        Re-record the gating checks' findings as the baseline
-#                             (it can only shrink the file; it fails on growth)
+#                             (it can only shrink the file; it fails on growth) and
+#                             stamp the gate it was recorded under into its header
 #   make verify-frag FRAG=…  Round-trip one Worker fragment in isolation
 #   make tap      A loadable .tap of the fixed build — the disassembly as a
 #                 playable rebuild, not only a byte-check
@@ -175,18 +177,97 @@ GATE_LOG = build/make.log
 GATE_ARTIFACTS = $(Z80_PRISTINE) $(BIN_PRISTINE) $(SKOOL) $(ASM_NON_FIXED) \
                  $(BIN_NON_FIXED) $(ASM_FIXED) $(BIN_FIXED) $(Z80_FIXED) html/.stamp
 
+# --- Which gate produced the verdict ------------------------------------------
+#
+# PASS and FAIL are relative to a gate that moves independently of the project, so
+# a verdict that does not name its gate stops meaning anything the moment either
+# side moves. An old commit rebuilt under a newer skill can FAIL on a check the
+# commit predates rather than on a defect in it, and nothing in an unmarked
+# verdict says which it is. The verdict names the gate in two halves:
+#
+#   gate 1       the generation the skill declares, in SKILL.md's frontmatter,
+#                raised by hand in the commit that changes what the gate accepts
+#   /e70342a     a digest over the skill files the build runs and reads
+#
+# The declared half is the one a human chose, and the only half that says a
+# changed verdict was *meant* to change. The digest is what catches a gate that
+# moved without being declared: one version over two digests says the bytes moved
+# and nobody declared it, which is how a lagging declaration becomes visible
+# instead of being trusted. Neither half needs the skill to keep its old checks
+# alive — the marker labels a verdict, it does not re-run one.
+#
+# The digest is over file contents, never `git rev-parse`: the skill is consumed
+# through a symlink, a copy or a checkout, and only the files are guaranteed to be
+# there. A copy has no revision to read, while a digest reads the same there as in
+# the checkout it came from — and it does not move when only prose moves, because
+# it covers tools/, scripts/ and assets/, which is what the build runs and reads,
+# and not references/.
+#
+# Every part of it degrades to a word rather than to a failure, because a project
+# whose marker cannot be read must still build: an unreadable SKILL.md gives
+# `gate undeclared/…`, and a machine with no SHA tool gives `…/unknown`.
+#
+# $(BASELINE) carries the marker too, and a baseline recorded under another gate
+# is reported on a pass and on a failure both. A tree with no baseline at all is
+# reported only on a failure — that is the shape of an old commit rebuilt under a
+# newer gate, and on a pass the absence is the right default for a new
+# disassembly rather than something to say.
+SKILL_HOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
+
+# Prints `<declared>/<digest>` — the verdict adds the word `gate`, the baseline
+# header writes it as `# gate: `. The digest hashes the list of per-file hashes,
+# taken from inside $(SKILL_HOME) so the paths that go into it are relative and a
+# copy elsewhere on disk digests identically.
+#
+# The file list travels NUL-separated end to end. A skill file whose name holds a
+# space splits into two arguments under a newline-separated `xargs`, both of them
+# unreadable, and `2>/dev/null` swallows the error — so the digest reads the same
+# before and after that file lands, which is the one thing it exists not to do.
+GATE_ID = { \
+      v=$$(awk '/^metadata:/{m=1;next} m&&/^[^ ]/{m=0} m&&$$1=="gate:"{print $$2;exit}' \
+          '$(SKILL_HOME)/SKILL.md' 2>/dev/null); \
+      sha=$$(command -v shasum >/dev/null 2>&1 && echo 'shasum -a 256' || echo 'sha256sum'); \
+      d=$$(cd '$(SKILL_HOME)' 2>/dev/null && find tools scripts assets -type f ! -name '*.pyc' -print0 2>/dev/null \
+          | LC_ALL=C sort -z | xargs -0 $$sha 2>/dev/null | $$sha 2>/dev/null | cut -c1-7); \
+      echo "$${v:-undeclared}/$${d:-unknown}"; }
+
+# Record the gate a baseline was written under, in the baseline's own header,
+# beside the `# adopted:` declarations a reviewer already reads. That is what
+# makes an inherited baseline detectably stale instead of silently wrong: the gate
+# compares this line against the gate running now, and the verdict says so. The
+# line goes in ahead of the first finding, and a rewrite replaces it rather than
+# accumulating; a baseline that lists nothing yet gets it at the end.
+#
+# Every `#` in the awk program is escaped: an unescaped one in a variable
+# definition opens a make comment, and the program is then truncated mid-quote.
+stamp_baseline_gate = [ -f $(BASELINE) ] || exit 0; id=$$($(GATE_ID)); \
+      awk -v id="$$id" '/^\# gate: /{next} !stamped && !/^\#/{print "\# gate: " id; stamped=1} {print} END{if (!stamped) print "\# gate: " id}' \
+        $(BASELINE) > $(BASELINE).tmp && mv $(BASELINE).tmp $(BASELINE)
+
 gate:
 	@mkdir -p $(dir $(GATE_LOG))
 	@$(MAKE) --no-print-directory -q $(GATE_ARTIFACTS) >/dev/null 2>&1; q=$$?; \
 	  $(MAKE) --no-print-directory all > $(GATE_LOG) 2>&1; s=$$?; \
 	  v=$$($(SNA2SKOOL) --version 2>/dev/null); \
+	  id=$$($(GATE_ID)); \
+	  stamp="[$${v:-SkoolKit version unknown}, gate $$id]"; \
+	  was=$$(sed -n 's/^# gate: *//p' $(BASELINE) 2>/dev/null | head -1); \
+	  drift=''; absent=''; \
+	  if [ ! -f $(BASELINE) ]; then \
+	    absent=" There is no $(BASELINE) in this tree, so this run accepted nothing — a commit that predates the project's baseline fails a gating check the way a regression does; see the gate-boundary rule in references/build-verify.md."; \
+	  elif [ "$$was" = "$$id" ]; then :; \
+	  elif [ -z "$$was" ]; then \
+	    drift=" $(BASELINE) records no gate; make lint-baseline stamps the one it was recorded under."; \
+	  else \
+	    drift=" $(BASELINE) was recorded under gate $$was, so a finding this gate reports and that one did not is the gate moving, not this commit regressing — see the gate-boundary rule in references/build-verify.md."; \
+	  fi; \
 	  if [ $$s -ne 0 ]; then \
 	    tail -40 $(GATE_LOG); \
-	    echo; echo "GATE FAIL (make exit $$s) — full log: $(GATE_LOG)"; \
+	    echo; echo "GATE FAIL (make exit $$s) $$stamp — full log: $(GATE_LOG).$$drift$$absent"; \
 	  elif [ $$q -eq 0 ]; then \
-	    echo "GATE PASS, NOTHING REBUILT [$${v:-SkoolKit version unknown}] — every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: $(GATE_LOG))"; \
+	    echo "GATE PASS, NOTHING REBUILT $$stamp — every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: $(GATE_LOG)).$$drift"; \
 	  else \
-	    echo "GATE PASS, REBUILT [$${v:-SkoolKit version unknown}] — at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: $(GATE_LOG)"; \
+	    echo "GATE PASS, REBUILT $$stamp — at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: $(GATE_LOG).$$drift"; \
 	  fi; exit $$s
 
 # Round-trip a parallel Worker's range-fragment in isolation (splice into a
@@ -373,6 +454,7 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 	$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	[ $$refused -eq 0 ] || { echo "make lint-baseline: a check refused to record a key $(BASELINE) does not list, so it keeps what it said — the gate still fails on the finding."; exit $(BASELINE_REFUSED); }
+	@$(stamp_baseline_gate)
 
 # Every element of an array of records must be annotated individually. An array
 # laid out as one directive - or as none at all, with the record size stated only

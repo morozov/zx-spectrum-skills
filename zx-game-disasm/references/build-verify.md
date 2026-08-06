@@ -89,11 +89,11 @@ make                    # then check the exit status ($?)
 make gate               # or: same gate, logged, ending in one verdict line
 ```
 
-`make gate` runs the full gate into `build/make.log` (the ignored build directory), prints the last 40 lines plus an unmistakable verdict on failure, and exits with make's own status. A passing verdict names the SkoolKit that produced it and says **which** of two passing states it is:
+`make gate` runs the full gate into `build/make.log` (the ignored build directory), prints the last 40 lines plus an unmistakable verdict on failure, and exits with make's own status. Every verdict names the SkoolKit *and the gate* that produced it, and a passing one says **which** of two passing states it is:
 
 ```
-GATE PASS, REBUILT [SkoolKit 10.1] — at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: build/make.log
-GATE PASS, NOTHING REBUILT [SkoolKit 10.1] — every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: build/make.log)
+GATE PASS, REBUILT [SkoolKit 10.1, gate 1/e70342a] — at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: build/make.log
+GATE PASS, NOTHING REBUILT [SkoolKit 10.1, gate 1/e70342a] — every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: build/make.log)
 ```
 
 The gate asks make (`make -q`) whether any generated file is out of date *before* it builds, and reports that answer. It is a real distinction: `all` depends on the phony `test`, `lint` and `html`, whose recipes run every time, so a green `make` always means the `cmp` and the linters passed — but it does not by itself mean the `.skool`, the `.asm` or the `.bin` under them came from the sources as they stand now.
@@ -103,6 +103,33 @@ The gate asks make (`make -q`) whether any generated file is out of date *before
 **`NOTHING REBUILT` is the weaker claim, and the one to read twice.** It is a legitimate and common state — you ran the gate twice, or changed only a file no target depends on. But it says the round-trip was re-checked over artifacts an *earlier* run produced, and a corrupted incremental state survives it. Make deletes a target whose own recipe fails, so a red build leaves nothing behind — but a file written outside make still can: a redirect run by hand that dies mid-write leaves a zero-byte `.skool` newer than the `.ctl`, which make calls current and which everything downstream then agrees with. Before reporting a checkpoint green off a `NOTHING REBUILT`, make the build do the work — `make clean`, or remove the `.skool` so everything under it regenerates — and read the `REBUILT` verdict over a log that shows the whole chain running.
 
 Also read the version. A gate that passed under a SkoolKit other than the one `requirements.txt` pins proved something about a toolchain the project does not ship.
+
+#### The marker: which gate produced this verdict
+
+PASS and FAIL are relative to a gate that moves independently of the project, so a verdict that does not name its gate stops meaning anything the moment either side moves. `gate 1/e70342a` in the sample verdicts is that name, in two halves:
+
+- **`1`** — the generation the skill declares, in `SKILL.md`'s frontmatter (`metadata: gate:`). A human raises it in the same commit that changes what the gate accepts or rejects: a new gating check, a check that gains a finding kind, a rule that widens. It is the only half that says a changed verdict was *meant* to change, and it is what to cite.
+- **`e70342a`** — a digest over the skill files the build runs and reads (`tools/`, `scripts/`, `assets/`; not `references/`, so editing prose does not move it). Nobody maintains it, and it moves on any edit to those files.
+
+The two together are what makes the declaration trustworthy without anyone auditing it. One declared generation over two digests says the bytes of the gate moved and nothing was declared — which is how a lagging declaration becomes visible, instead of being taken on trust. A marker nobody updates is worse than none, because it reads as authoritative.
+
+The digest is deliberately wider than the gate, and it errs on the safe side. It covers `scripts/` whole, and not every script is on the gate's path: `coverage_report.py` runs under `make coverage`, which `all` never invokes, so editing it moves the digest while what the gate accepts is untouched. A digest that moved when the gate's behavior did not costs a reader one comparison; one that sat still while a check changed is the whole failure this marker exists to prevent. So read a moved digest as *the gate's files moved* — the declared generation is what says the behavior did.
+
+The digest is taken from file contents, never from `git rev-parse`. The skill is consumed through a symlink, a copy, or a checkout, and only the files are guaranteed: a copy is not a repo and has no revision to read, while a digest reads the same there as in the checkout it was copied from. Every part of the marker degrades to a word rather than to a failure — an unreadable `SKILL.md` gives `gate undeclared/…` and a machine with no `shasum`/`sha256sum` gives `…/unknown` — because a project whose marker cannot be read must still build.
+
+`lint-baseline.txt` carries the same marker in its header, written by `make lint-baseline`, and the gate compares the two. When they differ the verdict says so, on a pass and on a failure both:
+
+```
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — full log: build/make.log. lint-baseline.txt was recorded under gate 1/e70342a, so a finding this gate reports and that one did not is the gate moving, not this commit regressing — see the gate-boundary rule in references/build-verify.md.
+```
+
+A tree with **no** `lint-baseline.txt` gets its own clause, on a failure only — a commit that predates the baseline fails that way, and on a pass the absence is the right default for a new disassembly rather than something worth saying:
+
+```
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — full log: build/make.log. There is no lint-baseline.txt in this tree, so this run accepted nothing — a commit that predates the project's baseline fails a gating check the way a regression does; see the gate-boundary rule in references/build-verify.md.
+```
+
+That clause is the difference between a red gate you investigate and one you can place in a sentence. Read it before reading the findings: **a red gate whose baseline was recorded under a different gate, or which has no baseline where the project has one, is not evidence about the commit.** It is also what makes the wrong fix unattractive — regenerating the baseline so the live gate passes bakes a different gate's checks into this project's accepted debt.
 
 Two traps make the eyeball check wrong:
 
@@ -118,7 +145,8 @@ git worktree add --detach ../gate-check HEAD
 for sha in $(git rev-list --reverse <base>..HEAD); do
     git -C ../gate-check checkout -qf $sha
     git -C ../gate-check clean -qfdx
-    make -C ../gate-check gate >/dev/null || echo "RED: $sha"
+    verdict=$(make -C ../gate-check gate 2>/dev/null | tail -1)
+    echo "$sha  ${verdict:-NO VERDICT (make could not run)}"
 done
 git worktree remove --force ../gate-check
 ```
@@ -126,6 +154,21 @@ git worktree remove --force ../gate-check
 This is a sanctioned use of a worktree. A *Worker* still never gets one, see `references/roles/manager.md`. Without this loop, the honest report is that the tip is green and the history is unverified.
 
 `checkout -qf` is load-bearing. Plain `checkout` refuses only when the switch would *overwrite* a modified tracked file; where the file is byte-identical in both commits it carries the modification along silently, so the loop builds content that is in no commit and reports the verdict against a sha. A failed gate can leave the tree modified, which is exactly when someone runs this — and it fails in both directions: an edit that breaks the build reports every sha RED, one that fixes it reports a genuinely red commit green.
+
+**Keep the verdict line, not just the red or the green.** The verdict is the last line the gate writes to stdout — make's own `*** Error 2` goes to stderr, which is why the loop drops stderr rather than folding it in — and it names the SkoolKit and the gate the run used, and reports a baseline recorded under a different one. A stored `RED: 4cf467a` is uninterpretable a week later; a stored `4cf467a  GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — … recorded under gate 1/e70342a …` places itself.
+
+The `${verdict:-…}` default covers the worst case, which is the one the loop must not print blank: a commit whose tree cannot build at all — no `Makefile` yet, or one that does not `include` the framework — writes no verdict line, and the run would otherwise report a sha and nothing beside it. `NO VERDICT (make could not run)` says the loop reached that commit and the commit had no gate to run, which is a different thing from failing one.
+
+#### The gate-boundary rule
+
+The loop runs *today's* gate against every commit, and the commits were made under the gates of their own day. Where those differ the loop is not measuring the commits at all. A commit made before the project added `lint-baseline.txt` fails a newly-gating check with no baseline to accept its findings, and a bare RED does not distinguish "this commit is broken" from "this commit predates the check".
+
+So before reading a single verdict, find the boundary: compare the gate the run reports against the marker each commit's `lint-baseline.txt` carries. A commit whose baseline records a different gate is on the far side of one.
+
+- **Run the range from the adoption commit forward.** A check enters a project at the commit that declares it — `# adopted: identity` in the baseline's header — so `git log -S'# adopted: identity' -- lint-baseline.txt` names the first commit that can be held to it. Everything earlier is out of scope by construction, not by diagnosis. This is the cheap answer and the one to reach for.
+- **Or give each sha its contemporaneous debt.** In the throwaway worktree, after the checkout, run `make lint-baseline` before `make gate`; for a check the commit predates, that regeneration is a first adoption and needs the check's own `--adopt` (see "Adopting a check for the first time"). Nothing is committed — the worktree is deleted at the end — and the question it answers is "did this commit hold the line it had", which is the one "green at every commit" is actually claiming.
+
+**Never report a bare RED across a gate boundary.** Report the verdict line, whose marker carries the gate, or say that the range spans a gate change and which commits are on which side. A loop that cries wolf gets ignored, and the next real red goes with it.
 
 ## When the bytes legitimately differ
 
@@ -328,6 +371,16 @@ The key is the *address on the directive the finding points at* — never the li
 Two checks key on something other than an address, because their findings do not live on a directive: `prose-names` keys on `<file>:<phrase>` and `images` on the file or frame name. A phrase in a `.ref` catalog has no address, and the address of whatever `.ctl` line happens to carry it is not its identity. Counting repeats then reads as "thirteen occurrences of this phrase in this file are accepted", and the fourteenth fails the gate — but the *location* it prints is one of the thirteen, not necessarily the new one, and the report says so. Every occurrence is the same finding and takes the same fix.
 
 `verify-frag` splices a Worker's fragment into a copy of the `.ctl` under the project's own filename, so those keys still match; a throwaway name would make every inherited finding look new.
+
+The header records the gate the file was written under, one line beside the `# adopted:` declarations:
+
+```
+# gate: 1/e70342a
+```
+
+`make lint-baseline` writes it — on a run where every check recorded, so a refusal leaves the older stamp standing rather than claiming a recording that did not happen. A baseline is a statement about findings *a particular gate* reports, so without it a file that predates a check is indistinguishable from one that accepts it. The gate reads the line back and reports a mismatch in its verdict; see "The marker" above.
+
+A check adopted by hand with `--adopt` rewrites the file through the check's own script, which does not stamp — re-run `make lint-baseline` afterwards, and the stamp comes back with the adoption in it. Until then the verdict says the baseline records no gate.
 
 **The file only ever shrinks, and the tool holds that.** Regenerate it when a fix clears a finding — the shrunk file is the evidence, and the diff is how the debt is visible in review. Each check rewrites only its own lines, so re-recording one leaves the other's alone. A run that would add a key writes nothing, names the keys and exits non-zero, and `make lint-baseline` fails with it:
 
