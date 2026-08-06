@@ -19,10 +19,26 @@ cleanly splice-able and the Worker overstepped its range):
     own `c` blocks — no stray directive in a shared region (e.g. a label added to
     the low-RAM variable block, which is a separate single-owner task).
 
+A third condition is reported but does not fail: an `@` directive that sits in the
+replaced range and that the fragment does not carry forward is deleted by the
+splice, and each one is named on stderr. It is a warning rather than an error
+because the two cases are indistinguishable in the fragment — a Worker who
+re-typed a block and lost an `@ label=` and a Worker whose task was to remove a
+now-unnecessary `@ keep` hand in the same bytes. Only the author knows which, so
+the tool reports and the author judges. Making it fatal would also leave a
+deliberate removal with no way through `make verify-frag`, which takes the
+fragment path and nothing else.
+
+A directive whose *value* changed is not a drop: the comparison keys on address
+plus directive name, so re-pointing an `@ label=` is silent and removing it is
+not. Sub-block comment lines are not compared — re-annotating a routine rewrites
+every one of them, so their absence carries no signal.
+
 After splicing, run the `.ctl` linters and `make verify`: the splice is structural;
 byte-identity and correctness are still proven by the build.
 
 Usage: splice_ctl.py <base.ctl> <fragment.ctl> [-o out.ctl]   (default: in place)
+       splice_ctl.py --check-only <base.ctl> <fragment.ctl>
 """
 
 import argparse
@@ -36,6 +52,7 @@ HEADER = re.compile(r'^([bcwtsgi]) ' + _A + r'\b')     # a block-entry line
 CLINE = re.compile(r'^c ' + _A + r'\b')                # a code-block entry
 LABEL = re.compile(r'^@ ' + _A + r' label=')
 ADDR_LINE = re.compile(r'^(?:[@ ]?[A-Za-z*]?\s*)?' + _A + r'\b')
+DIRECTIVE = re.compile(r'^@ ' + _A + r' ([A-Za-z][-\w]*)')  # any `@ ADDR name…` line
 
 
 def paddr(s):
@@ -77,15 +94,79 @@ def code_blocks(lines):
     return out
 
 
+def directives(lines):
+    """Map (address, directive-name) -> the line, for every `@ ADDR name…` line."""
+    out = {}
+    for ln in lines:
+        m = DIRECTIVE.match(ln)
+        if m:
+            out[(paddr(m.group(1)), m.group(2))] = ln.strip()
+    return out
+
+
+def report_drops(base_lines, frag_lines):
+    """Name on stderr every `@` directive in base_lines that frag_lines does not
+    carry forward at the same address, and return how many there were.
+
+    base_lines are the lines a splice replaces, frag_lines the ones it puts in
+    their place. Reporting only: the caller decides what a drop means."""
+    kept = directives(frag_lines)
+    dropped = [ln for key, ln in sorted(directives(base_lines).items()) if key not in kept]
+    for ln in dropped:
+        print(f"splice_ctl: WARNING: the fragment drops `{ln}`", file=sys.stderr)
+    return len(dropped)
+
+
+def drop_advice(n):
+    """The one-line trailer for n>0 dropped directives, or None for none."""
+    if not n:
+        return None
+    return (f"splice_ctl: {n} directive(s) in the replaced range are absent from the "
+            f"fragment and the splice deletes them. Carry each one forward in the "
+            f"fragment unless removing it was the task.")
+
+
+def span_drops(base, frag):
+    """Report drops over the address span a fragment replaces, rather than
+    block-for-block: from its lowest block address up to the next base block that
+    starts above its highest. Returns how many were reported.
+
+    This is the view a caller that splices by span has — a fragment may retype a
+    block (`b` -> `c`), which block-for-block matching cannot pair up and would
+    silently skip."""
+    fa = [paddr(HEADER.match(ln).group(2)) for ln in frag if HEADER.match(ln)]
+    if not fa:
+        sys.exit("fragment contains no block-entry line")
+    lo, top = min(fa), max(fa)
+    above = sorted(a for a in (paddr(HEADER.match(ln).group(2)) for ln in base
+                              if HEADER.match(ln)) if a > top)
+    hi = above[0] if above else 10 ** 9
+    covered = [ln for ln in base
+               if DIRECTIVE.match(ln) and lo <= paddr(DIRECTIVE.match(ln).group(1)) < hi]
+    return report_drops(covered, frag)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('base')
     ap.add_argument('fragment')
     ap.add_argument('-o', '--out')
+    ap.add_argument('--check-only', action='store_true',
+                    help='report the directives the fragment drops and write nothing; '
+                         'for a caller that performs its own splice')
     args = ap.parse_args()
 
     base = load(args.base)
     frag = load(args.fragment)
+
+    # The invariants below are about splicing, so --check-only skips them: it must
+    # still speak for a fragment this tool would refuse to splice itself.
+    if args.check_only:
+        advice = drop_advice(span_drops(base, frag))
+        if advice:
+            print(advice, file=sys.stderr)
+        return 0
+
     base_blocks = code_blocks(base)
     frag_blocks = code_blocks(frag)
 
@@ -114,9 +195,11 @@ def main():
 
     # Replace each owned block, working high address to low so indices stay valid.
     result = list(base)
+    dropped = 0
     for addr in sorted(frag_blocks, reverse=True):
         bs, be = base_blocks[addr]
         fs, fe = frag_blocks[addr]
+        dropped += report_drops(base[bs:be], frag[fs:fe])
         result[bs:be] = frag[fs:fe]
 
     out = args.out or args.base
@@ -124,6 +207,9 @@ def main():
         f.write('\n'.join(result) + '\n')
     print(f"spliced {len(frag_blocks)} block(s) into {out}: "
           f"{', '.join(str(a) for a in sorted(frag_blocks))}")
+    advice = drop_advice(dropped)
+    if advice:
+        print(advice, file=sys.stderr)
     return 0
 
 
