@@ -700,10 +700,27 @@ $(TAP_FIXED): $(BIN_FIXED)
 # label names — `CALL draw_sprite`, never `CALL $F0A2`.
 THEME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../assets)
 
+# `-a` names the *targets* of calls and jumps, and nothing else: skool2html
+# builds its parser with no asm_mode, so @isub/@ssub and the @equ label map —
+# everything that spells an address as a constant in the ASM — never reach the
+# page. `InitModule` loads the skill's parser wrapper, which parses the skool a
+# second time in ASM mode and copies the operand text across, so the listing and
+# the .asm read alike. A project that needs an InitModule of its own must import
+# this one from it: the last [Config] value wins, and this is passed last.
+#
+# The wrapper parses in the sub mode $(ASM_FIXED_FLAGS) renders the fixed source
+# in, so a project that has opted out of `-s` while it labels the map does not
+# get @ssub operands on the page and not in the file it ships beside.
+# It reads the mode from the environment rather than the command line, so the
+# recipe stays a plain command and make 3.81's shell-less fast path cannot lose a
+# variable assignment prefixed to it (see "The toolchain" above).
+HTML_SUBS := $(SCRIPTS)/html_operand_subs.py
+export SKOOL_HTML_SUB_MODE := $(if $(filter -r,$(ASM_FIXED_FLAGS)),3,$(if $(filter -s,$(ASM_FIXED_FLAGS)),2,1))
+
 html: html/.stamp
 
-html/.stamp: $(SKOOL) $(wildcard *.ref) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js
-	$(SKOOL2HTML) -d html -H -a --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
+html/.stamp: $(SKOOL) $(wildcard *.ref) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS)
+	$(SKOOL2HTML) -d html -H -a -c "Config/InitModule=$(SCRIPTS):html_operand_subs" --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
 	touch $@
 
 clean:
