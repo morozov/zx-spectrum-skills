@@ -90,11 +90,19 @@ These add nothing; leave them bare:
 
 ## The comment never repeats its own operand
 
-With labels rendered into operands everywhere (`.skool`, `.asm`, the site's `CALL erase_door`), an instruction already names and links the thing it touches. A comment that references that same symbol says it twice on one row, and an ellipsis chain hand-splices what a comment group exists for. Both are linted (`OPERAND_ECHO`, `ELLIPSIS`) and gate the coverage verdict.
+An instruction already shows its operand. Where that operand is a label — `.skool`, `.asm`, the site's `CALL erase_door` — it also links the thing it touches. A comment that repeats the operand says it twice on one row. That holds whichever form the operand takes, a symbol or a literal byte. An ellipsis chain hand-splices what a comment group exists for.
 
 > **Bad:** `LD (door_anim_phase),A  ; clear the phase (#R$7F30)...` `CALL erase_door  ; ...and erase the door via #R$8D40.`
 >
 > **Good:** `LD (door_anim_phase),A  ; clear the phase` `CALL erase_door  ; erase the door`
+
+A literal echoes the same way. The color is the fact the row owes the reader; the byte in the parentheses is the operand read back off the same line:
+
+> **Bad:** `LD A,$38  ; Clear the play area to black ink on white paper (attribute $38).`
+>
+> **Good:** `LD A,$38  ; Clear the play area to black ink on white paper.`
+
+The exemptions are the ones the citation rule below already names: a dispatcher's per-case comment, a catalog row, a record's field offset, the range a classifier tests. Each of those is a row whose subject *is* the value, so crossing the byte out leaves the comment saying nothing.
 
 When one thought genuinely spans several instructions, use a `{ }` comment group over exactly those rows — never `...` fragments stitched line to line.
 
@@ -105,6 +113,8 @@ A group is not an exemption. Its text starts on the row that opens it, which is 
 > **Good:** `LD HL,door_map  ; {Clear the door state map: every door starts the level shut.`
 
 `OPERAND_ECHO` reads every row of a group against that row's own operand. What it does *not* forbid is a group naming a routine its span calls a few rows down — that is a paragraph doing its job.
+
+`OPERAND_ECHO` and `ELLIPSIS` gate the coverage verdict, but the check reaches only half of this rule. It matches `#R` references against the addresses in the operand field, so it sees the symbol form and never the literal one. A repeated byte is the author's to not write and the Challenger's to report.
 
 ## The comment never recites a length the listing carries
 
