@@ -25,50 +25,82 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* ── Z80 syntax highlighting ─────────────────────────────────── */
 
-  if (typeof hljs === 'undefined') return;
+  /* The whole tokenizer is here. A built site is a directory of files someone
+     opens from disk, so nothing on a page may wait on a fetch: a page whose
+     <head> script sits on a host that drops packets does not finish loading at
+     all.
 
-  hljs.registerLanguage('z80', function () {
-    return {
-      case_insensitive: false,
-      keywords: {
-        keyword: [
-          'LD', 'LDD', 'LDI', 'LDIR', 'LDDR',
-          'PUSH', 'POP', 'EX', 'EXX',
-          'ADD', 'ADC', 'SUB', 'SBC', 'AND', 'OR', 'XOR', 'CP',
-          'INC', 'DEC', 'DAA', 'CPL', 'NEG', 'CCF', 'SCF',
-          'NOP', 'HALT', 'DI', 'EI', 'IM',
-          'RLCA', 'RRCA', 'RLA', 'RRA',
-          'RLC', 'RRC', 'RL', 'RR', 'SLA', 'SRA', 'SRL', 'SLL',
-          'BIT', 'SET', 'RES',
-          'CALL', 'RET', 'RETI', 'RETN', 'JP', 'JR', 'DJNZ', 'RST',
-          'CPI', 'CPD', 'CPIR', 'CPDR',
-          'INI', 'IND', 'INIR', 'INDR',
-          'OUTI', 'OUTD', 'OTIR', 'OTDR',
-          'IN', 'OUT',
-          'DEFB', 'DEFW', 'DEFM', 'DEFS', 'EQU', 'ORG'
-        ],
-        built_in: [
-          'A', 'B', 'C', 'D', 'E', 'H', 'L', 'I', 'R',
-          'AF', 'BC', 'DE', 'HL', 'IX', 'IY', 'SP', 'PC',
-          'IXH', 'IXL', 'IYH', 'IYL',
-          'NZ', 'Z', 'NC', 'PO', 'PE', 'P', 'M'
-        ]
-      },
-      contains: [
-        { className: 'number',  begin: /\$[0-9A-Fa-f]+/ },
-        { className: 'number',  begin: /%[01]+/ },
-        { className: 'number',  begin: /\b[0-9]+\b/ },
-        { className: 'string',  begin: '"', end: '"' },
-        { className: 'comment', begin: /;/, end: /$/ }
-      ]
-    };
-  });
+     The span class names are highlight.js's — hljs-keyword, hljs-built_in,
+     hljs-number, hljs-string, hljs-comment — because that is the vocabulary
+     theme.css colors and a project stylesheet may extend. */
 
+  var KEYWORDS = new Set([
+    'LD', 'LDD', 'LDI', 'LDIR', 'LDDR',
+    'PUSH', 'POP', 'EX', 'EXX',
+    'ADD', 'ADC', 'SUB', 'SBC', 'AND', 'OR', 'XOR', 'CP',
+    'INC', 'DEC', 'DAA', 'CPL', 'NEG', 'CCF', 'SCF',
+    'NOP', 'HALT', 'DI', 'EI', 'IM',
+    'RLCA', 'RRCA', 'RLA', 'RRA',
+    'RLC', 'RRC', 'RL', 'RR', 'SLA', 'SRA', 'SRL', 'SLL',
+    'BIT', 'SET', 'RES',
+    'CALL', 'RET', 'RETI', 'RETN', 'JP', 'JR', 'DJNZ', 'RST',
+    'CPI', 'CPD', 'CPIR', 'CPDR',
+    'INI', 'IND', 'INIR', 'INDR',
+    'OUTI', 'OUTD', 'OTIR', 'OTDR',
+    'IN', 'OUT',
+    'DEFB', 'DEFW', 'DEFM', 'DEFS', 'EQU', 'ORG'
+  ]);
+
+  var REGISTERS = new Set([
+    'A', 'B', 'C', 'D', 'E', 'H', 'L', 'I', 'R',
+    'AF', 'BC', 'DE', 'HL', 'IX', 'IY', 'SP', 'PC',
+    'IXH', 'IXL', 'IYH', 'IYL',
+    'NZ', 'Z', 'NC', 'PO', 'PE', 'P', 'M'
+  ]);
+
+  /* One pass, longest-first: a comment swallows the rest of the line, a quoted
+     string its own body, and a $/% prefixed literal is claimed before the bare
+     decimal rule can take the digits out of it. A word that is neither mnemonic
+     nor register — a label — matches last and is left unwrapped, so it inherits
+     td.instruction's own color. */
+  var TOKEN = /;[^\n]*|"[^"\n]*"|\$[0-9A-Fa-f]+|%[01]+|[0-9]+|[A-Za-z_][A-Za-z0-9_]*/g;
+
+  function escape(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function tokenClass(text) {
+    var c = text.charAt(0);
+    if (c === ';') return 'comment';
+    if (c === '"') return 'string';
+    if (c === '$' || c === '%' || (c >= '0' && c <= '9')) return 'number';
+    if (KEYWORDS.has(text)) return 'keyword';
+    if (REGISTERS.has(text)) return 'built_in';
+    return null;
+  }
+
+  function highlight(text) {
+    var html = '', last = 0, m;
+    TOKEN.lastIndex = 0;
+    while ((m = TOKEN.exec(text)) !== null) {
+      var cls = tokenClass(m[0]);
+      if (cls) {
+        html += escape(text.slice(last, m.index));
+        html += '<span class="hljs-' + cls + '">' + escape(m[0]) + '</span>';
+        last = m.index + m[0].length;
+      }
+    }
+    return html + escape(text.slice(last));
+  }
+
+  /* Operands that link are already <a> elements, and the byte values and the
+     reference graph were computed before this ran. Only text nodes are
+     rewritten, so nothing here can move a link or an address. */
   document.querySelectorAll('td.instruction').forEach(function (cell) {
     var html = '';
     cell.childNodes.forEach(function (node) {
       if (node.nodeType === Node.TEXT_NODE) {
-        html += hljs.highlight(node.textContent, { language: 'z80', ignoreIllegals: true }).value;
+        html += highlight(node.textContent);
       } else {
         html += node.outerHTML;
       }

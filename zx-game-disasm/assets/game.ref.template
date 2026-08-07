@@ -8,8 +8,30 @@
 RefFiles=graphics.ref;sound.ref;data.ref;notes.ref;glossary.ref
 GameDir=game
 
+; This file is parsed FIRST — before every other project ref and before the
+; skill's theme.ref — so it is the project's own place for the site's defaults.
+; The theme states nothing that belongs here; change any of the lines below and
+; the change takes effect.
 [Game]
 Game={Game Title}
+
+; The theme is opt-in per sheet, and this is where it is opted into. Reorder or
+; drop a name and the site loses that layer: skoolkit.css is SkoolKit's own
+; structural sheet, theme.css is the skill's dark layout, {game}.css is this
+; project's identity and loads last so its rules win.
+StyleSheet=skoolkit.css;theme.css;{game}.css
+
+; Hex page filenames and hex in-page anchors, to match a hex-addressed .ctl —
+; one base everywhere, per references/ctl-authoring.md. Drop both lines for
+; SkoolKit's decimal stock, but drop them together: a hex filename with a
+; decimal anchor is two bases on one URL.
+AddressAnchor={address#IF({base}==16)(:04x)}
+
+; Release= renders under the game title on the index, and Copyright= renders in
+; the footer. Both are hidden while empty, so an unset one reserves no blank
+; band.
+Release=
+Copyright=
 
 ; Index headings group pages on the home page. Each name must match a [Page:...]
 ; or a generated page id.
@@ -25,6 +47,8 @@ Notes
 Glossary
 
 [Paths]
+; The other half of the hex base declared in [Game] above.
+CodeFiles={address:04X}.html
 Graphics=graphics/graphics.html
 Sound=sound/sound.html
 Data=data/data.html

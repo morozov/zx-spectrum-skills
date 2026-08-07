@@ -693,11 +693,28 @@ $(TAP_FIXED): $(BIN_FIXED)
 # Every site ships the skill's default theme: dark responsive layout, the listing
 # in the platform's own monospace face, Z80 syntax highlighting, comment-group
 # hover, and a card-grid index (assets/theme.{ref,css,js}). The theme names no
-# face it does not load — see `references/html-docs.md`. The theme ref is passed
-# before the project's refs, so a project overrides it by restating a parameter and
-# layers its identity by appending its own stylesheet
+# face it does not load — see `references/html-docs.md`. A project layers its
+# identity by appending its own stylesheet to the chain its [Game] declares
 # (StyleSheet=skoolkit.css;theme.css;$(GAME).css). `-a` renders operands as
 # label names — `CALL draw_sprite`, never `CALL $F0A2`.
+#
+# The theme ref is parsed LAST, after every project ref, and last wins. Reading
+# the ref list is built in skool2html.py:183-196: glob($(GAME)*.ref) in the skool
+# file's directory first, with $(GAME).ref forced to the front; then the files
+# named in [Config] RefFiles; then the ref files on the command line. Passing
+# $(REF) after $(THEME)/theme.ref below changes nothing — parse_ref_files skips a
+# path already in the list, and $(GAME).ref entered it in the glob pass.
+#
+# So restating a parameter does NOT override the theme. refparser.py:30-33: a
+# plain [Section] REPLACES what earlier refs built, a [Section+] extends it, and
+# within a dictionary section a later `Key=` overwrites an earlier one. A key
+# theme.ref states in [Game+] or [Paths+] therefore beats the project's value for
+# that key, and a plain [Template:*] in theme.ref cannot be reclaimed at all.
+# theme.ref carries only what is genuinely the theme's own; a default a project
+# should be able to change lives in assets/game.ref.template, which is the
+# project's own file and is parsed first. The one layer that composes rather than
+# clobbers is `-c` (skool2html.py:197, applied after every ref), which is why
+# HTML_JS below appends to the theme's JavaScript instead of replacing it.
 THEME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../assets)
 
 # `-a` names the *targets* of calls and jumps, and nothing else: skool2html
@@ -717,10 +734,22 @@ THEME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../assets)
 HTML_SUBS := $(SCRIPTS)/html_operand_subs.py
 export SKOOL_HTML_SUB_MODE := $(if $(filter -r,$(ASM_FIXED_FLAGS)),3,$(if $(filter -s,$(ASM_FIXED_FLAGS)),2,1))
 
+# [Game] JavaScript is a single key, so a ref file that names theme.js owns the
+# whole slot and a project can ship none of its own. Composing it here instead
+# leaves the slot open: a project lists its scripts in HTML_JS and they load
+# after the theme's.
+#
+#   HTML_JS = maps.js;search.js
+#
+# Name each file in [Resources] (or keep it in the -S search path) so skool2html
+# copies it onto the site.
+HTML_JS ?=
+HTML_JAVASCRIPT := theme.js$(if $(HTML_JS),;$(HTML_JS))
+
 html: html/.stamp
 
-html/.stamp: $(SKOOL) $(wildcard *.ref) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS)
-	$(SKOOL2HTML) -d html -H -a -c "Config/InitModule=$(SCRIPTS):html_operand_subs" --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
+html/.stamp: $(SKOOL) $(wildcard *.ref) $(wildcard *.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS)
+	$(SKOOL2HTML) -d html -H -a -c "Config/InitModule=$(SCRIPTS):html_operand_subs" -c "Game/JavaScript=$(HTML_JAVASCRIPT)" --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
 	touch $@
 
 clean:

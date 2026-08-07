@@ -1,15 +1,15 @@
-; Default site theme for every zx-game-disasm project. skool2html parses the
-; project's own ref before this one, so [Game+] appends the theme baseline
-; without wiping the project's [Game]. This section sets no StyleSheet — each
-; project owns the full chain: StyleSheet=skoolkit.css;theme.css;{game}.css.
-
-[Game+]
-JavaScript=theme.js
-Released=
-AddressAnchor={address#IF({base}==16)(:04x)}
-
-[Paths+]
-CodeFiles={address:04X}.html
+; Default site theme for every zx-game-disasm project.
+;
+; skool2html parses this file LAST, after every project ref, and last wins
+; (skool2html.py:183-196; refparser.py:30-33 for replace-vs-extend). So a key
+; here is not a default a project can restate — it is final, and a plain
+; [Template:*] here cannot be reclaimed at all. This file therefore states only
+; what is genuinely the theme's own: the markup it draws and the assets it ships.
+; Everything a project should be able to change lives in assets/game.ref.template,
+; which is the project's own file and is parsed first — StyleSheet, AddressAnchor,
+; CodeFiles, Release, Copyright are all there. The script slot is composed on the
+; skool2html command line (tools/disassembly.mk, HTML_JS), because `-c` applies
+; after every ref and can append rather than replace.
 
 [Template:Layout]
 <!DOCTYPE html>
@@ -21,7 +21,6 @@ CodeFiles={address:04X}.html
 <# foreach($css,SkoolKit[stylesheets]) #>
 <link rel="stylesheet" type="text/css" href="{$css[href]}" />
 <# endfor #>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
 <# foreach($js,SkoolKit[javascripts]) #>
 <script type="text/javascript" src="{$js[src]}"></script>
 <# endfor #>
@@ -57,11 +56,13 @@ CodeFiles={address:04X}.html
 <# foreach($css,SkoolKit[stylesheets]) #>
 <link rel="stylesheet" type="text/css" href="{$css[href]}" />
 <# endfor #>
+<# foreach($js,SkoolKit[javascripts]) #>
+<script type="text/javascript" src="{$js[src]}"></script>
+<# endfor #>
 </head>
 <body class="{SkoolKit[page_id]}">
 <div class="container">
 <header>
-<div class="eyebrow">{Game[Released]}</div>
 <div class="game-title">{Game[Game]}</div>
 <div class="subtitle">{Game[Release]}</div>
 </header>

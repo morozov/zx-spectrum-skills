@@ -1,3 +1,17 @@
+/* Default site theme for every zx-game-disasm project.
+ *
+ * Every declaration in this file is a default. A project's stylesheet loads
+ * after it and is meant to get its way by ADDING — a variable, a new rule, a
+ * more specific selector. If the only way for a project to get what it wants is
+ * to write `none`, `static`, `auto`, `0`, `unset` or a copy of a rule here in
+ * order to undo it, that declaration is a mandate and a defect: name the
+ * constant in :root and read it at the use site instead.
+ *
+ * The test, for each new declaration: write the line a project would put in
+ * {game}.css to get the opposite. If that line sets a variable or a value, the
+ * declaration is a default — ship it. If it neutralizes, it is not.
+ */
+
 /* ── Reset & variables ───────────────────── */
 
 *, *::before, *::after {
@@ -31,20 +45,78 @@
   --text:        #d6d8dd;
   --text-dim:    #7a8290;
   --border:      #2a2f3a;
+
+  /* The tints and rules the components paint with. These are the same family as
+     the palette above and are named for the same reason: a project that sets
+     --bg to its own game's black and nothing else would otherwise get navy
+     banding on its memory map from a stylesheet that declares no blue. */
+  --tint:        rgba(10, 20, 50, 0.35);   /* zebra row, quiet surface       */
+  --tint-strong: rgba(8, 18, 50, 0.4);     /* the -2 box and list variants   */
+  --hover:       rgba(20, 55, 130, 0.65);  /* link card, contents pill       */
+  --rule:        rgba(22, 36, 72, 0.4);    /* row separator inside a table   */
+  --rule-strong: rgba(22, 36, 72, 0.7);    /* the -2 variants' border        */
+  --code-punct:  #8a9099;                  /* punctuation, unnamed tokens    */
+  --header-bg:   rgba(7, 13, 26, 0.95);
+  --header-blur: blur(10px);
+  --audio-filter: invert(1) hue-rotate(165deg) brightness(0.85);
+
+  /* Layout constants, each named once and read everywhere it applies. The
+     measure lives on body, so the header bar and the reading column share one
+     boundary and a project that changes --measure moves both. --header-height
+     is what an anchor has to clear, and scroll-padding-top computes from it
+     rather than carrying a second number that can disagree. */
+  --measure:       1200px;
+  --index-measure: 720px;
+  --gutter:        32px;
+  --header-height: 80px;
 }
 
 html {
   scrollbar-color: var(--surface-mid) var(--bg);
-  scroll-padding-top: 64px;
+  scroll-padding-top: calc(var(--header-height) + var(--gutter));
+}
+
+/* ── Prose baseline ──────────────────────── */
+
+/* The reset zeroes every element margin, so hand-authored .ref prose would
+   render as one unbroken block whatever elements it emits. These give it a
+   reading rhythm. They come first, so every component below re-states its own
+   spacing and wins on order or specificity. */
+p, ul, ol, blockquote, pre {
+  margin-bottom: 14px;
+}
+
+h1, h2, h3, h4 {
+  margin: 28px 0 10px;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+h1 { font-size: 22px; }
+h2 { font-size: 17px; }
+h3 { font-size: 15px; }
+h4 { font-size: 13px; }
+
+blockquote {
+  padding-left: 14px;
+  border-left: 2px solid var(--border);
+  color: var(--text-dim);
 }
 
 /* ── Body ────────────────────────────────── */
 
+/* body carries the measure, so it is the page's one vertical boundary and every
+   child — the header bar as much as the reading column — sits inside it. A
+   wrapper that capped itself would draw a second boundary, and a project that
+   wants chrome around the whole page (a border, a frame) would have nowhere to
+   hang it that contains both. */
 body {
   background-color: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   min-height: 100vh;
+  max-width: var(--measure);
+  margin: 0 auto;
 }
 
 /* ── Header bar (all non-index pages) ───── */
@@ -55,9 +127,9 @@ table.header {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(7, 13, 26, 0.95);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: var(--header-bg);
+  backdrop-filter: var(--header-blur);
+  -webkit-backdrop-filter: var(--header-blur);
   border-bottom: 1px solid var(--border);
   font-size: inherit;
   font-weight: normal;
@@ -67,13 +139,15 @@ table.header tbody {
   display: block;
 }
 
+/* The bar spans body's content box, and body carries the measure, so the row
+   needs no cap of its own — it inherits the one boundary. Its inset is the same
+   gutter the wrappers below it use, so the logo and the page label start on the
+   reading column's own left edge. */
 table.header tr {
   display: flex;
   align-items: center;
   gap: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 32px;
+  padding: 0 var(--gutter);
 }
 
 table.header td {
@@ -110,32 +184,23 @@ td.page-header {
 /* ── Page content wrapper ────────────────── */
 
 .page-content {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 32px 32px 0;
+  padding: var(--gutter) var(--gutter) 0;
 }
 
 /* ── Index layout ────────────────────────── */
 
+/* The index reads as a single column of links, so it takes a narrower measure
+   than a page of listing. A project that wants one width everywhere sets
+   --index-measure to var(--measure). */
 .container {
-  max-width: 720px;
+  max-width: var(--index-measure);
   margin: 0 auto;
-  padding: 0 32px;
+  padding: 0 var(--gutter);
 }
 
 header {
   padding: 72px 0 48px;
   text-align: center;
-}
-
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 5px;
-  text-transform: uppercase;
-  color: var(--cyan);
-  opacity: 0.7;
-  margin-bottom: 28px;
 }
 
 .game-title {
@@ -155,6 +220,13 @@ header {
   text-transform: uppercase;
   color: var(--text-dim);
   margin-top: 22px;
+}
+
+/* An unset [Game] Release= emits the div anyway. Empty, it is not a line that
+   says nothing — it is 22px of margin above nothing, which reads as a design
+   with a hole in it. */
+.subtitle:empty {
+  display: none;
 }
 
 .divider {
@@ -189,13 +261,11 @@ nav {
   padding-bottom: 72px;
 }
 
+/* A project may re-declare --section-color per section for a game palette. */
 .section {
   --section-color: var(--text-dim);
   margin-bottom: 40px;
 }
-
-/* A project may re-declare --section-color per section for a game palette. */
-.section { --section-color: var(--text-dim); }
 
 .section-label {
   font-family: var(--font-mono);
@@ -251,7 +321,7 @@ nav {
 }
 
 .link-card:hover {
-  background: rgba(20, 55, 130, 0.65);
+  background: var(--hover);
   border-color: var(--section-color);
   color: var(--text);
   transform: translateX(5px);
@@ -326,8 +396,12 @@ div.paragraph {
 
 /* ── Disassembly table ───────────────────── */
 
+/* Columns size to their content and code never wraps — a wrapped instruction
+   reads as two lines. The cap keeps a wide listing inside the measure so only
+   the prose comment column takes up the slack. */
 table.disassembly {
-  width: 100%;
+  width: auto;
+  max-width: 100%;
   border-collapse: collapse;
   font-family: var(--font-mono);
   font-size: 13px;
@@ -381,7 +455,7 @@ td.bytes {
 
 td.instruction {
   font-family: var(--font-mono);
-  color: #8a9099; /* punctuation / unrecognized tokens */
+  color: var(--code-punct);
   vertical-align: top;
   padding: 1px 14px 1px 0;
   white-space: pre;
@@ -504,13 +578,13 @@ table.map th.map-length {
   text-align: center;
 }
 
-table.map tr:nth-child(odd)  td { background: rgba(10, 20, 50, 0.35); }
+table.map tr:nth-child(odd)  td { background: var(--tint); }
 table.map tr:nth-child(even) td { background: rgba(255, 255, 255, 0.04); }
 
 table.map td {
   padding: 7px 16px;
   vertical-align: top;
-  border-bottom: 1px solid rgba(22, 36, 72, 0.4);
+  border-bottom: 1px solid var(--rule);
   font-size: 14px;
 }
 
@@ -583,8 +657,8 @@ div.box-1 {
 }
 
 div.box-2 {
-  background: rgba(8, 18, 50, 0.4);
-  border-color: rgba(22, 36, 72, 0.7);
+  background: var(--tint-strong);
+  border-color: var(--rule-strong);
 }
 
 div.box-title {
@@ -612,7 +686,7 @@ div.list-entry {
 }
 
 div.list-entry-1 { background: rgba(255, 255, 255, 0.035); }
-div.list-entry-2 { background: rgba(8, 18, 50, 0.4); }
+div.list-entry-2 { background: var(--tint-strong); }
 
 div.list-entry-title {
   font-family: var(--font-mono);
@@ -664,7 +738,7 @@ table.default td {
   color: var(--text);
   font-size: 13px;
   padding: 6px 14px;
-  border-bottom: 1px solid rgba(22, 36, 72, 0.35);
+  border-bottom: 1px solid var(--rule);
 }
 
 td.centre { text-align: center; }
@@ -698,17 +772,20 @@ ul.contents li a {
 }
 
 ul.contents li a:hover {
-  background: rgba(20, 55, 130, 0.6);
+  background: var(--hover);
   border-color: var(--cyan);
   color: var(--yellow);
 }
 
 /* ── Images (sprites) ────────────────────── */
 
+/* Chunky 8x8-derived art scales by integer nearest-neighbor, never blurred.
+   crisp-edges first, pixelated second: the later declaration is the one that
+   wins, so the modern keyword has to be the one that lands. */
 img {
   border: 0;
-  image-rendering: pixelated;
   image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 /* ── Audio controls ──────────────────────── */
@@ -720,7 +797,7 @@ audio {
   height: 36px;
   margin: 10px 0;
   accent-color: var(--cyan);
-  filter: invert(1) hue-rotate(165deg) brightness(0.85);
+  filter: var(--audio-filter);
 }
 
 /* ── Links ───────────────────────────────── */
@@ -753,9 +830,15 @@ footer {
   color: var(--text-dim);
 }
 
-footer .release,
-footer .copyright {
+/* [Game] Release= and Copyright= name and credit the site, so a set value has
+   to reach the page. Only the empty slot is hidden. */
+footer .release:empty,
+footer .copyright:empty {
   display: none;
+}
+
+footer .release {
+  color: var(--text);
 }
 
 footer a {
@@ -765,8 +848,6 @@ footer a {
 footer a:hover {
   color: var(--yellow);
 }
-
-table.targets-table td:nth-child(2) { text-align: right; }
 
 /* ── Inline code ─────────────────────────── */
 
@@ -779,7 +860,11 @@ code {
   border-radius: 3px;
 }
 
-a[href*="asm/"] {
+/* A link into the disassembly reads as code. Matching on the path is what
+   SkoolKit's generated markup allows — it puts no class on a #R link — so the
+   match is at least held to a site-relative href, and a third-party URL that
+   happens to contain the same characters is left alone. */
+a:not([href^="http"])[href*="asm/"] {
   font-family: var(--font-mono);
   font-size: 0.88em;
 }
