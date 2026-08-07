@@ -18,12 +18,15 @@ ones a reviewer would otherwise flag by hand:
   - DIARY          investigation vocabulary in reader-facing text ("unverified",
                    "PROVISIONAL", "this pass", "verified live", "under emulation")
                    — type the uncertainty instead, and cite the code, not a run
-  - OPERAND_ECHO   a comment #R-referencing the very address its own
-                   instruction's operand carries — label-rendered operands
-                   already show and link that symbol on the same row. Runs on
+  - OPERAND_ECHO   a comment repeating what its own instruction's operand
+                   already carries — an address it #R-references, or an
+                   immediate it spells out. The row shows the value once
+                   already; saying it again says it twice on one line. Runs on
                    the rows of a '{ }' group too: a group opens on the row
                    carrying the operand its first sentence names, which is where
-                   the worst instance of this defect lives
+                   the worst instance of this defect lives. Rows whose subject
+                   IS the byte are excluded structurally — see
+                   operand_literals()
   - ELLIPSIS       a comment spliced across instructions with '...' — one
                    thought spanning rows is a '{ }' comment group, not chained
                    fragments
@@ -225,19 +228,90 @@ def operand_addresses(operands):
     return addrs
 
 
-OPERAND_ECHO_DETAIL = ('the comment re-references its own operand — the '
-                       'instruction already shows and links that symbol; '
+OPERAND_ECHO_DETAIL = ('the comment repeats its own operand — the row already '
+                       'shows that value, and a label operand links it too; '
                        'say the action, drop the echo')
+
+# The literal half of the same rule. An immediate is as visible on the row as a
+# label is, so a comment repeating it says it twice just the same, and comparing
+# the two is the same string test — nothing here needs judgment.
+#
+# What needs judgment is only which rows are ABOUT their byte, and those are
+# separable structurally, without reading a word of the prose:
+#
+#   - a data directive is the encoding's own definition; the catalog row whose
+#     job is to say that $89 means the shield stops saying anything without it;
+#   - indexed addressing is a record walk, and a record's field offsets are the
+#     interface a reader needs to use the code, not an internal name;
+#   - an arithmetic/logic mnemonic against an immediate is a classifier testing
+#     a value or a dispatcher naming its case, which is where the code IS the
+#     subject.
+#
+# These three are the whole exclusion list, and nothing else needs one. Self-
+# modifying code writing an opcode reads like a fourth — the byte IS the subject
+# at `LD A,$C9` — but an opcode has a name, and naming it clears the row without
+# losing anything: "write the RET opcode over the first byte". A row that looks
+# unclearable is the rule asking for the name of the thing, not for an exemption.
+IMMEDIATE_RE = re.compile(r'\$([0-9A-Fa-f]{2})(?![0-9A-Fa-f])')
+# The same value written the other way round. "Copy 28 tile codes" beside
+# `LD B,$1C` repeats the operand as surely as "$1C" would: the base is a
+# notation, the echo is the value, and a reader who needs the count has it on
+# the row. Excluded to the left: '$' (the hex form, already matched), '+'/'-'
+# (a record offset — "+1" names a field, not a value), and a word character.
+# Excluded to the right: a word character, so "20th" is not a value, and a '.'
+# followed by a digit, so "1.3 kHz" is one number rather than two. A '.' that
+# ends a sentence is not part of the number, so "period: 50." still matches.
+DECIMAL_RE = re.compile(r'(?<![\w$+.-])(\d{1,5})(?![\w])(?!\.\d)')
+INDEXED_RE = re.compile(r'\((I[XY])\s*[-+]')
+DATA_DIRECTIVES = frozenset(('DEFB', 'DEFW', 'DEFM', 'DEFS'))
+CLASSIFIER_MNEMONICS = frozenset((
+    'CP', 'AND', 'OR', 'XOR', 'BIT', 'SET', 'RES', 'SUB', 'ADD', 'ADC', 'SBC'
+))
+
+
+def operand_literals(mnemonic, operands):
+    """Return the immediate values in `operands` whose echo is worth reporting.
+
+    Empty for the three row shapes whose subject is the byte itself, so a
+    catalog row, a record walk and a classifier test are never reported.
+    """
+    m = (mnemonic or '').upper()
+    if m in DATA_DIRECTIVES or m in CLASSIFIER_MNEMONICS:
+        return set()
+    if INDEXED_RE.search(operands):
+        return set()
+    return {int(v, 16) for v in IMMEDIATE_RE.findall(operands)}
+
+
+def comment_literals(comment):
+    """Return the values a comment spells out, in either base.
+
+    Values, not spellings. The base is a notation and the echo is the value, so
+    "28" beside `LD B,$1C` restates the row exactly as "$1C" would.
+
+    A decimal that looks like a false positive is usually the rule biting. The
+    repair for `LD D,$64  ; start period $64 (100)` is not "start period 100" —
+    that is still the operand, in the other base. It is the intent, or the
+    derived fact the row cannot show: "~660 Hz". See "Derived facts stay,
+    restatements go" in `references/comment-style.md`.
+    """
+    values = {int(v, 16) for v in IMMEDIATE_RE.findall(comment)}
+    values.update(int(v) for v in DECIMAL_RE.findall(comment))
+    return values
 
 
 def echo_rows(rows):
-    """Return the rows whose comment #R-references an address that same row's
-    operand carries.
+    """Return the rows whose comment repeats something that same row's operand
+    already carries — an address it #R-references, or an immediate it spells out.
 
-    `rows` is a list of (lineno, line, comment, operand_addresses): one row for a
-    lone instruction, and every row of a '{ }' comment group. The test is
-    row-local because the defect is: the reader sees the symbol twice, side by
-    side, on one line of the page.
+    `rows` is a list of (lineno, line, comment, operand_addresses,
+    operand_literals): one row for a lone instruction, and every row of a '{ }'
+    comment group. The test is row-local because the defect is: the reader sees
+    the value twice, side by side, on one line of the page.
+
+    Both halves are one rule and one string test. The symbol half compares a
+    resolved #R against the addresses in the operand field; the literal half
+    compares a bare $XX against the immediates. Neither reads the prose.
 
     Scoping it to the whole group instead — every #R in the group's text against
     every operand anywhere under it — reports the prose doing its job. A group
@@ -252,12 +326,13 @@ def echo_rows(rows):
     over-reports, which is the side a gating check has to err on.
     """
     hits = []
-    for lineno, line, comment, addrs in rows:
-        for cm in COMMENT_REF_RE.finditer(comment):
-            ref = (cm.group('hex') or f"{int(cm.group('dec')):04X}").upper()
-            if ref in addrs:
-                hits.append((lineno, line))
-                break
+    for lineno, line, comment, addrs, literals in rows:
+        echoed = any(
+            (cm.group('hex') or f"{int(cm.group('dec')):04X}").upper() in addrs
+            for cm in COMMENT_REF_RE.finditer(comment)
+        ) or bool(comment_literals(comment) & literals)
+        if echoed:
+            hits.append((lineno, line))
     return hits
 
 
@@ -427,7 +502,8 @@ def scan(path):
             if in_group or opens:
                 operands0 = parts0[1] if len(parts0) > 1 else ''
                 group_rows.append((lineno, line.strip(), comment_body(comment),
-                                   operand_addresses(operands0)))
+                                   operand_addresses(operands0),
+                                   operand_literals(parts0[0], operands0)))
             if opens:
                 in_group = True
             if '}' in comment:
@@ -483,7 +559,9 @@ def scan(path):
             # close_group() already reads it; only an ungrouped row is checked.
             if not in_group:
                 for echo_lineno, echo_text in echo_rows(
-                        [(lineno, line.strip(), comment, operand_addresses(operands))]):
+                        [(lineno, line.strip(), comment,
+                          operand_addresses(operands),
+                          operand_literals(mnemonic, operands))]):
                     add(echo_lineno, 'OPERAND_ECHO', echo_text, OPERAND_ECHO_DETAIL)
             stripped = comment.strip()
             if stripped.startswith(('...', '…')) or stripped.endswith(('...', '…')):

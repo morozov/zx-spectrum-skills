@@ -4,11 +4,15 @@ The reassembly is mechanical. The documentation is the craft. This file is about
 
 ## The one principle
 
-**Every comment must add information the code cannot show on its own.** The instruction already says *what* it does. Your job is the *why* — the game rule, the formula, the constraint, the consequence. If a comment only restates the instruction, delete it; a redundant comment is noise, and a stale one actively misleads.
+**A comment translates the instruction into intent. It never restates what the instruction already says.**
+
+The reader needs the higher-level concept the assembly encodes, not the assembly read back in words. `face left (direction 3)` restates; `face left toward the player` is the intent. `Select enemy 2 (active_enemy = 1)` restates; `Select the second enemy` is the intent. `8 pixel rows per character cell` restates; walking the cell's rows is the intent. A redundant comment is noise, and a stale one misleads.
+
+**The one exception.** Go below intent only when the mechanism is a non-trivial algorithm or trick a reader cannot reconstruct by looking — the overlapping-`LDIR` fill (seed one byte, then copy it onto the next), the `(Y AND $F8)*4` shift, a jump table indexed by a doubled code, a self-modifying jump target, a byte serving as both delay and loop count. Explain the *method* there. Even then, do not recite operand values. If the mechanism is trivial — a counted loop, a flag write, a heading set — quoting the implementation is noise.
 
 The litmus test: could a reader who knows the Spectrum but not this game rewrite the routine in C from your comments alone? If yes, the documentation is doing its job. If the comments just narrate opcodes, it is not.
 
-A second reader is an ML agent's trainer, who needs the game's state, actions, dynamics, and reward in concrete units. That is a sharper subset of the same work — both readers consume the behavior spec in `references/behavior-spec.md`. The practical effect on your comments: when a routine touches game state, motion, scoring, or fuel/lives, prefer numbers to adjectives. "1 pixel/frame", "awards 80 points", "depletes 1 unit every 8 frames" are trainable facts; "moves slowly", "scores some points", "uses fuel" are not.
+This file governs the disassembly. The concrete numbers a porter or an ML agent's trainer needs — speeds, periods, point values, the MDP's state, actions, dynamics and reward — are the behavior spec's, not a line comment's: none of them is visible from a single instruction, which is what makes them a spec. See `references/behavior-spec.md`.
 
 **Bad** — restates the instruction:
 
@@ -114,7 +118,9 @@ A group is not an exemption. Its text starts on the row that opens it, which is 
 
 `OPERAND_ECHO` reads every row of a group against that row's own operand. What it does *not* forbid is a group naming a routine its span calls a few rows down — that is a paragraph doing its job.
 
-`OPERAND_ECHO` and `ELLIPSIS` gate the coverage verdict, but the check reaches only half of this rule. It matches `#R` references against the addresses in the operand field, so it sees the symbol form and never the literal one. A repeated byte is the author's to not write and the Challenger's to report.
+`OPERAND_ECHO` and `ELLIPSIS` gate the coverage verdict, and the check reads both halves of this rule: a `#R` reference against the addresses in the operand field, and a bare `$XX` against its immediates. One is no less decidable than the other — both compare a string on the row with a string in the comment, and neither reads the prose.
+
+What it does not report is the row whose subject *is* the byte, and those are separated by the row's shape rather than its wording: a data directive, a walk through `(IX+d)`/`(IY+d)`, an arithmetic or logic mnemonic against an immediate. Catalog, record and dispatcher, in that order. What survives is the residue no structural signal reaches — self-modifying code writing `$C9` and calling it the RET opcode — and that is the Challenger's, because excluding it would mean keying on the prose.
 
 ## The comment never recites a length the listing carries
 
@@ -168,9 +174,23 @@ Two things the rule does not reach. **A platform encoding** — port `$FE`, opco
 
 The same shape in `graphics.ref`: 19 of the 40 lines carrying a `$XX` are `#TABLE` rows. A check firing there deletes nothing — it reports — but what it reports is the entries that define the encoding, in all three of the forms blessed a dozen lines above: the catalog row, the `N` note that states the code range, the dispatcher's per-case comment. Each comes back as a finding to dismiss by hand.
 
-## Decimal equivalents
+## Derived facts stay, restatements go
 
-Give a decimal equivalent only for a value that means something in the human world — a level number, an iteration count, a pixel distance — not for memory addresses. `$7A26` as an address stays hex; `$0F` as "15 lives" earns its `(15)`.
+This is the line authors struggle with, because both look like "a number in a comment" and only one of them earns its place.
+
+A **restatement** is the operand in other words — the same value, converted or not. `$64` written as `100`, `$1C` written as `28`, `$0F` written as `15 lives`. The base is a notation; the echo is the value. The row already carries it, so a comment carrying it again says it twice on one line. Writing it in decimal is not a repair, and the check compares values for exactly that reason.
+
+A **derived fact** is a conversion the row cannot show: what the value *means* once the hardware or a game rule is applied to it. In `Period 200 = ~660 Hz pitch`, the `~660 Hz` is derived and stays; the `200` is the operand and goes. Same for `~18 ms`, `columns 9-22`, `y 38`. A reader cannot reach any of those by looking at the row, which is the whole test.
+
+So the repair for a flagged number is never the other base. It is the intent, or the derived fact:
+
+> **Bad:** `LD D,$64  ; Tone 1: start period $64 (100), 10 cycles.`
+>
+> **Still bad:** `LD D,$64  ; Tone 1: start period 100, 10 cycles.`
+>
+> **Good:** `LD D,$64  ; Tone 1: the higher, shorter of the blip's two rising sweeps (~660 Hz).`
+
+A memory address never takes a decimal equivalent at all: `$7A26` as an address stays hex.
 
 ## Documenting the non-obvious
 
