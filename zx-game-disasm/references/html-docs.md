@@ -176,18 +176,6 @@ So a key `theme.ref` states in `[Game+]` beats the project's value for that key,
 
 That is why `theme.ref` holds nothing but those templates: `StyleSheet`, `AddressAnchor`, `CodeFiles`, `Release` and `Copyright` all live in `assets/game.ref.template`, which is parsed first and is the project's own file. The one layer that composes rather than clobbers is `-c` (`skool2html.py:197` in SkoolKit 10.1, applied after every ref), which is how the framework appends a project's own scripts to the theme's — `HTML_JS` in `tools/disassembly.mk`.
 
-**A project `.ref` that names neither key gets decimal pages.** Without `CodeFiles` and `AddressAnchor` in the project's own `.ref`, SkoolKit's decimal stock applies to both, and nothing warns: the build succeeds with `asm/16384.html` where `asm/4000.html` would be, which also breaks every external link into the site. Copy these into the project's own `.ref` — the whole block, or neither line, since a hex filename with a decimal anchor is two bases on one URL:
-
-```
-[Game]
-AddressAnchor={address#IF({base}==16)(:04x)}
-
-[Paths]
-CodeFiles={address:04X}.html
-```
-
-`Release=`, `Copyright=` and the `StyleSheet` chain belong in the project's own `.ref` too, but a missing `StyleSheet` chain fails visibly — an unstyled page is its own warning, while the address base is not.
-
 ### What the theme ships
 
 **Every site gets the skill's default theme** — the framework's `html` target passes `assets/theme.ref` (with `assets/theme.css` and `assets/theme.js`) and builds with `-H -a`. The stylesheet is the one part a project opts into by name, because SkoolKit's `StyleSheet` is a single ordered chain and only the project can own it; `assets/game.ref.template` declares that chain, so a site started from the template has it. By default every disassembly ships with:
