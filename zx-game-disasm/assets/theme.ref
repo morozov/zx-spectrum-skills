@@ -8,7 +8,7 @@ JavaScript=theme.js
 Released=
 AddressAnchor={address#IF({base}==16)(:04x)}
 
-[Paths]
+[Paths+]
 CodeFiles={address:04X}.html
 
 [Template:Layout]
@@ -54,7 +54,9 @@ CodeFiles={address:04X}.html
 <title>{Game[Game]}: {SkoolKit[title]}</title>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<link rel="stylesheet" type="text/css" href="theme.css" />
+<# foreach($css,SkoolKit[stylesheets]) #>
+<link rel="stylesheet" type="text/css" href="{$css[href]}" />
+<# endfor #>
 </head>
 <body class="{SkoolKit[page_id]}">
 <div class="container">
