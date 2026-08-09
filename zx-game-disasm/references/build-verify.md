@@ -109,7 +109,7 @@ Also read the version. A gate that passed under a SkoolKit other than the one `r
 The `.ctl` checks all run whatever any one of them reports, and the verdict names every check that failed with its own finding count:
 
 ```
-GATE FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] — 3 of 11 checks failed, 60 finding(s): lint-publication 30, lint-byte-counts 20, lint-array-elements 10. The log accounts for 10 of the gate's 11 checks — no sweep reports the other 1, so they did not run. That count is a floor, not the distance to green. Every finding is above in full, not tailed. Full log: build/make.log.
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] — 3 of 12 checks failed, 60 finding(s): lint-publication 30, lint-byte-counts 20, lint-array-elements 10. The log accounts for 11 of the gate's 12 checks — no sweep reports the other 1, so they did not run. That count is a floor, not the distance to green. Every finding is above in full, not tailed. Full log: build/make.log.
 ```
 
 That is the line to quote and to store. `1 check failed, 30 findings` and `3 checks failed, 60 findings` are different amounts of work, and a bare RED, or a verdict naming only the first check make happened to reach, cannot tell them apart. Make halts at the first prerequisite that fails, which is why `lint` runs its checks in its own recipe rather than listing them as prerequisites: with them listed, the gate stops at the first check that fails, and the findings of every check after it never reach the verdict.
@@ -120,7 +120,7 @@ That is the line to quote and to store. `1 check failed, 30 findings` and `3 che
 
 Four clauses appear when they apply, and each is there because its absence would make the count read as more than it is:
 
-- **`The log accounts for N of the gate's 11 checks`** — no sweep reported the rest, so they did not run. The count in front of that clause is a **floor**. Clear the named checks and re-run before planning against it.
+- **`The log accounts for N of the gate's M checks`** — no sweep reported the rest, so they did not run. The count in front of that clause is a **floor**. Clear the named checks and re-run before planning against it.
 - **`(could not run)`** against a check, where a count would be — the check exited a way it does not define, so it was called wrongly or died before it could report. It has no finding count, and that is not a finding count of zero.
 - **`(crashed)`** — the check printed a traceback. It exits the same way a check with findings does, so it is caught by its output rather than its status; what is above it is a stack trace, not work.
 - **`(count unread)`** — the check failed and printed no count the gate could read. Its findings are in the output above; the total does not include them.
@@ -134,7 +134,7 @@ GATE FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] — the build failed bef
 That order is a sequential order only. Under `-j` — which nobody has to type, an inherited `MAKEFLAGS=-j4` is enough — `test`, `lint` and `html` are siblings, so a full sweep of findings can complete after `cmp` has already failed. Both are then in the log, and the gate leads with the build:
 
 ```
-GATE FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] — the build itself failed (test), which is what to fix first: a finding count is a distance to green only over a tree that builds. 1 of 11 checks failed, 3 finding(s): lint-label-length 3. The build's last 40 log lines are above, then every finding in full. Full log: build/make.log.
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] — the build itself failed (test), which is what to fix first: a finding count is a distance to green only over a tree that builds. 1 of 12 checks failed, 3 finding(s): lint-label-length 3. The build's last 40 log lines are above, then every finding in full. Full log: build/make.log.
 ```
 
 `(test)` is the failing target make named. Read that clause first and stop planning against the counts after it: they were measured over a tree that does not build.
@@ -163,13 +163,13 @@ The digest is taken from file contents, never from `git rev-parse`. The skill is
 `lint-baseline.txt` carries the same marker in its header, written by `make lint-baseline`, and the gate compares the two. When they differ the verdict says so, on a pass and on a failure both:
 
 ```
-GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — 1 of 11 checks failed, 4 finding(s): lint-array-elements 4. … Full log: build/make.log. lint-baseline.txt was recorded under gate 1/e70342a, so a finding this gate reports and that one did not is the gate moving, not this commit regressing — see the gate-boundary rule in references/build-verify.md.
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — 1 of 12 checks failed, 4 finding(s): lint-array-elements 4. … Full log: build/make.log. lint-baseline.txt was recorded under gate 1/e70342a, so a finding this gate reports and that one did not is the gate moving, not this commit regressing — see the gate-boundary rule in references/build-verify.md.
 ```
 
 A tree with **no** `lint-baseline.txt` gets its own clause, on a failure only — a commit that predates the baseline fails that way, and on a pass the absence is the right default for a new disassembly rather than something worth saying:
 
 ```
-GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — 4 of 11 checks failed, 50 finding(s): lint-data-structure 10, lint-publication 20, lint-names 10, lint-byte-counts 10. … Full log: build/make.log. There is no lint-baseline.txt in this tree, so this run accepted nothing — a commit that predates the project's baseline fails a gating check the way a regression does; see the gate-boundary rule in references/build-verify.md.
+GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — 4 of 12 checks failed, 50 finding(s): lint-data-structure 10, lint-publication 20, lint-names 10, lint-byte-counts 10. … Full log: build/make.log. There is no lint-baseline.txt in this tree, so this run accepted nothing — a commit that predates the project's baseline fails a gating check the way a regression does; see the gate-boundary rule in references/build-verify.md.
 ```
 
 That clause is the difference between a red gate you investigate and one you can place in a sentence. Read it before reading the findings: **a red gate whose baseline was recorded under a different gate, or which has no baseline where the project has one, is not evidence about the commit.** It is also what makes the wrong fix unattractive — regenerating the baseline so the live gate passes bakes a different gate's checks into this project's accepted debt.
@@ -198,7 +198,7 @@ This is a sanctioned use of a worktree. A *Worker* still never gets one, see `re
 
 `checkout -qf` is load-bearing. Plain `checkout` refuses only when the switch would *overwrite* a modified tracked file; where the file is byte-identical in both commits it carries the modification along silently, so the loop builds content that is in no commit and reports the verdict against a sha. A failed gate can leave the tree modified, which is exactly when someone runs this — and it fails in both directions: an edit that breaks the build reports every sha RED, one that fixes it reports a genuinely red commit green.
 
-**Keep the verdict line, not just the red or the green.** The verdict is the last line the gate writes to stdout — make's own `*** Error 2` goes to stderr, which is why the loop drops stderr rather than folding it in — and it names the SkoolKit and the gate the run used, reports a baseline recorded under a different one, and carries the failing checks with their finding counts. A stored `RED: 4cf467a` is uninterpretable a week later; a stored `4cf467a  GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — 3 of 11 checks failed, 60 finding(s): … recorded under gate 1/e70342a …` places itself, and a column of those lines is a backlog rather than a tally of reds. The denominator holds still across the column — it is the gate's 11, not the number of checks a given run reached — so two lines differ only where the tree differs.
+**Keep the verdict line, not just the red or the green.** The verdict is the last line the gate writes to stdout — make's own `*** Error 2` goes to stderr, which is why the loop drops stderr rather than folding it in — and it names the SkoolKit and the gate the run used, reports a baseline recorded under a different one, and carries the failing checks with their finding counts. A stored `RED: 4cf467a` is uninterpretable a week later; a stored `4cf467a  GATE FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] — 3 of 12 checks failed, 60 finding(s): … recorded under gate 1/e70342a …` places itself, and a column of those lines is a backlog rather than a tally of reds. The denominator holds still across the column — it is the gate's own total, not the number of checks a given run reached — so two lines differ only where the tree differs.
 
 The `${verdict:-…}` default covers the worst case, which is the one the loop must not print blank: a commit whose tree cannot build at all — no `Makefile` yet, or one that does not `include` the framework — writes no verdict line, and the run would otherwise report a sha and nothing beside it. `NO VERDICT (make could not run)` says the loop reached that commit and the commit had no gate to run, which is a different thing from failing one.
 
@@ -224,7 +224,7 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 
 ## The linters
 
-`make` runs ten `.ctl` linters (also runnable standalone as `make lint`, or from `scripts/`):
+`make` runs these `.ctl` linters, among other checks (also runnable standalone as `make lint`, or from `scripts/`):
 
 - `validate_ctl_address_order.py` — directives in ascending address order, and no two entry heads on one address. Equal addresses are ordinary between an `@`, an entry head and its `D`; between two entry heads they give the first a size of zero, which drops it out of every check that measures a block's extent.
 - `validate_ctl_instruction_order.py` — at one address: `@` → block type → `D` → `N` → `R` → line comment.
@@ -237,9 +237,9 @@ The framework builds *two* variants to keep this honest: a `non-fixed` source wh
 - `validate_ctl_byte_counts.py` — no instruction comment recites a byte count the listing already carries.
 - `validate_ctl_array_elements.py` — every record of an array is annotated individually.
 
-The first four exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff. The last six are content checks, and they carry a baseline — see below.
+The first four exist because a `.ctl` that drifts out of order still *builds* but produces confusing diffs and makes `sna2skool` output unstable. Keeping the file canonical means a one-line documentation change shows up as a one-line diff. The later ones are content checks, and they carry a baseline — see below.
 
-`make lint` runs all ten whatever any one of them reports, and ends on a summary line — `LINT FAIL: 3 of 10 checks failed, 60 finding(s): …` — which is what the gate's verdict is built from. The `10` there is what this sweep covered; the verdict re-states the same failure against the gate's own 11. Each is also its own target (`make lint-publication`) for working one check at a time. `make lint-images` is the eleventh check and stands apart because it reads the built site rather than a text file, so it runs after `make html`; its summary line has the same shape and the verdict counts it with the rest.
+`make lint` runs all of them whatever any one of them reports, and ends on a summary line — `LINT FAIL: <failed> of <swept> checks failed, <n> finding(s): …` — which is what the gate's verdict is built from. `<swept>` is what this sweep covered; the verdict re-states the same failure against the gate's own total. Each is also its own target (`make lint-publication`) for working one check at a time. `make lint-images` stands apart because it reads the built site rather than a text file, so it runs after `make html`; its summary line has the same shape and the verdict counts it with the rest.
 
 `make` then runs one more check that is not a `.ctl` linter at all, because its subject is the built site:
 
@@ -481,26 +481,37 @@ It records that kind's findings and nothing else — a key of any other kind in 
 
 `fixtures/baseline-monotonic.sh` is the regression: it adopts two checks, introduces a finding at a new address and a second finding at an address the file already lists, and asserts both are refused with the file untouched; it rewords a message and clears the finding and asserts both are accepted; then it clears the check's last line and asserts that `--adopt` on that now-empty section is still refused, which is the case the header exists for.
 
-### The comment-quality pre-filter (advisory)
+### The comment-quality check
 
-`make lint-comments` runs `scripts/lint_comments.py` over the generated `.skool` and flags three mechanical comment defects a green build never catches: a comment on a bare `RET`, a comment that only restates the instruction, and a placeholder label (`work_b`, `helper_8e3a`, `L5B50`). The same command takes the `.ref` catalogs and `spec/*.md` and sweeps them for investigation and emulator vocabulary ("verified live", "under emulation", "not fully pinned") — those pages reach the same reader as the `.skool`, and an unswept one is where a claim sourced from a run survives. It also counts `OPEN`: the typed uncertainty markers (`(unverified)`, `TODO:`) that are *correct* where they stand and say the work behind them is unfinished — `make coverage` keeps a project short of the bar while any remain. It is **advisory** — outside the `make` gate — because a flag is a prompt to review, and a `RET` note occasionally carries a real return-state contract that an expert keeps. The Challenger runs it and decides.
+`make lint-comments` runs `scripts/lint_comments.py` over the generated `.skool` and flags the mechanical comment defects a green build never catches: a comment on a bare `RET`, a comment that only restates the instruction, a placeholder label (`work_b`, `helper_8e3a`, `L5B50`), and a `{ }` group whose span crosses an act boundary (`GROUP_SPLIT`, `GROUP_ENTRY` — below).
 
-It is deliberately small. The two checks that matter most are not scriptable and are the Challenger's responsibility, not the linter's:
+**Its precise kinds gate**, in the `make` sweep, held against `lint-baseline.txt` like every other gating check: `RET_GROUP`, `SELFLINK`, `DIARY`, `OPERAND_ECHO`, `ELLIPSIS`, `GROUP_SPLIT`, `GROUP_ENTRY`, `OPEN`. The judgment-call kinds — `RET`, `RESTATE`, `PLACEHOLDER`, `REFPOINTER`, `STAMP` — print a one-line tally and never fail; `--advisory` lists them, which is what the standalone target passes.
 
-- whether a comment adds what the code cannot show (needs comprehension), and
-- whether a multi-line `{ }` comment spans *exactly* the instructions it describes — the comment text is word-wrapped across the grouped lines, so the checks that read one instruction skip the rows carrying a brace and leave their span to an expert reading. A group's interior rows carry none, so those are read like any other row.
+It gates because an advisory check is one nothing runs, and the claim of compliance is then made by a gate that never looked at it. Adopting it on a mature project is the documented one-time step — `make lint-baseline` after a `--adopt`, see "Adopting a check for the first time" — and from there the recorded entry only shrinks. The same command takes the `.ref` catalogs and `spec/*.md` and sweeps them for investigation and emulator vocabulary ("verified live", "under emulation", "not fully pinned") — those pages reach the same reader as the `.skool`, and an unswept one is where a claim sourced from a run survives. It also counts `OPEN`: the typed uncertainty markers (`(unverified)`, `TODO:`) that are *correct* where they stand and say the work behind them is unfinished — `make coverage` keeps a project short of the bar while any remain. A flag from an advisory kind is a prompt to review, not a defect: a `RET` note occasionally carries a real return-state contract that an expert keeps. The Challenger reads those and decides.
+
+It is deliberately small. The check that matters most is not scriptable and is the Challenger's responsibility, not the linter's: whether a comment adds what the code cannot show, and whether its sentence accounts for everything its span does. Both need comprehension. The per-instruction checks skip the rows carrying a brace, whose text is word-wrapped across the group and authored on none of them; a group's interior rows carry no brace and are read like any other row.
+
+Where a group's span *ends* is a separate question, and it is decidable, because the control flow answers it. `GROUP_SPLIT` reports a group spanning an unconditional transfer — control leaves there, so the rows below carry the sentence of an act they are not part of. `GROUP_ENTRY` reports a group whose interior is jumped to from outside its span, where a reader arriving by that jump meets a sentence about instructions that never ran. Both exempt what the code shows to be one act: a conditional early-out abandons an act rather than starting one, and a jump landing back inside the span is that span's own loop. Both are derived rather than chosen.
+
+The laws read the brace-delimited span, not the paragraph. A mid-block `;` note ("This entry point is used by …") breaks a group for the per-row checks, whose text it is not part of — but the braces still span it, and so does the sentence on the page. Reading the paragraph instead would blind `GROUP_ENTRY` at exactly the rows it exists to judge, since such a note sits directly above the `*` row.
 
 `OPERAND_ECHO` is the exception, and it has to be: a group opens on the row that carries the operand its first sentence names, which is where an echo like `LD HL,tile_map ; {Clear … (tile_map)` lives, and skipping the brace-carrying rows would miss every echo on a row that opens or closes a group. It runs per row — each row's `#R` against that row's own operand — not per group. Widening it to the whole span, every reference against every operand under it, would report a group comment naming a routine its span calls, which is a paragraph doing its job, not a duplicate.
+
+`fixtures/group-span.skool` is the constructed case for the two span laws, with both findings and the near misses that must stay silent — an unconditional jump back to a span's own top, a branch target reached only from inside, a conditional early-out. Run `scripts/lint_comments.py fixtures/group-span.skool`: exactly one `GROUP_SPLIT` at `$8005` and one `GROUP_ENTRY` at `$EC22`.
 
 Relocatability (a raw address in a comment) is not re-checked here: `skool2asm --create-labels` already emits "Comment contains address …" and the build fails on it, which is both authoritative and more precise than a regex.
 
 ### The coverage report — the "is it done?" gauge
 
-`make coverage` runs `scripts/coverage_report.py` and answers the question a green build cannot: *how close is this to the documentation bar?* A green, fully-labeled project is **breadth**; this measures **depth**. It reports, per code routine, whether the body is *explained* (commented at the right altitude), *skeletal* (a description over a bare body — the breadth-only trap that gets mislabeled "mature"), or *bare*. It also gauges the **catalog and audio**: how many catalog entries are still identified by an auto-label (`f9440`) rather than named; whether the game has sound code (speaker writes) but no `#AUDIO`; and the `#TABLE` and placeholder-label counts. A draft catalog or unrendered sound fails the gauge as surely as skeletal code does.
+`make coverage` runs `scripts/coverage_report.py` and answers the question a green build cannot: *how close is this to the documentation bar?* A green, fully-labeled project is **breadth**; this measures **depth**. It reports, per code routine, whether the body is *explained* (every basic block spoken to), *skeletal* (a description over blocks nothing explains — the breadth-only trap that gets mislabeled "mature"), or *bare*. It also gauges the **catalog and audio**: how many catalog entries are still identified by an auto-label (`f9440`) rather than named; whether the game has sound code (speaker writes) but no `#AUDIO`; and the `#TABLE` and placeholder-label counts. A draft catalog or unrendered sound fails the gauge as surely as skeletal code does.
 
 It **auto-discovers** the project's `.ctl` and *every* `.ref` file beside the skool, and prints what it scanned — so the catalog and audio counts never read as zero just because a caller forgot to pass `graphics.ref` or the project splits its sections across differently-named ref files. Catalog and audio content is found by **section type** (`[Graphic:]`, `[Audio:]`, `#AUDIO`, `#UDGARRAY`) wherever it lives; the filenames (`graphics.ref`, `sound.ref`) are a convention, not a requirement. So `coverage_report.py <game>.skool` alone gives the full picture; a missing-file false negative is not possible.
 
-It counts **code only**: data blocks (the loading screen, level data, tables) are excluded, because data is documented by labels and native devices, not line comments — so the figure is not an average over code and data. Line density is shown only as a rough cross-check, never as the bar; the real signal is the fraction of routines with an explained body. The Manager runs this before reporting completion, and does not call a project mature while it says otherwise (see `references/roles/manager.md`). Whether each comment is *correct* and the catalogs and spec *complete* remains the Challenger's call.
+It counts **code only**: data blocks (the loading screen, level data, tables) are excluded, because data is documented by labels and native devices, not line comments — so the figure is not an average over code and data.
+
+**The unit is the basic block, and the bar on bare ones is zero.** A block is a stretch of straight-line code a reader can arrive at, cut at every branch target and after every transfer, so the code supplies the count and no ratio has to be picked. That matters because a line ratio cannot see altitude: a `{ }` group credits every line it spans, so a whole routine under one sentence scores 100%, and two projects with the same line density can differ widely in comment units per block. Line density is printed as a cross-check and nothing more.
+
+The report also prints **comment units per block**, which is where a project's real altitude shows: the floor is a minimum, and the bar sits above it, because a block of unrolled rows still gets a comment per control code. The Manager runs this before reporting completion, and does not call a project mature while it says otherwise (see `references/roles/manager.md`). Whether each comment is *correct* and the catalogs and spec *complete* remains the Challenger's call.
 
 #### The verdict answers for what the gate knows
 

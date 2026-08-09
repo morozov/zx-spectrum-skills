@@ -47,6 +47,20 @@ A single-instruction comment earns its place only when that one instruction carr
 
 **Derive a routine once; author the contract and the mechanism together.** As you derive the routine, write the body's mechanism comments, and write the `D` contract from the same understanding — purpose and contract at the top, the algorithm in the body, both produced in the one pass so they cannot drift apart. Never derive a routine in full, discard the understanding, and keep only a summary: a later pass then has to re-derive it in full, and the orphaned summary can silently contradict what that second derivation finds.
 
+## How much one comment may cover: the code decides
+
+A comment covers **one act**, and the act's boundaries are not a matter of taste or of line count — the control flow draws them. Three laws follow, and none of them carries a number:
+
+1. **A comment never spans an unconditional transfer of control.** Control leaves at that `JP`/`JR`, so the rows below it are a second act wearing the first one's sentence. A *conditional* branch is different and stays inside: an early-out abandons the act rather than beginning another, which is why "check the slot; return if empty" is one comment over both rows. A jump back to the span's own top is that span's loop, and a loop is one act.
+2. **A comment group is entered only at its first instruction.** If another path jumps into the middle of the span, the reader arriving that way is handed a sentence about instructions that never ran.
+3. **Every basic block carries a comment.** A block is a stretch a reader can arrive at; arriving somewhere and being told nothing is the defect. The bar is zero bare blocks, the same shape as the bar on auto-labels.
+
+**This is your monotony exemption, and you get it for free.** A long unrolled run — thirty rows of shift, a copy chain, a table of stores — has no branches, so it is one block, and one comment is the correct answer for all of it. Any rule phrased as lines-per-comment punishes exactly that code and lets a catch-all sentence over a branching routine pass. Compare a long routine under a single one-sentence comment that spans many basic blocks with an unrolled shift of similar length that spans one. The first is the defect, the second is right, and only a control-flow rule tells them apart.
+
+The laws are a floor, not a target. A block can carry more than one comment unit. A run of alternating `LD A,n` / `RST $10` rows is one block, so one comment would be legal; cut it into one comment per control code, because repetition of *shape* is not repetition of *meaning*. Write for the acts, then check the laws.
+
+`lint_comments.py` enforces the first two as `GROUP_SPLIT` and `GROUP_ENTRY`, and `make coverage` enforces the third — a routine is *explained* when no block in it is bare. A line-density figure can read the same for a disassembly averaging two comments per block and one averaging less than one. What no check reaches is a long single-entry, single-exit run whose one sentence is too thin for it: nothing structural separates it from a legitimate unrolled span, so it stays the Challenger's read.
+
 ## One home per fact
 
 Every fact gets exactly one home; everywhere else, link or stay silent.
@@ -213,7 +227,7 @@ The comments that matter most capture what a reader could never reconstruct:
 
 The bar is *depth*, far past a routine-level one-liner pass: nearly every code routine has an explained body, sound is rendered with `#AUDIO`, and data tables are laid out with `#TABLE`. Concretely:
 
-- **every routine's body is explained**, at the right altitude — most instructions carry a game-term comment, the rest are covered by a block comment, and `RET` and well-named calls stay bare. A routine with a description but a bare body is *skeletal*: that is breadth — a name and a summary — not done.
+- **every routine's body is explained**, at the right altitude — every basic block spoken to, no comment spanning an act boundary (see "How much one comment may cover"), and `RET` and well-named calls left bare. A routine with a description but blocks nothing explains is *skeletal*: that is breadth — a name and a summary — not done.
 - unique addresses replaced by symbolic constants; ambiguous small literals explained in the instruction's comment, not forced into a global constant (see `references/ctl-authoring.md` on `@equ`);
 - every variable and table named — no raw hex, no `work_b`/`helper_xxxx` placeholders;
 - sound documented with `#AUDIO`, bitfields and tables with `#TABLE`;
@@ -221,7 +235,7 @@ The bar is *depth*, far past a routine-level one-liner pass: nearly every code r
 
 The last bullet above is the sharp one: calling out a questionable original decision is not the same as admitting your own uncertainty — the former requires understanding the code completely.
 
-`scripts/coverage_report.py` (`make coverage`) measures the floor — the fraction of routines with an explained body, plus audio/table/placeholder gaps — so "is it done?" is a measured claim, not an impression. It counts code only; data blocks (loading screen, level data) are documented by labels and native devices, not line comments, so they are excluded. A skeletal-heavy project is not mature, however green the build.
+`scripts/coverage_report.py` (`make coverage`) measures the floor — the basic blocks that carry no comment, the comment units per block, plus audio/table/placeholder gaps — so "is it done?" is a measured claim, not an impression. It counts code only; data blocks (loading screen, level data) are documented by labels and native devices, not line comments, so they are excluded. A skeletal-heavy project is not mature, however green the build.
 
 **These principles are the bar — no project defines it.** Any existing disassembly, including one built with this skill, falls short of some principle somewhere; that is a defect in the project, queued for its upgrade — never a precedent. "Project X does it too" is not a defense. Judge by the rule.
 

@@ -30,6 +30,12 @@ ones a reviewer would otherwise flag by hand:
   - ELLIPSIS       a comment spliced across instructions with '...' — one
                    thought spanning rows is a '{ }' comment group, not chained
                    fragments
+  - GROUP_SPLIT    a '{ }' comment group spanning an unconditional transfer of
+                   control — control leaves the span there, so what follows is
+                   a second act wearing the first one's sentence
+  - GROUP_ENTRY    a '{ }' comment group whose interior is jumped to from
+                   outside the span — a reader arriving by that jump is handed
+                   a sentence about instructions that never ran
   - REFPOINTER     a comment pointing the reader at a `.ref` index file
   - OPEN           a typed uncertainty marker ("(unverified)", "TODO:") — the one
                    legitimate way to leave a doubt in the text, and a standing
@@ -39,11 +45,17 @@ ones a reviewer would otherwise flag by hand:
                    once at the family head
 
 This is deliberately a *small, high-precision* pre-filter, not the review. The
-checks that matter most are not scriptable and belong to the Challenger:
+check that matters most is not scriptable and belongs to the Challenger:
 
-  - whether a comment adds what the code cannot show (needs comprehension), and
-  - whether a multi-line '{ }' comment spans exactly the instructions it
-    describes (needs an expert reading of the routine).
+  - whether a comment adds what the code cannot show, and whether its sentence
+    accounts for everything the span does (both need comprehension).
+
+Where a group's span *ends* is a different question, and the code answers it:
+GROUP_SPLIT and GROUP_ENTRY hold a group to one act by reading the control flow,
+not the prose. Both are derived from the code, not chosen. What they cannot see
+is a long single-entry, single-exit run whose one sentence is too thin for it;
+that stays the Challenger's, because nothing structural separates it from a
+legitimate unrolled span.
 
 Relocatability (raw addresses in comments) is already covered, and more
 precisely, by `skool2asm --create-labels` ("Comment contains address …"), which
@@ -61,12 +73,46 @@ reader, so DIARY runs over them too — any non-.skool argument is scanned line 
 line for that vocabulary alone. The `.skool` was linted and the `.ref` files were
 not, which is exactly where runtime-sourced claims accumulated.
 
-Usage: lint_comments.py <file.skool> [prose-file …]
-Exit 0 if clean, 1 if any violation is found.
+The gating kinds are held against the project's `lint-baseline.txt` like every
+other gating check, so a mature project records the findings it starts with and
+the gate fails on a new one. The advisory kinds print and never fail.
+
+Usage: lint_comments.py <file.skool> [prose-file …] [--baseline FILE] [--write-baseline]
+Exit 0 when no unbaselined gating finding stands, 1 otherwise.
 """
 
+import argparse
+import os
 import re
 import sys
+
+import ctl_baseline
+
+CHECK = 'comments'
+
+# The kinds that gate. Each is a precise detection of an always-wrong pattern —
+# no judgment call sits between the finding and the defect — so each belongs in
+# the build's own lint sweep, held against `lint-baseline.txt` like every other
+# gating check. The rest (RET, RESTATE, REFPOINTER, STAMP, PLACEHOLDER) are
+# prompts to review: a STAMP can be a legitimate formula over a genuinely
+# templated reality, and a RET note can carry a real return-state contract, so
+# they print and do not fail.
+#
+# An advisory finding prints and fails nothing, so findings pile up while the
+# gate reports every check clean. A check worth writing is worth gating; the
+# baseline is what makes gating survivable on a mature project.
+GATING_KINDS = frozenset((
+    'RET_GROUP', 'SELFLINK', 'DIARY', 'OPERAND_ECHO', 'ELLIPSIS',
+    'GROUP_SPLIT', 'GROUP_ENTRY', 'OPEN',
+))
+
+# The finding's own row carries its address, so the baseline key is that address
+# rather than the line number the module warns against. A prose finding has no
+# address — a `.ref` catalog line is not a directive — so it keys on its file and
+# the term that matched, the same shape `validate_prose_names.py` uses and for
+# the same reason: the phrase is the identity.
+ROW_ADDRESS_RE = re.compile(r'^\*?\$?([0-9A-Fa-f]{4})\b')
+QUOTED_TERM_RE = re.compile(r"\('([^']+)'\)")
 
 # An instruction line: an optional control char, $ADDR, the instruction, then
 # the comment column. Control char is one of c/b/t/w/s/g/i (block start),
@@ -121,6 +167,64 @@ RUNTIME_HIT_RE = re.compile(
     r'(verified|confirmed|observed|measured|reproduced|replayed|watched)'
     r'\s+(live|in play)'
 )
+
+# The two structural laws over a '{ }' group's span. A comment covers one act,
+# and the code says where an act ends: control leaving the span ends it, and a
+# jump into the middle of the span means two paths share one sentence.
+#
+# An unconditional JP/JR — and `JP (HL)`, whose target no static read knows — is
+# where an act ends, always. A *conditional* branch is not: an early-out abandons
+# the act rather than beginning another, which is why "check X; exit if not" is
+# one comment over both rows. A jump back to the span's own top is the span's own
+# loop, and a loop is one act; that exemption is computed from the target, not
+# assumed. A bare RET inside a group is RET_GROUP's finding, so it is not
+# reported twice here.
+UNCOND_JUMP_RE = re.compile(
+    r'(?i)^(JP|JR)\s+(?!(?:NZ|Z|NC|C|PO|PE|P|M)\s*,)(?P<target>.+)$')
+UNCOND_RETURN_RE = re.compile(r'(?i)^(RETI|RETN)\s*$')
+# Every instruction that names a target: the edges of the control-flow graph the
+# two laws read. CALL is an edge for GROUP_ENTRY (a called address is entered
+# from outside) but never a cut for GROUP_SPLIT — a call comes back.
+BRANCH_TARGET_RE = re.compile(r'(?i)^(JP|JR|DJNZ|CALL)\s+(?P<target>.+)$')
+ADDRESS_OPERAND_RE = re.compile(r'\$(?P<hex>[0-9A-Fa-f]{4})\b|\b(?P<dec>\d{5})\b')
+
+GROUP_SPLIT_DETAIL = (
+    "a '{{ }}' comment group spans '{}' — control leaves the span here, so the "
+    'rows below it are a second act carrying the first one\'s sentence. Close '
+    'the group on this instruction and open the next one below it')
+GROUP_ENTRY_DETAIL = (
+    "a '{{ }}' comment group is entered at this row from outside its span "
+    '({}) — a reader arriving by that jump is handed a sentence about '
+    'instructions that never ran. Close the group before this row')
+
+
+def operand_target(operands, label_addrs):
+    """Return the address a branch operand names, as uppercase hex, or None.
+
+    Both notations count, and a label operand resolves through the .skool's own
+    `@label` map, so a project built with labels is read the same as one built
+    with addresses.
+    """
+    m = ADDRESS_OPERAND_RE.search(operands)
+    if m:
+        if m.group('hex'):
+            return m.group('hex').upper()
+        return f'{int(m.group("dec")):04X}'
+    name = operands.split(',')[-1].strip()
+    return label_addrs.get(name)
+
+
+def group_split_row(instr, group_addrs, label_addrs):
+    """True when this instruction ends the act its group is describing."""
+    m = UNCOND_JUMP_RE.match(instr)
+    if UNCOND_RETURN_RE.match(instr):
+        return True
+    if not m:
+        return False
+    target = operand_target(m.group('target'), label_addrs)
+    # `JP (HL)` resolves to nothing, so it can never be the span's own back-edge.
+    return target not in group_addrs
+
 
 # A comment that sends the reader to a `.ref` index instead of carrying the fact
 # (or its rendered macro) where the reader already is. Scoped to the .skool: a
@@ -435,11 +539,39 @@ def scan(path):
         if line.strip() and not line.startswith('@'):
             pending_label = None
 
+    # Pre-pass: the control-flow edges, for GROUP_ENTRY. Every branch and call in
+    # the file, by target, so a group can ask whether one of its interior rows is
+    # reached from outside its own span. Built over the whole .skool, not the
+    # routine: the jump that makes a group's middle a second entrance usually
+    # comes from another block.
+    label_addrs = {name: addr for addr, name in labels.items()}
+    edges = {}
+    for raw in lines:
+        im = INSTR_RE.match(raw.rstrip('\n'))
+        if not im:
+            continue
+        code, _ = split_comment(im.group('body'))
+        bm = BRANCH_TARGET_RE.match(code.strip())
+        if not bm:
+            continue
+        target = operand_target(bm.group('target'), label_addrs)
+        if target:
+            edges.setdefault(target, set()).add(im.group('addr').upper())
+
     # Block-comment paragraphs (consecutive ';' lines), for the STAMP check.
     units = []
     para_lineno, para_text = None, []
     in_group = False  # inside an open '{ }' instruction-comment group
     group_rows = []   # the open group's (lineno, line, comment, operand addresses)
+    # The same rows again, as {lineno, line, addr, ctrl, instr}, but tracked from
+    # the braces alone. A mid-block ';' note (SkoolKit's "This entry point is
+    # used by …") breaks a group for the per-row checks, whose text it is not
+    # part of — but the brace pair still spans it, and so does the sentence on
+    # the page. The two structural laws have to read that real span, or they go
+    # blind at exactly the rows they exist to judge: an entry-point note sits
+    # directly above the '*' row GROUP_ENTRY is about.
+    in_span = False
+    span_ins = []
 
     def close_para():
         nonlocal para_lineno, para_text
@@ -453,6 +585,29 @@ def scan(path):
         for lineno, text in echo_rows(group_rows):
             add(lineno, 'OPERAND_ECHO', text, OPERAND_ECHO_DETAIL)
         group_rows = []
+
+    def close_span():
+        """Apply the two structural laws to the completed brace-delimited span.
+
+        Both need the span whole — whether a jump is this span's own back-edge,
+        and whether an entry point is reached from outside it, are questions
+        about the set of addresses the span covers — so neither can run per row.
+        """
+        nonlocal span_ins
+        span_addrs = {row['addr'] for row in span_ins}
+        for row in span_ins[:-1]:
+            if group_split_row(row['instr'], span_addrs, label_addrs):
+                add(row['lineno'], 'GROUP_SPLIT', row['line'],
+                    GROUP_SPLIT_DETAIL.format(row['instr']))
+        for row in span_ins[1:]:
+            if row['ctrl'] != '*':
+                continue
+            outside = sorted(edges.get(row['addr'], set()) - span_addrs)
+            if outside:
+                add(row['lineno'], 'GROUP_ENTRY', row['line'],
+                    GROUP_ENTRY_DETAIL.format(
+                        ', '.join('$' + a for a in outside[:3])))
+        span_ins = []
 
     for i, raw in enumerate(lines):
         line = raw.rstrip('\n')
@@ -485,6 +640,8 @@ def scan(path):
             close_para()
             in_group = False        # a group cannot span a non-instruction line
             close_group()
+            in_span = False         # a blank line is an entry boundary
+            close_span()
 
         if comment is None:
             continue
@@ -504,11 +661,19 @@ def scan(path):
                 group_rows.append((lineno, line.strip(), comment_body(comment),
                                    operand_addresses(operands0),
                                    operand_literals(parts0[0], operands0)))
+            if in_span or opens:
+                span_ins.append({'lineno': lineno, 'line': line.strip(),
+                                 'addr': im.group('addr').upper(),
+                                 'ctrl': im.group('ctrl'),
+                                 'instr': instr.strip().rstrip(';').strip()})
             if opens:
                 in_group = True
+                in_span = True
             if '}' in comment:
                 in_group = False
                 close_group()
+                in_span = False
+                close_span()
         else:
             in_group = False        # a block-comment line breaks any group
             close_group()
@@ -571,6 +736,7 @@ def scan(path):
 
     close_para()
     close_group()
+    close_span()
     for lineno, phrase, count in find_stamps(units):
         add(lineno, 'STAMP', f'"{phrase[:100]}…"' if len(phrase) > 100 else f'"{phrase}"',
             f'phrase stamped across {count} block comments — write it once at '
@@ -582,36 +748,87 @@ def scan(path):
     return violations
 
 
+def token(finding):
+    """The baseline's third field for one finding: an address, or file:term."""
+    m = ROW_ADDRESS_RE.match(finding[2].lstrip())
+    if m:
+        return f'${m.group(1).upper()}'
+    term = QUOTED_TERM_RE.search(finding[3])
+    slug = re.sub(r'[ _-]+', '-', term.group(1).lower()) if term else finding[1].lower()
+    return f'{os.path.basename(finding[4])}:{slug}'
+
+
 def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} <file.skool> [prose-file …]")
-        return 1
+    parser = argparse.ArgumentParser(
+        description='Lint comment quality in a generated .skool and the prose '
+                    'deliverables beside it.')
+    parser.add_argument('paths', nargs='+', help='the .skool, then any prose files')
+    parser.add_argument('--advisory', action='store_true',
+                        help='list the advisory findings, not just their counts')
+    ctl_baseline.add_arguments(parser)
+    args = parser.parse_args()
 
-    total = 0
-    for path in sys.argv[1:]:
+    findings = []
+    for path in args.paths:
         try:
-            violations = scan(path) if path.endswith('.skool') else scan_prose(path)
+            scanned = scan(path) if path.endswith('.skool') else scan_prose(path)
         except FileNotFoundError:
-            print(f"Error: File not found: {path}")
+            print(f'Error: File not found: {path}')
             return 1
-        if not violations:
-            continue
-        total += len(violations)
+        findings += [v + (path,) for v in scanned]
 
-        by_kind = {}
-        for v in violations:
-            by_kind.setdefault(v[1], []).append(v)
+    gating = [f for f in findings if f[1] in GATING_KINDS]
+    advisory = [f for f in findings if f[1] not in GATING_KINDS]
 
-        print(f"{path}: {len(violations)} comment-quality violation(s):")
-        for kind in sorted(by_kind):
-            items = by_kind[kind]
-            print(f"\n[{kind}] {len(items)}")
-            for lineno, _, text, detail in items:
-                print(f"  Line {lineno}: {detail}")
-                print(f"    {text}")
+    if args.write_baseline:
+        if not args.baseline:
+            print('Error: --write-baseline needs --baseline', file=sys.stderr)
+            return 2
+        ctl_baseline.report_write(
+            args.baseline, CHECK,
+            *ctl_baseline.write(args.baseline, CHECK, gating, [], token_of=token))
+        return 0
+
+    new, held, stale = ctl_baseline.partition(
+        args.baseline, CHECK, gating, [],
+        report_stale=not args.ignore_stale, token_of=token)
+
+    def by_kind(items):
+        groups = {}
+        for v in items:
+            groups.setdefault(v[1], []).append(v)
+        return groups
+
+    # `Found <n> …` is the sweep's contract: `lint_sweep.sh` reads the count back
+    # out of this line, and a failing check whose count it cannot parse is
+    # reported as unreadable rather than as zero. The advisory tally must not
+    # start that way — it is not a finding count the gate is entitled to add.
+    if new:
+        print(f'Found {len(new)} comment defect(s):')
+        for kind, items in sorted(by_kind(new).items()):
+            print(f'\n[{kind}] {len(items)}')
+            for lineno, _, text, detail, path in items:
+                print(f'  {os.path.basename(path)}:{lineno}: {detail}')
+                print(f'    {text}')
         print()
+    elif not held and not stale:
+        print('comments: no gating comment defect')
 
-    return 1 if total else 0
+    if advisory:
+        tally = ', '.join(f'{len(v)} {k}' for k, v in sorted(by_kind(advisory).items()))
+        print(f'  advisory, not gated: {tally}'
+              + ('' if args.advisory else '  — run `lint_comments.py … --advisory`'
+                                          ' for the list'))
+        if args.advisory:
+            for kind, items in sorted(by_kind(advisory).items()):
+                print(f'\n[{kind}] {len(items)}')
+                for lineno, _, text, detail, path in items:
+                    print(f'  {os.path.basename(path)}:{lineno}: {detail}')
+                    print(f'    {text}')
+            print()
+
+    ctl_baseline.report(args.baseline, CHECK, held, stale)
+    return 1 if new or stale else 0
 
 
 if __name__ == '__main__':

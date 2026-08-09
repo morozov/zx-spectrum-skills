@@ -1,0 +1,47 @@
+; The two structural laws over a '{ }' comment group's span, with the near
+; misses that must stay silent.
+;
+; Expected, and nothing else:
+;   GROUP_SPLIT at $EC05 — the group spans a JR whose target is outside it.
+;   GROUP_ENTRY at $EC22 — an interior row of the group is jumped to from $EC2C.
+;
+; Silent by construction: the unconditional JR at $EC17 lands back on its own
+; span's top, so it is that span's loop; the branch target at $EC19 is reached
+; only from inside; and the conditional RET at $EC21 abandons the act rather
+; than starting another.
+
+@label=split_span
+c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
+ $EC02 LD ($FC00),A   ;
+ $EC05 JR $EC0B       ;
+ $EC07 XOR A          ;
+ $EC08 LD ($FC01),A   ; }
+; This entry point is used by the routine at #R$EC00.
+@label=split_span_tail
+*$EC0B RET            ;
+
+@label=internal_loop
+c$EC0C LD B,$08       ; {Blank the slot bytes, then mark the pool idle.
+ $EC0E LD HL,$FC00    ;
+*$EC11 LD (HL),$00    ;
+ $EC13 INC HL         ;
+ $EC14 DEC B          ;
+ $EC15 JR Z,$EC19     ;
+ $EC17 JR $EC11       ;
+*$EC19 LD ($FC02),A   ; }
+ $EC1C RET            ;
+
+@label=early_out
+c$EC1D LD A,($FC00)   ; {Fire only while the slot is armed.
+ $EC20 OR A           ;
+ $EC21 RET Z          ;
+; This entry point is used by the routine at #R$EC28.
+@label=fire_shot
+*$EC22 LD A,$02       ;
+ $EC24 LD ($FC02),A   ; }
+ $EC27 RET            ;
+
+@label=other_caller
+c$EC28 LD A,($FC01)   ; {Fire from the other path.
+ $EC2B OR A           ;
+ $EC2C JP $EC22       ; }

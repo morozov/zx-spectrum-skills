@@ -15,7 +15,7 @@ Each role is a caller-side contract in `references/roles/`. The Manager is the m
 | **Worker** | subagent with edit access | one scoped target, derived + self-validated | `roles/worker.md` |
 | **Challenger** | read-only subagent | the commit gate; per-claim verdicts | `roles/challenger.md` |
 
-Code-quality is split: a mechanical linter (`make lint-comments`, advisory and outside the `make` gate — the Challenger runs it) plus the Challenger's semantic judgment.
+Code-quality is split: a mechanical linter (`make lint-comments`, whose precise kinds gate the build against the baseline and whose judgment-call kinds only report) plus the Challenger's semantic judgment.
 
 To spawn a role, direct the agent to read its brief and add the scoped task. The briefs are self-contained, so a spawned agent needs nothing else but the target and the project paths.
 

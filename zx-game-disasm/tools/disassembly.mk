@@ -398,7 +398,8 @@ test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 # every such line it finds — so a verdict counts every check even though they ran
 # in two places.
 LINT_CHECKS = address-order instruction-order lengths label-length identity \
-              data-structure publication names byte-counts array-elements
+              data-structure publication names byte-counts array-elements \
+              comments
 
 # Every check the gate holds a project to: the sweep's, plus the one that runs
 # after the site is built. The gate compares this against the number of checks the log
@@ -589,6 +590,8 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	[ $$refused -eq 0 ] || { echo "make lint-baseline: a check refused to record a key $(BASELINE) does not list, so it keeps what it said — the gate still fails on the finding."; exit $(BASELINE_REFUSED); }
 	@$(stamp_baseline_gate)
 
@@ -609,13 +612,21 @@ CHECK_array-elements = $(SCRIPTS)/validate_ctl_array_elements.py $(CTL) --baseli
 lint-array-elements: $(CTL)
 	$(CHECK_array-elements)
 
-# Advisory comment-quality pre-filter (RET / RESTATE / PLACEHOLDER / SELFLINK /
-# OPERAND_ECHO / ELLIPSIS / DIARY / REFPOINTER / STAMP). Advisory, so it is not in the default `make` gate
-# — run it on demand. The Challenger consults it; a flag is a prompt to review,
-# not necessarily a build failure (a STAMP can be a legitimate formula over a
-# genuinely templated reality). The checks that matter most — does a comment add
-# what the code can't show, does a multi-line comment span the right
-# instructions — are the Challenger's, not scriptable.
+# Comment quality. The kinds `scripts/lint_comments.py` lists in GATING_KINDS
+# gate, held against $(BASELINE) like every other gating check; the rest print a
+# tally and never fail, since a judgment call such as a STAMP can be a
+# legitimate formula over a genuinely templated reality.
+#
+# Advisory is how a defect ships: nothing runs the check, and the claim of
+# compliance is made by the gate that never looked. The baseline is what lets it
+# gate on day one — a mature project adopts the check, records what it already
+# fails, and the gate holds that line while the file shrinks.
+#
+# GROUP_SPLIT and GROUP_ENTRY are the half of the comment-span question the
+# control flow decides: a group may not span an unconditional transfer, and may
+# not be entered anywhere but its first row. The half left over — does the
+# comment add what the code can't show, and does its sentence account for the
+# whole span — is the Challenger's, not scriptable.
 #
 # The catalogs and the spec pages are passed too: they reach the same reader as
 # the .skool, so the DIARY sweep covers them. An unswept .ref is where a claim
@@ -623,13 +634,16 @@ lint-array-elements: $(CTL)
 REFS  = $(wildcard *.ref)
 PROSE = $(REFS) $(wildcard spec/*.md)
 
+CHECK_comments = $(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) \
+    --baseline $(BASELINE)
 lint-comments: $(SKOOL)
-	$(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE)
+	$(CHECK_comments) --advisory
 
 # Advisory documentation-coverage report — the "is it done?" gauge. Shows the
-# fraction of routines with an explained body, inline-graphics/naming/relocatability
-# signals, and audio/table/placeholder gaps. A green build is breadth; maturity
-# requires this to clear the floor.
+# basic blocks that carry no comment (the bar is zero), the comment units per
+# block, inline-graphics/naming/relocatability signals, and audio/table/
+# placeholder gaps. A green build is breadth; maturity requires this to clear the
+# floor.
 #
 # It also reads the two things the *gate* knows — the baseline it holds and the
 # images the build wrote — so the gauge cannot call a project done while the gate

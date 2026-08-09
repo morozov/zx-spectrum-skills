@@ -4,30 +4,34 @@ Measure how far a disassembly is from the documentation bar — so "is it done?"
 is a measured claim, not an impression.
 
 A green build and a label on every routine is *breadth*, not depth. The bar is a
-comment on ~40% of instructions, every
-sound effect rendered with #AUDIO, data tables laid out with #TABLE, and no
-placeholder labels. An agent must not call a project "mature"/"done" while this
-report shows it far below the bar.
+comment on every basic block, every sound effect rendered with #AUDIO, data
+tables laid out with #TABLE, and no placeholder labels. An agent must not call a
+project "mature"/"done" while this report shows it far below the bar.
 
 Reports, from the generated .skool (plus the .ctl and .ref files when given):
 
-  - LINE DENSITY   % of real instructions (not DEFB/DEFW/...) carrying a comment,
-                   overall and as a count of code routines below the threshold.
-                   The default target is 35%.
-  - SUMMARY-ONLY   code routines that have a description/title but almost no
-                   line-level comments — the "breadth done, depth not done" trap.
+  - BLOCKS         basic blocks in code routines, how many carry no comment, and
+                   the comment units per block. The block is the unit because the
+                   code defines it — no ratio is chosen — and because a routine
+                   is documented by being cut into acts, not by hitting a line
+                   count. The bar on bare blocks is zero.
+  - LINE DENSITY   % of real instructions carrying a comment. Kept as a
+                   cross-check and nothing more: it cannot see altitude. One
+                   sentence over a whole routine and a comment on every block
+                   can read the same.
   - AUDIO          #AUDIO count; a game with sound and zero #AUDIO is undocumented.
   - DATA TABLES    #TABLE count (the bar lays bitfields/tables out as #TABLE).
   - PLACEHOLDERS   @label values that name nothing (work_b, helper_8e3a, L5B50).
   - PROSE          the lint_comments counts, over the .skool and over the .ref
-                   catalogs and spec/*.md beside it. RET_GROUP / SELFLINK /
-                   DIARY / OPERAND_ECHO / ELLIPSIS are precise detections of
-                   always-wrong patterns, so they gate the verdict; OPEN gates it
-                   too, for the opposite reason — the marker is right where it
-                   stands, and it says the claim under it is not derived yet.
-                   STAMP / RET / RESTATE are advisory (a formula can be
-                   legitimate). This is how a project built under older
-                   requirements surfaces its gap to the current bar.
+                   catalogs and spec/*.md beside it. The kinds in
+                   `lint_comments.GATING_KINDS` are precise detections of
+                   always-wrong patterns, so they gate the build; OPEN, among
+                   them, gates for the opposite reason — the marker is right
+                   where it stands, and it says the claim under it is not
+                   derived yet. STAMP / RET / RESTATE / REFPOINTER /
+                   PLACEHOLDER are advisory (a formula can be legitimate). This
+                   is how a project built under older requirements surfaces its
+                   gap to the current bar.
   - IMAGES         the files the image macros name, against the files the build
                    actually wrote under html/. Counting macros is only a proxy:
                    a macro can name a file the build never wrote.
@@ -56,7 +60,7 @@ The `.ctl` and every `.ref` beside the skool are auto-discovered (catalog/audio
 content is found by section type wherever it lives, under any filename), so just
 point it at the skool. `--ctl`/`--ref` override the discovery.
 
-Usage: coverage_report.py <file.skool> [--ctl FILE] [--ref FILE ...] [--min-density 0.35]
+Usage: coverage_report.py <file.skool> [--ctl FILE] [--ref FILE ...]
 """
 
 import argparse
@@ -65,6 +69,13 @@ import sys
 
 INSTR_RE = re.compile(r'^(?P<ctrl>[ cbtwsgi*])\$(?P<addr>[0-9A-Fa-f]{4}) (?P<body>.*)$')
 DATA_MNEMONIC = re.compile(r'^\s*(DEFB|DEFW|DEFM|DEFS)\b')
+# What ends a basic block: any transfer of control, conditional or not. The
+# conditional ones count here and not in the linter's GROUP_SPLIT, because the
+# two ask different questions. GROUP_SPLIT asks whether one sentence is claiming
+# two acts, and an early-out abandons an act rather than starting one. This asks
+# what a reader can arrive at, and the row after a conditional branch is a place
+# they arrive, so it owes a sentence of its own.
+BLOCK_END = re.compile(r'(?i)^(JP|JR|DJNZ|RET)\b')
 LABEL_RE = re.compile(r'^@label=(?P<label>\S+)\s*$')
 PLACEHOLDER_LABEL_RE = re.compile(
     r'(?i)^(l|loc|sub|loop|data|byte|word|var|tmp|temp|work|helper|routine|'
@@ -90,13 +101,20 @@ def comment_of(body):
 
 
 def analyze(skool):
-    """Walk the .skool into code routines, counting instructions and comments.
+    """Walk the .skool into code routines, counting blocks, comments and units.
 
     Only `c` (code) entry blocks are counted; `b`/`t`/`w`/`s`/`g` data blocks (the
     loading screen, level data, tables, ...) are excluded entirely, as are DEF*
     data sub-blocks inside code. Data is documented by structure, labels, and
     native devices (#UDGARRAY/#TABLE/#AUDIO), not by per-line comments, so it does
     not belong in a line-density figure.
+
+    The unit that decides whether a body is explained is the **basic block**, not
+    the line: cut at every branch target and after every instruction that ends
+    one. The code supplies the boundaries, so no ratio has to be picked. A run of
+    unrolled work is one block and one comment answers it; a routine that
+    branches eight times has eight places a reader can arrive, and each owes a
+    sentence.
     """
     routines = []
     cur = None
@@ -104,6 +122,20 @@ def analyze(skool):
     desc_text = False                       # did `;`-comment text precede this entry?
     in_group = False                        # inside an open `{ }` block comment
     placeholders = []
+    block_covered = False                   # has the current basic block a comment?
+    group_id = 0
+
+    def end_block():
+        """Close the basic block under the cursor and score it."""
+        nonlocal block_covered
+        if cur is None or not cur['open_block']:
+            return
+        cur['blocks'] += 1
+        if not block_covered:
+            cur['bare_blocks'] += 1
+        cur['open_block'] = False
+        block_covered = False
+
     with open(skool, encoding='utf-8', errors='ignore') as f:
         for raw in f:
             line = raw.rstrip('\n')
@@ -124,9 +156,11 @@ def analyze(skool):
                 continue
             ctrl, addr, body = m.group('ctrl'), m.group('addr'), m.group('body')
             if ctrl in 'cbtwsgi':           # a new entry block starts here
+                end_block()
                 if ctrl == 'c':
                     cur = {'name': pending_label or f'${addr}', 'instr': 0,
-                           'cmt': 0, 'desc': desc_text}
+                           'cmt': 0, 'desc': desc_text, 'blocks': 0,
+                           'bare_blocks': 0, 'units': set(), 'open_block': False}
                     routines.append(cur)
                 else:
                     cur = None              # data block — not a code routine
@@ -137,20 +171,40 @@ def analyze(skool):
                 continue
             if DATA_MNEMONIC.match(body.split(';')[0]):
                 continue                    # SMC data sub-block inside code: skip
+            if ctrl == '*':                 # a branch target starts a basic block
+                end_block()
             # A `{ }` block comment documents its whole span at the right altitude,
             # so credit every instruction inside a text-bearing group, not just the
             # opening line — otherwise the gauge penalizes the comment style the
             # skill recommends (state a formula once; leave the arithmetic bare).
+            # A block under such a group counts as spoken to for the same reason:
+            # the sentence is on the page beside every row it spans. Whether it is
+            # the *right* sentence for a block in the middle of it is a different
+            # question, and the linter's two span laws are the ones that ask it —
+            # a group reaching past an act boundary is GROUP_SPLIT's finding, not
+            # a silent subtraction here. What this count catches is the block no
+            # comment reaches at all, which is a reader arriving and being told
+            # nothing. The `units` set keeps the two apart: a ten-block group is
+            # one unit, so the units-per-block figure falls as spans widen.
             raw = comment_raw(body)
             text = raw.replace('{', '').replace('}', '').strip()
             covered = bool(text) or in_group
             if '{' in raw and (text or in_group):
+                if not in_group:
+                    group_id += 1
                 in_group = True
+            if covered:
+                cur['units'].add(('g', group_id) if in_group else ('l', addr))
             if '}' in raw:
                 in_group = False
             cur['instr'] += 1
+            cur['open_block'] = True
             if covered:
                 cur['cmt'] += 1
+                block_covered = True
+            if BLOCK_END.match(body.split(';')[0].strip()):
+                end_block()
+        end_block()
     return routines, placeholders
 
 
@@ -159,7 +213,6 @@ def main():
     ap.add_argument('skool')
     ap.add_argument('--ctl')
     ap.add_argument('--ref', action='append', default=[])
-    ap.add_argument('--min-density', type=float, default=0.35)
     ap.add_argument('--reloc-floor', type=lambda s: int(s, 0), default=0x5B00,
                     help='lowest game-owned address; raw operands at/above it must be labels (default $5B00)')
     ap.add_argument('--baseline',
@@ -238,28 +291,37 @@ def main():
     diary = prose.get('DIARY', 0)
     op_echo = prose.get('OPERAND_ECHO', 0)
     ellipsis = prose.get('ELLIPSIS', 0)
+    group_split = prose.get('GROUP_SPLIT', 0)
+    group_entry = prose.get('GROUP_ENTRY', 0)
     stamp = prose.get('STAMP', 0)
     # A typed uncertainty marker is legitimate text and unfinished work at the
     # same time: it says a claim is not derived yet, so it holds the project
     # short of the bar until the dig-task behind it lands.
     open_markers = prose.get('OPEN', 0)
-    prose_hard = ret_group + selflink + diary + op_echo + ellipsis
+    prose_hard = (ret_group + selflink + diary + op_echo + ellipsis
+                  + group_split + group_entry)
 
-    # The honest unit is the routine, not the averaged line. A routine's body is
-    # "explained" when it carries comments at roughly the right altitude — a low
-    # bar of one comment per ~7 instructions catches the genuinely-bare bodies
-    # without demanding a comment on every line (which the comment style forbids).
-    EXPLAINED = 0.15
+    # The honest unit is the basic block, not the line and not a ratio over
+    # lines. A body is explained when every block in it — every stretch of
+    # straight-line code a reader can arrive at — has been spoken to. That bar
+    # needs no threshold: the code decides how many blocks there are, so an
+    # unrolled run is one block and answers to one comment, while a routine that
+    # branches eight times owes eight.
     sized = [r for r in routines if r['instr'] >= 5]
 
     def explained(r):
-        return r['cmt'] / r['instr'] >= EXPLAINED
+        return r['bare_blocks'] == 0
 
     documented = [r for r in sized if explained(r)]
     under = [r for r in sized if not explained(r)]
     bare = [r for r in under if r['cmt'] == 0 and not r['desc']]
     skeletal = [r for r in under if r not in bare]      # a one-line summary, no depth
     doc_frac = len(documented) / max(len(sized), 1)
+    blocks = sum(r['blocks'] for r in sized)
+    bare_blocks = sum(r['bare_blocks'] for r in sized)
+    units = sum(len(r['units']) for r in sized)
+    units_per_block = units / blocks if blocks else 0.0
+    worst = sorted(under, key=lambda r: -r['bare_blocks'])[:3]
 
     # Secondary, with the caveat: code instructions only, all data excluded.
     total = sum(r['instr'] for r in routines)
@@ -379,11 +441,17 @@ def main():
 
     print(f"Documentation coverage for {args.skool}")
     print(f"  ROUTINES     : {len(sized)} sized code routines (≥5 instructions)")
-    print(f"    documented : {len(documented)} ({100*doc_frac:.0f}%) — body explained")
-    print(f"    skeletal   : {len(skeletal)} — a description/summary but the body is bare")
+    print(f"    documented : {len(documented)} ({100*doc_frac:.0f}%) — every basic block spoken to")
+    print(f"    skeletal   : {len(skeletal)} — a description/summary over blocks nothing explains")
     print(f"    bare       : {len(bare)} — no description and no line comments")
+    print(f"  BLOCKS       : {blocks} basic block(s); {bare_blocks} carry no comment"
+          f"; {units_per_block:.2f} comment unit(s) per block")
+    if worst:
+        print("                 " + "; ".join(
+            f"{r['name']} ({r['bare_blocks']} of {r['blocks']} blocks bare)" for r in worst))
     print(f"  line density : {100*density:.0f}% of code instructions (data excluded)"
-          " — a rough cross-check, not the bar")
+          " — blind to altitude, kept only as a cross-check: it reads the same"
+          " for one sentence over a routine as for a comment per block")
     print(f"  CATALOG      : {graphic_sections} [Graphic:] section(s); {auto_ids} auto-label"
           f" identifier(s); {admissions} 'not-yet/unnamed' admission(s)")
     print(f"  INLINE GFX   : {inline_gfx} image macro(s) written in the .ctl; {catalog_gfx} in the .ref catalog"
@@ -423,7 +491,8 @@ def main():
     print(f"  PLACEHOLDERS : {len(placeholders)} placeholder labels"
           + (f" (e.g. {', '.join(sorted(set(placeholders))[:5])})" if placeholders else ""))
     print(f"  PROSE        : {ret_group} RET_GROUP, {selflink} SELFLINK, {diary} DIARY,"
-          f" {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS,"
+          f" {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS, {group_split} GROUP_SPLIT,"
+          f" {group_entry} GROUP_ENTRY,"
           f" {open_markers} OPEN (gate the verdict); {stamp} STAMP (advisory)"
           + ("  — run `make lint-comments` for the line-level list" if prose else ""))
     if arrays is None:
@@ -476,16 +545,20 @@ def main():
     # report's: a project cannot be at the bar on one instrument and carrying
     # accepted defects on the other. The image count is the findings the baseline
     # does not already hold, so a recorded one weighs once, under BASELINE.
+    # A block with no comment is a place the reader arrives and is told nothing,
+    # so the bar is zero of them — the same shape as the bar on auto-labels, and
+    # for the same reason.
     unrendered_count = len(images_new)
-    far = (doc_frac < 0.60 or (sound and audio == 0) or auto_ids > 0
+    far = (bare_blocks > 0 or (sound and audio == 0) or auto_ids > 0
            or auto_labels > 0 or (catalog_gfx and not inline_gfx)
            or (audio and inline_audio == 0) or prose_hard > 0
            or open_markers > 0 or baselined > 0 or unrendered_count > 0)
     print()
     if far:
         reasons = []
-        if doc_frac < 0.60:
-            reasons.append(f"only {100*doc_frac:.0f}% of routines explained ({len(skeletal)} skeletal)")
+        if bare_blocks:
+            reasons.append(f"{bare_blocks} basic block(s) carry no comment across "
+                           f"{len(under)} routine(s) ({len(skeletal)} skeletal)")
         if catalog_gfx and not inline_gfx:
             reasons.append(f"{catalog_gfx} sprites only in the .ref, none rendered inline in the .ctl")
         if sound and audio == 0:
@@ -498,7 +571,8 @@ def main():
             reasons.append(f"{audio} #AUDIO only in the .ref index, none inline at their blocks")
         if prose_hard:
             reasons.append(f"prose not at the bar ({ret_group} RET_GROUP, {selflink} SELFLINK,"
-                           f" {diary} DIARY, {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS)")
+                           f" {diary} DIARY, {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS,"
+                           f" {group_split} GROUP_SPLIT, {group_entry} GROUP_ENTRY)")
         if open_markers:
             reasons.append(f"{open_markers} typed uncertainty marker(s) still standing "
                            "— each is an underived claim with a dig-task owed")
@@ -512,8 +586,9 @@ def main():
         print("VERDICT: NOT at the bar — " + "; ".join(reasons)
               + ". Do not call it mature/done; this is the upgrade backlog.")
     else:
-        print(f"VERDICT: {100*doc_frac:.0f}% of routines explained, sound rendered, catalog named"
-              " — at or near the bar.")
+        print(f"VERDICT: every basic block of {len(sized)} routine(s) commented"
+              f" ({units_per_block:.2f} comment units per block), sound rendered,"
+              " catalog named — at or near the bar.")
     if gaps and not far:
         print("Residual gaps: " + "; ".join(gaps) + ".")
     elif gaps:
