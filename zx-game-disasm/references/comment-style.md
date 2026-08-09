@@ -52,14 +52,24 @@ A single-instruction comment earns its place only when that one instruction carr
 A comment covers **one act**, and the act's boundaries are not a matter of taste or of line count — the control flow draws them. Three laws follow, and none of them carries a number:
 
 1. **A comment never spans an unconditional transfer of control.** Control leaves at that `JP`/`JR`, so the rows below it are a second act wearing the first one's sentence. A *conditional* branch is different and stays inside: an early-out abandons the act rather than beginning another, which is why "check the slot; return if empty" is one comment over both rows. A jump back to the span's own top is that span's loop, and a loop is one act.
-2. **A comment group is entered only at its first instruction.** If another path jumps into the middle of the span, the reader arriving that way is handed a sentence about instructions that never ran.
+2. **A comment group is entered only at its first instruction, and every row in it runs when the first one does.** Two ways that breaks. Another path jumps into the middle of the span, and the reader arriving that way is handed a sentence about instructions that never ran. Or the span's *own* branch jumps forward over part of itself, and the sentence covers rows that the skipping path never executes. A jump landing back on the span's top is neither — that is the span's loop, and a loop is one act.
+
+   The forward skip is the one that hides, because nothing about it looks wrong in the `.ctl`. A comment with no length runs to the next *documented* address, not to the next label, so this — a cap — swallowed the eight instructions of a separately named act:
+
+   ```
+     $7E52 Cap the speed at a maximum of $0C (12).
+   @ $7E5E label=load_sprite_ptrs
+   @ $7E74 label=check_timeout
+   ```
+
+   The branch over the cap lands at `$7E5E`, inside the span, and `load_sprite_ptrs` — pointer setup the author named himself — is documented by a sentence about capping. Give the comment its length, or document the second act.
 3. **Every basic block carries a comment.** A block is a stretch a reader can arrive at; arriving somewhere and being told nothing is the defect. The bar is zero bare blocks, the same shape as the bar on auto-labels.
 
 **This is your monotony exemption, and you get it for free.** A long unrolled run — thirty rows of shift, a copy chain, a table of stores — has no branches, so it is one block, and one comment is the correct answer for all of it. Any rule phrased as lines-per-comment punishes exactly that code and lets a catch-all sentence over a branching routine pass. Compare a long routine under a single one-sentence comment that spans many basic blocks with an unrolled shift of similar length that spans one. The first is the defect, the second is right, and only a control-flow rule tells them apart.
 
 The laws are a floor, not a target. A block can carry more than one comment unit. A run of alternating `LD A,n` / `RST $10` rows is one block, so one comment would be legal; cut it into one comment per control code, because repetition of *shape* is not repetition of *meaning*. Write for the acts, then check the laws.
 
-`lint_comments.py` enforces the first two as `GROUP_SPLIT` and `GROUP_ENTRY`, and `make coverage` enforces the third — a routine is *explained* when no block in it is bare. A line-density figure can read the same for a disassembly averaging two comments per block and one averaging less than one. What no check reaches is a long single-entry, single-exit run whose one sentence is too thin for it: nothing structural separates it from a legitimate unrolled span, so it stays the Challenger's read.
+`lint_comments.py` enforces the first two as `GROUP_SPLIT`, `GROUP_ENTRY` and `GROUP_SKIP`, and `make coverage` enforces the third — a routine is *explained* when no block in it is bare. A line-density figure can read the same for a disassembly averaging two comments per block and one averaging less than one. What no check reaches is a long single-entry, single-exit run whose one sentence is too thin for it: nothing structural separates it from a legitimate unrolled span, so it stays the Challenger's read.
 
 ## One home per fact
 
@@ -205,6 +215,8 @@ So the repair for a flagged number is never the other base. It is the intent, or
 > **Good:** `LD D,$64  ; Tone 1: the higher, shorter of the blip's two rising sweeps (~660 Hz).`
 
 A memory address never takes a decimal equivalent at all: `$7A26` as an address stays hex.
+
+**The two bases never appear together.** `Cap the speed at a maximum of $0C (12)` states one value twice: the parenthetical converts the operand rather than adding to it, and the reader who wanted decimal is not the one this disassembly is written for. `BASE_ECHO` gates it, comparing the two spellings as values, so the finding is exact. The repair is the intent or the derived fact — here, what the cap is *for*, which is the fastest the player is allowed to run.
 
 ## Documenting the non-obvious
 

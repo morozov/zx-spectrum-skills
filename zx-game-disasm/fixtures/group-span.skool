@@ -1,14 +1,15 @@
-; The two structural laws over a '{ }' comment group's span, with the near
-; misses that must stay silent.
+; The structural laws over a '{ }' comment group's span, with the near misses
+; that must stay silent.
 ;
 ; Expected, and nothing else:
 ;   GROUP_SPLIT at $EC05 — the group spans a JR whose target is outside it.
-;   GROUP_ENTRY at $EC22 — an interior row of the group is jumped to from $EC2C.
+;   GROUP_ENTRY at $EC22 — an interior row is jumped to from $EC2C, outside.
+;   GROUP_SKIP  at $EC40 — the group's own branch jumps forward over that row.
+;   BASE_ECHO   at $EC35 — one comment spells one value in both bases.
 ;
-; Silent by construction: the unconditional JR at $EC17 lands back on its own
-; span's top, so it is that span's loop; the branch target at $EC19 is reached
-; only from inside; and the conditional RET at $EC21 abandons the act rather
-; than starting another.
+; Silent by construction: the branch target at $EC11 is its span's own loop top,
+; reached only from below it; and the conditional RET at $EC21 abandons the act
+; rather than starting another.
 
 @label=split_span
 c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
@@ -21,15 +22,12 @@ c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
 *$EC0B RET            ;
 
 @label=internal_loop
-c$EC0C LD B,$08       ; {Blank the slot bytes, then mark the pool idle.
+c$EC0C LD B,$08       ; {Blank the slot bytes.
  $EC0E LD HL,$FC00    ;
 *$EC11 LD (HL),$00    ;
  $EC13 INC HL         ;
- $EC14 DEC B          ;
- $EC15 JR Z,$EC19     ;
- $EC17 JR $EC11       ;
-*$EC19 LD ($FC02),A   ; }
- $EC1C RET            ;
+ $EC14 DJNZ $EC11     ; }
+ $EC16 RET            ;
 
 @label=early_out
 c$EC1D LD A,($FC00)   ; {Fire only while the slot is armed.
@@ -45,3 +43,19 @@ c$EC1D LD A,($FC00)   ; {Fire only while the slot is armed.
 c$EC28 LD A,($FC01)   ; {Fire from the other path.
  $EC2B OR A           ;
  $EC2C JP $EC22       ; }
+
+; A clamp whose skip-branch lands inside its own span, with the comment running
+; on past the branch target — the shape a missing length leaves when a comment
+; stretches to the next documented address instead of stopping at the act. The
+; rows from $EC40 do not run on the skipping path. Its parenthetical is the
+; second defect: one value, both bases.
+@label=clamp_and_prime
+c$EC35 LD A,($FC00)   ; {Clamp the stored width to a maximum of $8A (138), then
+ $EC38 CP $8A         ; aim the sprite pointer.
+ $EC3A JR C,$EC40     ;
+ $EC3C LD A,$8A       ;
+ $EC3E LD ($FC00),A   ;
+@label=prime_ptr
+*$EC40 LD HL,$FD00    ;
+ $EC43 LD ($FC02),HL  ; }
+ $EC46 RET            ;

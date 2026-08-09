@@ -36,6 +36,12 @@ ones a reviewer would otherwise flag by hand:
   - GROUP_ENTRY    a '{ }' comment group whose interior is jumped to from
                    outside the span — a reader arriving by that jump is handed
                    a sentence about instructions that never ran
+  - GROUP_SKIP     a '{ }' comment group whose own branch jumps forward over
+                   part of its span — the sentence covers rows that do not run
+                   on the path that skips them
+  - BASE_ECHO      one comment carrying a value twice, once in each base
+                   ('$8A (138)') — the base is a notation, the second spelling
+                   is the same value read back
   - REFPOINTER     a comment pointing the reader at a `.ref` index file
   - OPEN           a typed uncertainty marker ("(unverified)", "TODO:") — the one
                    legitimate way to leave a doubt in the text, and a standing
@@ -103,7 +109,7 @@ CHECK = 'comments'
 # baseline is what makes gating survivable on a mature project.
 GATING_KINDS = frozenset((
     'RET_GROUP', 'SELFLINK', 'DIARY', 'OPERAND_ECHO', 'ELLIPSIS',
-    'GROUP_SPLIT', 'GROUP_ENTRY', 'OPEN',
+    'GROUP_SPLIT', 'GROUP_ENTRY', 'GROUP_SKIP', 'BASE_ECHO', 'OPEN',
 ))
 
 # The finding's own row carries its address, so the baseline key is that address
@@ -111,8 +117,8 @@ GATING_KINDS = frozenset((
 # address — a `.ref` catalog line is not a directive — so it keys on its file and
 # the term that matched, the same shape `validate_prose_names.py` uses and for
 # the same reason: the phrase is the identity.
-ROW_ADDRESS_RE = re.compile(r'^\*?\$?([0-9A-Fa-f]{4})\b')
-QUOTED_TERM_RE = re.compile(r"\('([^']+)'\)")
+ROW_ADDRESS_RE = re.compile(r'^[ cbtwsgi*]?\$?([0-9A-Fa-f]{4})\b')
+QUOTED_TERM_RE = re.compile(r"'([^']+)'")
 
 # An instruction line: an optional control char, $ADDR, the instruction, then
 # the comment column. Control char is one of c/b/t/w/s/g/i (block start),
@@ -192,6 +198,24 @@ GROUP_SPLIT_DETAIL = (
     "a '{{ }}' comment group spans '{}' — control leaves the span here, so the "
     'rows below it are a second act carrying the first one\'s sentence. Close '
     'the group on this instruction and open the next one below it')
+# One value, both bases, in one comment: `$8A (138)`. The base is a notation and
+# the parenthetical is the same number read back, so the row says it twice — and
+# the repair is never the other base. It is the intent, or the derived fact the
+# row cannot show. Exact by construction: the two spellings are compared as
+# values, so nothing here is a judgment call. Both orders count, and a value that
+# is not its own conversion ("$FF (the sentinel)") is not a hit.
+BASE_PAIR_RE = re.compile(
+    r'\$(?P<hex>[0-9A-Fa-f]{1,4})\s*\(\s*(?P<dec>\d{1,5})\s*\)'
+    r'|(?<![\w$])(?P<dec2>\d{1,5})\s*\(\s*\$(?P<hex2>[0-9A-Fa-f]{1,4})\s*\)')
+BASE_ECHO_DETAIL = (
+    "'{}' spells one value in both bases — the base is a notation, so the "
+    'parenthetical is the operand read back. State the intent, or the derived '
+    'fact the row cannot show')
+
+GROUP_SKIP_DETAIL = (
+    "a '{{ }}' comment group's own branch at ${} jumps forward over this row — "
+    'on that path the rows below the branch do not run, so the sentence covers '
+    'instructions the reader may never execute. Close the group at the branch')
 GROUP_ENTRY_DETAIL = (
     "a '{{ }}' comment group is entered at this row from outside its span "
     '({}) — a reader arriving by that jump is handed a sentence about '
@@ -212,6 +236,16 @@ def operand_target(operands, label_addrs):
         return f'{int(m.group("dec")):04X}'
     name = operands.split(',')[-1].strip()
     return label_addrs.get(name)
+
+
+def base_echo(text):
+    """Return the '$8A (138)' substring when one comment spells a value twice."""
+    for m in BASE_PAIR_RE.finditer(text):
+        hexed = m.group('hex') or m.group('hex2')
+        dec = m.group('dec') or m.group('dec2')
+        if int(hexed, 16) == int(dec):
+            return m.group(0)
+    return None
 
 
 def group_split_row(instr, group_addrs, label_addrs):
@@ -503,6 +537,10 @@ def scan_prose(path):
     with open(path, 'r', encoding='utf-8') as f:
         for lineno, raw in enumerate(f, 1):
             text = raw.strip()[:120]
+            pair = base_echo(raw)
+            if pair:
+                violations.append((lineno, 'BASE_ECHO', text,
+                                   BASE_ECHO_DETAIL.format(pair)))
             for om in OPEN_MARKER_RE.finditer(raw):
                 violations.append((lineno, 'OPEN', text,
                                    OPEN_DETAIL.format(om.group(0))))
@@ -602,11 +640,25 @@ def scan(path):
         for row in span_ins[1:]:
             if row['ctrl'] != '*':
                 continue
-            outside = sorted(edges.get(row['addr'], set()) - span_addrs)
+            sources = edges.get(row['addr'], set())
+            outside = sorted(sources - span_addrs)
             if outside:
                 add(row['lineno'], 'GROUP_ENTRY', row['line'],
                     GROUP_ENTRY_DETAIL.format(
                         ', '.join('$' + a for a in outside[:3])))
+                continue
+            # A target reached only from inside the span is exempt when every
+            # such source sits *below* it: that is the span's own loop, and a
+            # loop is one act. A source above it is a forward skip, and those
+            # are not the same thing — on the skipping path the rows between
+            # the branch and this row never execute, so the sentence covers
+            # instructions the reader may not run. Without that distinction a
+            # clamp's sentence swallows a separately named act whenever the
+            # branch over the clamp lands inside the span.
+            skips = sorted(s for s in sources if s < row['addr'])
+            if skips:
+                add(row['lineno'], 'GROUP_SKIP', row['line'],
+                    GROUP_SKIP_DETAIL.format(skips[0]))
         span_ins = []
 
     for i, raw in enumerate(lines):
@@ -687,6 +739,9 @@ def scan(path):
                     f"\"{sm.group('name')} ({sm.group('name')})\" — link the first "
                     "mention only, drop the parenthetical")
                 break
+        pair = base_echo(comment)
+        if pair:
+            add(lineno, 'BASE_ECHO', line.strip(), BASE_ECHO_DETAIL.format(pair))
         for om in OPEN_MARKER_RE.finditer(comment):
             add(lineno, 'OPEN', line.strip(), OPEN_DETAIL.format(om.group(0)))
         dm = DIARY_RE.search(OPEN_MARKER_RE.sub(' ', comment))
