@@ -14,7 +14,9 @@ Reports, from the generated .skool (plus the .ctl and .ref files when given):
                    the comment units per block. The block is the unit because the
                    code defines it — no ratio is chosen — and because a routine
                    is documented by being cut into acts, not by hitting a line
-                   count. The bar on bare blocks is zero.
+                   count. The bar on bare blocks is zero. A block that is only a
+                   bare RET is not counted: it owes nothing, and demanding a
+                   sentence there would demand one lint_comments.py rejects.
   - LINE DENSITY   % of real instructions carrying a comment. Kept as a
                    cross-check and nothing more: it cannot see altitude. One
                    sentence over a whole routine and a comment on every block
@@ -123,18 +125,36 @@ def analyze(skool):
     in_group = False                        # inside an open `{ }` block comment
     placeholders = []
     block_covered = False                   # has the current basic block a comment?
+    block_rows = []                         # the instructions in it, for BARE_RET
     group_id = 0
 
     def end_block():
-        """Close the basic block under the cursor and score it."""
-        nonlocal block_covered
+        """Close the basic block under the cursor and score it.
+
+        A block that is nothing but a bare `RET` is not counted at all. It is
+        the one place where this gauge and `lint_comments.py` would otherwise
+        contradict each other, and the contradiction has no escape: a
+        conditional loop branch ends a block, so a routine's trailing `RET`
+        becomes a block of its own, and the two ways to cover it are the two
+        the linter forbids — a comment on the row is `RET`, and stretching the
+        group above it over the row is `RET_GROUP`. Demanding a sentence there
+        would be demanding one the gate rejects.
+
+        The doctrine settles which instrument gives way: a bare `RET` is
+        self-evident and stays bare, so it is not a place a reader arrives
+        needing to be told anything. It owes nothing, and a thing that owes
+        nothing does not belong in a denominator.
+        """
+        nonlocal block_covered, block_rows
         if cur is None or not cur['open_block']:
             return
-        cur['blocks'] += 1
-        if not block_covered:
-            cur['bare_blocks'] += 1
+        if not (len(block_rows) == 1 and block_rows[0] == 'RET'):
+            cur['blocks'] += 1
+            if not block_covered:
+                cur['bare_blocks'] += 1
         cur['open_block'] = False
         block_covered = False
+        block_rows = []
 
     with open(skool, encoding='utf-8', errors='ignore') as f:
         for raw in f:
@@ -199,6 +219,7 @@ def analyze(skool):
                 in_group = False
             cur['instr'] += 1
             cur['open_block'] = True
+            block_rows.append(body.split(';')[0].strip().upper())
             if covered:
                 cur['cmt'] += 1
                 block_covered = True
