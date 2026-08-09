@@ -42,6 +42,16 @@ ones a reviewer would otherwise flag by hand:
   - BASE_ECHO      one comment carrying a value twice, once in each base
                    ('$8A (138)') — the base is a notation, the second spelling
                    is the same value read back
+  - PITCH          a pitch stated in Hz — the #AUDIO beside it already plays the
+                   pitch, so the figure is the clip read back in numbers. The
+                   machine's own constants (the 3.5 MHz clock, the 50 Hz frame
+                   interrupt) are not pitches and are not reported
+  - LAYOUT_ECHO    a record's field offset cited in a code block's prose — the
+                   layout's one home is the record's own definition; a comment
+                   about behavior names the thing, not the byte it sits at
+  - SPLICE         a comment continuing the sentence the previous comment left
+                   open — one thought split across two comment units, so
+                   neither describes the rows it sits on
   - REFPOINTER     a comment pointing the reader at a `.ref` index file
   - OPEN           a typed uncertainty marker ("(unverified)", "TODO:") — the one
                    legitimate way to leave a doubt in the text, and a standing
@@ -109,7 +119,8 @@ CHECK = 'comments'
 # baseline is what makes gating survivable on a mature project.
 GATING_KINDS = frozenset((
     'RET_GROUP', 'SELFLINK', 'DIARY', 'OPERAND_ECHO', 'ELLIPSIS',
-    'GROUP_SPLIT', 'GROUP_ENTRY', 'GROUP_SKIP', 'BASE_ECHO', 'OPEN',
+    'GROUP_SPLIT', 'GROUP_ENTRY', 'GROUP_SKIP', 'BASE_ECHO', 'SPLICE',
+    'LAYOUT_ECHO', 'PITCH', 'OPEN',
 ))
 
 # The finding's own row carries its address, so the baseline key is that address
@@ -238,6 +249,103 @@ def operand_target(operands, label_addrs):
     return label_addrs.get(name)
 
 
+# A comment unit is one group or one commented row, and each one describes the
+# rows it sits on. A unit that opens lowercase after a unit that ended without
+# terminal punctuation is not doing that: the two are one sentence cut in half,
+# and the second half describes nothing on its own. "Leave it alone while the
+# grow animation still runs," / "and while the shrink animation still runs." is
+# the shape — the reader of the second block is handed a subordinate clause.
+#
+# Both halves of the test are needed. Opening lowercase is not enough on its own
+# (a unit may legitimately start with a symbol or a lowercased identifier), and
+# an unterminated previous unit is not enough either. Together they are exact.
+# A cross-reference between blocks is still allowed — it just has to be written
+# as one, in a sentence of its own.
+# A pitch in Hz is the sound described in the sound's own unit: the `#AUDIO` at
+# the block plays it, so the figure adds nothing the reader is missing and binds
+# the page to a tone formula that belongs once at the primitive. Being *derived*
+# does not save it — that is the one conversion the derived-facts rule does not
+# cover, and `references/comment-style.md` says so where the rule is stated.
+#
+# Two figures are not pitches and are excluded structurally: the CPU clock, which
+# is written in MHz and so never matches, and the 50 Hz frame interrupt, which is
+# the machine's tick and a sanctioned assumption to state. Digits are matched
+# with their thousands separators so a sample rate reads as one number rather
+# than lending its tail to a false hit.
+PITCH_RE = re.compile(r'(?i)(?<![\w.])~?\s*(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<k>k?)Hz\b')
+PITCH_DETAIL = (
+    "states a pitch ('{}') — the #AUDIO plays the pitch, so the figure is the "
+    'clip read back in numbers. Name what the sound means and what fires it; '
+    'the tone formula belongs once at the primitive')
+
+
+def pitch_echo(text):
+    """Return the pitch a line states, or None when it states none."""
+    for m in PITCH_RE.finditer(text):
+        if not m.group('k') and m.group('n').replace(',', '') in ('50', '48'):
+            continue
+        return m.group(0).strip()
+    return None
+
+
+# A record's layout has one home: the block whose bytes are the record, where
+# `ctl-authoring.md` requires the stride, the fields and the sentinel. Everywhere
+# else the offset is a citation — "the record whose +0/+1 word holds its X/Y" is
+# the implementation quoted into a sentence about behavior, and it binds that
+# sentence to a layout nothing re-derives. Name the thing instead: "the left
+# door's position".
+#
+# Told apart by location, which the .skool carries: a comment inside a `c` entry
+# is describing code, so an offset in it is a citation; a `D`/`N` on a data entry
+# is the definition and keeps it.
+#
+# A geometric offset is not a record field, so a run of them ending in a unit
+# ("vertical bounds of +10 and +1 pixels") is not a hit. The run is matched
+# whole and its suffix tested, because testing one token at a time lets the
+# first of a coordinated pair slip past the unit that governs both.
+OFFSET_RUN_RE = re.compile(
+    r'(?<![\w])\+\$?[0-9A-Fa-f]{1,2}'
+    r'(?:\s*(?:and|,|to|/|or)\s*\+?\$?[0-9A-Fa-f]{1,2})*')
+OFFSET_UNIT_RE = re.compile(
+    r'(?i)^\s*(pixels?|px|degrees?|ms|Hz|frames?|lines?|scanlines?|cells?|rows?'
+    r'|columns?)\b')
+LAYOUT_ECHO_DETAIL = (
+    "cites a record's field offset ('{}') in prose about code — the layout "
+    'belongs at the record\'s own block, stated once; here, name what the field '
+    'holds')
+
+
+def layout_echo(text):
+    """Return the offset a comment cites, or None when it cites none."""
+    for m in OFFSET_RUN_RE.finditer(text):
+        if not OFFSET_UNIT_RE.match(text[m.end():]):
+            return m.group(0)
+    return None
+
+
+SPLICE_DETAIL = (
+    'this comment finishes the sentence the previous unit left open ({!r}) — '
+    'each comment describes its own rows, so a clause that only makes sense '
+    'after the one above it belongs in that one, or in a sentence of its own '
+    'that names what it refers to')
+
+
+def splice_units(units):
+    """Report each unit that completes the previous unit's unfinished sentence.
+
+    `units` is (lineno, line, text) in file order, one per comment unit.
+    """
+    hits = []
+    for (_, _, prev), (lineno, line, text) in zip(units, units[1:]):
+        prev = prev.rstrip()
+        if not prev or not text or not text[0].islower():
+            continue
+        if prev[-1] in '.!?:':
+            continue
+        hits.append((lineno, line, prev[-48:]))
+    return hits
+
+
 def base_echo(text):
     """Return the '$8A (138)' substring when one comment spells a value twice."""
     for m in BASE_PAIR_RE.finditer(text):
@@ -265,13 +373,17 @@ def group_split_row(instr, group_addrs, label_addrs):
 # `.ref` file naming its siblings is the index doing its job.
 REF_POINTER_RE = re.compile(r'(?i)\b(graphics|sound)\.ref\b')
 
-# STAMP tuning: a phrase of at least STAMP_WORDS normalized words appearing in
-# STAMP_MIN_BLOCKS or more distinct block comments. Addresses are normalized so
-# a sentence stamped with only the address swapped still matches. Deliberate
-# scannable formulas are whitelisted.
-STAMP_WORDS = 8
-STAMP_MIN_BLOCKS = 3
-STAMP_WHITELIST = ('used by the routine',)
+# STAMP: a whole sentence appearing in more than one block comment. The unit is
+# the sentence because that is what an author writes and copies, and the count is
+# two because two is what "repeated" means — neither is tuned.
+#
+# Addresses are normalized so a sentence stamped with only the address swapped
+# still matches. A "sentence" with no word in it is not one — splitting on `.`
+# cuts `#R$9A10.` into a token and a stop — and SkoolKit's own generated lines
+# are excluded by name, since the author did not write them and cannot unwrite
+# them.
+STAMP_GENERATED = ('used by the routine', 'used by the routines',
+                   'this entry point is used by')
 ADDR_TOKEN_RE = re.compile(r'(?i)(#r\$?[0-9a-f]{2,5}|\$[0-9a-f]{2,5}|\bl[0-9a-f]{4}\b)')
 WORD_RE = re.compile(r'[a-z0-9§]+')
 # Structurally repeated by nature, so excluded from STAMP: rendered-macro spans
@@ -380,12 +492,21 @@ OPERAND_ECHO_DETAIL = ('the comment repeats its own operand — the row already 
 #   - a data directive is the encoding's own definition; the catalog row whose
 #     job is to say that $89 means the shield stops saying anything without it;
 #   - indexed addressing is a record walk, and a record's field offsets are the
-#     interface a reader needs to use the code, not an internal name;
-#   - an arithmetic/logic mnemonic against an immediate is a classifier testing
-#     a value or a dispatcher naming its case, which is where the code IS the
-#     subject.
+#     interface a reader needs to use the code, not an internal name.
 #
-# These three are the whole exclusion list, and nothing else needs one. Self-
+# An arithmetic or logic mnemonic against an immediate is not excluded, on the
+# grounds that a classifier tests a value and a dispatcher names its case. That
+# is the "it names a case, not a count" exclusion, and the principle rules it
+# out — `head right (octant 2)` is `head right toward the player`, and
+# `CP $8A ; clamp to a maximum of $8A` is the row read back.
+#
+# Its residue is named rather than excluded: where the value is part of the
+# game's own name for the thing — `CP $02 ; is the current player Player 2` —
+# the deletion test keeps the byte, and the check still reports it. Those rows
+# are dismissed by reading, and that is the price of not keying an exclusion on
+# wording.
+#
+# These two are the whole exclusion list, and nothing else needs one. Self-
 # modifying code writing an opcode reads like a fourth — the byte IS the subject
 # at `LD A,$C9` — but an opcode has a name, and naming it clears the row without
 # losing anything: "write the RET opcode over the first byte". A row that looks
@@ -402,23 +523,24 @@ IMMEDIATE_RE = re.compile(r'\$([0-9A-Fa-f]{2})(?![0-9A-Fa-f])')
 DECIMAL_RE = re.compile(r'(?<![\w$+.-])(\d{1,5})(?![\w])(?!\.\d)')
 INDEXED_RE = re.compile(r'\((I[XY])\s*[-+]')
 DATA_DIRECTIVES = frozenset(('DEFB', 'DEFW', 'DEFM', 'DEFS'))
-CLASSIFIER_MNEMONICS = frozenset((
-    'CP', 'AND', 'OR', 'XOR', 'BIT', 'SET', 'RES', 'SUB', 'ADD', 'ADC', 'SBC'
-))
 
 
 def operand_literals(mnemonic, operands):
     """Return the immediate values in `operands` whose echo is worth reporting.
 
-    Empty for the three row shapes whose subject is the byte itself, so a
-    catalog row, a record walk and a classifier test are never reported.
+    Empty for the two row shapes whose subject is the byte itself, so a catalog
+    row and a record walk are never reported.
     """
     m = (mnemonic or '').upper()
-    if m in DATA_DIRECTIVES or m in CLASSIFIER_MNEMONICS:
+    if m in DATA_DIRECTIVES:
         return set()
     if INDEXED_RE.search(operands):
         return set()
     return {int(v, 16) for v in IMMEDIATE_RE.findall(operands)}
+
+
+LITERAL_TOKEN_RE = re.compile(
+    r'\$([0-9A-Fa-f]{2})(?![0-9A-Fa-f])|(?<![\w$+.-])(\d{1,5})(?![\w])(?!\.\d)')
 
 
 def comment_literals(comment):
@@ -429,9 +551,10 @@ def comment_literals(comment):
 
     A decimal that looks like a false positive is usually the rule biting. The
     repair for `LD D,$64  ; start period $64 (100)` is not "start period 100" —
-    that is still the operand, in the other base. It is the intent, or the
-    derived fact the row cannot show: "~660 Hz". See "Derived facts stay,
-    restatements go" in `references/comment-style.md`.
+    that is still the operand, in the other base. Nor is it the same number with
+    a unit on the front: `y 38` beside `CP $26` is `$26` in decimal. The repair
+    is what the row is *for*. See "A comment never echoes the implementation" in
+    `references/comment-style.md`.
     """
     values = {int(v, 16) for v in IMMEDIATE_RE.findall(comment)}
     values.update(int(v) for v in DECIMAL_RE.findall(comment))
@@ -451,12 +574,17 @@ def echo_rows(rows):
     resolved #R against the addresses in the operand field; the literal half
     compares a bare $XX against the immediates. Neither reads the prose.
 
-    Scoping it to the whole group instead — every #R in the group's text against
-    every operand anywhere under it — reports the prose doing its job. A group
-    comment names the things its span touches; that is what a paragraph over
-    five instructions is for, and "Seed #R$9A10 to 9" over a span ending in
-    `LD (obj_count),A` is not an echo. Only the row where
-    the symbol lands beside its own operand is the duplicate the rule names.
+    The two halves are scoped differently. Widening the **symbol** half to the
+    whole group — every #R in the text against every operand under it — reports
+    the prose doing its job: a group comment names the things its span touches,
+    and "Seed #R$9A10 to 9" over a span ending in `LD (obj_count),A` is not an
+    echo. So the symbol half stays row-local.
+
+    The **literal** half is span-scoped, in close_group(): a byte quoted by the
+    text is a byte the reader can see on a row below, and row-locality misses
+    exactly that shape — a clamp naming its threshold one row above the `CP`
+    that tests it. See span_echoes() for the one exemption that scoping
+    needs.
 
     The cost of row-locality is that a group's text is soft-wrapped, so which row
     a reference falls on moves when the text is reflowed, and an echo can wrap
@@ -474,6 +602,38 @@ def echo_rows(rows):
     return hits
 
 
+# A group's text against the immediates its own rows carry. Row-locality alone
+# misses the shape the rule exists for: the sentence opens on one row and the
+# value it quotes sits two rows down, still inside the span the sentence claims.
+#
+# One context is exempt, and structurally: a value inside an arithmetic
+# expression is a formula's constant, and the doctrine asks for the formula once
+# at block level ("Screen attribute offset = (7 - row) * 8 + column"). Without
+# that exemption the check fires on every stated formula.
+#
+# The residue is named rather than excluded: where the values *are* the subject —
+# `AT 1,5`, the ROM coordinate — the deletion test keeps them and the check still
+# reports. That is the same trade as the classifier rows, and the same answer:
+# dismiss by reading, do not key an exclusion on wording.
+SPAN_ARITH_RE = re.compile(r'(?i)[=*+/^]|>>|<<|\bAND\b|\bXOR\b|\bmod\b|-\s*\d')
+SPAN_ECHO_DETAIL = ('the comment quotes {} — a value carried by an instruction '
+                    'inside its own span. Say what the span is for; the row '
+                    'below already shows the byte')
+
+
+def span_echoes(text, values):
+    """Return the literals a group's text quotes from its own span."""
+    hits = set()
+    for m in LITERAL_TOKEN_RE.finditer(text):
+        value = int(m.group(1), 16) if m.group(1) else int(m.group(2))
+        if value not in values:
+            continue
+        if SPAN_ARITH_RE.search(text[max(0, m.start() - 14):m.end() + 14]):
+            continue
+        hits.add(m.group(0))
+    return hits
+
+
 def normalize_tokens(text):
     """Lowercase words with every address-like token collapsed to '§', so a
     sentence stamped across blocks with only the address swapped still matches.
@@ -484,33 +644,27 @@ def normalize_tokens(text):
     return WORD_RE.findall(text.lower())
 
 
+SENTENCE_RE = re.compile(r'[^.!?]+[.!?]')
+
+
 def find_stamps(units):
-    """Find maximal phrases of >=STAMP_WORDS words shared by >=STAMP_MIN_BLOCKS
-    distinct block comments. units: list of (lineno, tokens)."""
-    n = STAMP_WORDS
-    shingles = {}
-    for uid, (lineno, toks) in enumerate(units):
-        for i in range(len(toks) - n + 1):
-            shingles.setdefault(tuple(toks[i:i + n]), set()).add(uid)
-    qualifying = {sh for sh, uids in shingles.items() if len(uids) >= STAMP_MIN_BLOCKS}
-    results, reported = [], set()
-    for uid, (lineno, toks) in enumerate(units):
-        i = 0
-        while i <= len(toks) - n:
-            sh = tuple(toks[i:i + n])
-            if sh in qualifying and sh not in reported:
-                j = i
-                while j + 1 <= len(toks) - n and tuple(toks[j + 1:j + 1 + n]) in qualifying:
-                    j += 1
-                for k in range(i, j + 1):
-                    reported.add(tuple(toks[k:k + n]))
-                phrase = ' '.join(toks[i:j + n])
-                if not any(w in phrase for w in STAMP_WHITELIST):
-                    results.append((lineno, phrase, len(shingles[sh])))
-                i = j + n
-            else:
-                i += 1
-    return results
+    """Find sentences written into more than one block comment.
+
+    units: list of (lineno, raw paragraph text).
+    """
+    seen = {}
+    for lineno, text in units:
+        for raw in SENTENCE_RE.findall(text):
+            sentence = ' '.join(normalize_tokens(raw))
+            if not sentence or any(w in sentence for w in STAMP_GENERATED):
+                continue
+            seen.setdefault(sentence, []).append(lineno)
+    results = []
+    for sentence, linenos in seen.items():
+        places = sorted(set(linenos))
+        if len(places) > 1:
+            results.append((places[0], sentence, len(places)))
+    return sorted(results)
 
 
 OPEN_DETAIL = ("typed uncertainty ('{}') — the right way to leave a doubt in the "
@@ -541,6 +695,10 @@ def scan_prose(path):
             if pair:
                 violations.append((lineno, 'BASE_ECHO', text,
                                    BASE_ECHO_DETAIL.format(pair)))
+            pitch = pitch_echo(raw)
+            if pitch:
+                violations.append((lineno, 'PITCH', text,
+                                   PITCH_DETAIL.format(pitch)))
             for om in OPEN_MARKER_RE.finditer(raw):
                 violations.append((lineno, 'OPEN', text,
                                    OPEN_DETAIL.format(om.group(0))))
@@ -610,18 +768,36 @@ def scan(path):
     # directly above the '*' row GROUP_ENTRY is about.
     in_span = False
     span_ins = []
+    comment_units = []  # (lineno, line, text) per comment unit, for SPLICE
+    unit_open = None    # the unit being accumulated, while a group is open
+    in_code = False     # inside a `c` entry, where an offset is a citation
+
+    layout_rows = []  # (lineno, line, joined text, inside a code entry)
 
     def close_para():
         nonlocal para_lineno, para_text
         if para_text:
-            units.append((para_lineno, normalize_tokens(' '.join(para_text))))
+            units.append((para_lineno, ' '.join(para_text)))
+            joined = ' '.join(para_text)
+            layout_rows.append((para_lineno, joined.strip()[:120], joined, in_code))
         para_lineno, para_text = None, []
 
     def close_group():
         """Report the open group's operand echoes, then forget the group."""
         nonlocal group_rows
+        reported = set()
         for lineno, text in echo_rows(group_rows):
             add(lineno, 'OPERAND_ECHO', text, OPERAND_ECHO_DETAIL)
+            reported.add(lineno)
+        # Only when no row of the group was reported already: a group whose
+        # opening row echoes its own operand is one defect, not two.
+        if group_rows and not reported:
+            joined = ' '.join(r[2] for r in group_rows if r[2])
+            values = set().union(*(r[4] for r in group_rows))
+            quoted = span_echoes(joined, values)
+            if quoted:
+                add(group_rows[0][0], 'OPERAND_ECHO', group_rows[0][1],
+                    SPAN_ECHO_DETAIL.format(', '.join(sorted(quoted))))
         group_rows = []
 
     def close_span():
@@ -683,6 +859,8 @@ def scan(path):
                 para_text.append(comment)
         elif im is not None:
             instr, comment = split_comment(im.group('body'))
+            if im.group('ctrl') in 'cbtwsgi':
+                in_code = im.group('ctrl') == 'c'
             close_para()
         elif line.startswith('@'):
             # An @isub/@ofix/@label directive sits between two instructions of a
@@ -713,6 +891,17 @@ def scan(path):
                 group_rows.append((lineno, line.strip(), comment_body(comment),
                                    operand_addresses(operands0),
                                    operand_literals(parts0[0], operands0)))
+            body_text = comment_body(comment)
+            if opens:
+                unit_open = [lineno, line.strip(), body_text]
+                comment_units.append(unit_open)
+                layout_rows.append((lineno, line.strip(), unit_open, in_code))
+            elif in_group and unit_open is not None:
+                if body_text:
+                    unit_open[2] = (unit_open[2] + ' ' + body_text).strip()
+            elif body_text:
+                comment_units.append([lineno, line.strip(), body_text])
+                layout_rows.append((lineno, line.strip(), body_text, in_code))
             if in_span or opens:
                 span_ins.append({'lineno': lineno, 'line': line.strip(),
                                  'addr': im.group('addr').upper(),
@@ -723,6 +912,7 @@ def scan(path):
                 in_span = True
             if '}' in comment:
                 in_group = False
+                unit_open = None
                 close_group()
                 in_span = False
                 close_span()
@@ -742,6 +932,9 @@ def scan(path):
         pair = base_echo(comment)
         if pair:
             add(lineno, 'BASE_ECHO', line.strip(), BASE_ECHO_DETAIL.format(pair))
+        pitch = pitch_echo(comment)
+        if pitch:
+            add(lineno, 'PITCH', line.strip(), PITCH_DETAIL.format(pitch))
         for om in OPEN_MARKER_RE.finditer(comment):
             add(lineno, 'OPEN', line.strip(), OPEN_DETAIL.format(om.group(0)))
         dm = DIARY_RE.search(OPEN_MARKER_RE.sub(' ', comment))
@@ -792,10 +985,19 @@ def scan(path):
     close_para()
     close_group()
     close_span()
+    for lineno, line, prev in splice_units([tuple(u) for u in comment_units]):
+        add(lineno, 'SPLICE', line, SPLICE_DETAIL.format(prev))
+    # Tested on the joined unit rather than the row: a group's text is wrapped
+    # across its rows, and half a coordinated run reads like a bare offset.
+    for lineno, line, text, code in layout_rows:
+        offset = layout_echo(text[2] if isinstance(text, list) else text)
+        if offset and code:
+            add(lineno, 'LAYOUT_ECHO', line, LAYOUT_ECHO_DETAIL.format(offset))
     for lineno, phrase, count in find_stamps(units):
         add(lineno, 'STAMP', f'"{phrase[:100]}…"' if len(phrase) > 100 else f'"{phrase}"',
-            f'phrase stamped across {count} block comments — write it once at '
-            'the family head (dispatcher/primitive/table), keep only deltas here')
+            f'this sentence is written into {count} block comments — write it '
+            'once at the family head (dispatcher/primitive/table), keep only '
+            'deltas here')
 
     # A group's findings are raised when the group closes, and STAMP's when the
     # file ends, so report order follows the file rather than the check.

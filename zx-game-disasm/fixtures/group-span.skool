@@ -6,6 +6,10 @@
 ;   GROUP_ENTRY at $EC22 — an interior row is jumped to from $EC2C, outside.
 ;   GROUP_SKIP  at $EC40 — the group's own branch jumps forward over that row.
 ;   BASE_ECHO   at $EC35 — one comment spells one value in both bases.
+;   OPERAND_ECHO at $EC35 — and quotes a byte its own span carries.
+;   SPLICE      at $EC4E — a comment finishing the sentence above it.
+;   LAYOUT_ECHO at $EC47 — a code comment citing a record's field offset.
+;   PITCH       at $EC56 — a comment stating the pitch the clip plays.
 ;
 ; Silent by construction: the branch target at $EC11 is its span's own loop top,
 ; reached only from below it; and the conditional RET at $EC21 abandons the act
@@ -59,3 +63,23 @@ c$EC35 LD A,($FC00)   ; {Clamp the stored width to a maximum of $8A (138), then
 *$EC40 LD HL,$FD00    ;
  $EC43 LD ($FC02),HL  ; }
  $EC46 RET            ;
+
+; A record's layout quoted into prose about behavior, and a sentence cut in
+; half across two comment units. The offset belongs at the record's own block;
+; the second comment describes nothing on its own.
+@label=track_slot
+c$EC47 LD HL,($FC10)  ; Read the slot's +0/+1 position word.
+ $EC4A LD A,H         ; {Hold the slot while the fade settles,
+ $EC4B OR L           ;
+ $EC4C JR Z,$EC55     ; }
+*$EC4E LD A,(HL)      ; {and release it once the fade has passed.
+ $EC4F INC HL         ; }
+*$EC55 RET            ;
+
+; The pitch of an effect, written beside the routine that plays it. The clip
+; conveys it; the comment owes the trigger instead. The frame interrupt below is
+; the machine's tick, not a pitch, and stays silent.
+@label=play_blip
+c$EC56 LD D,$64       ; The door-close click, ~1.3 kHz.
+ $EC58 CALL $FD00     ; {Hold it for one tick of the 50 Hz frame interrupt.
+ $EC5B RET            ;

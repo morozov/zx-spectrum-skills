@@ -67,9 +67,29 @@ A comment covers **one act**, and the act's boundaries are not a matter of taste
 
 **This is your monotony exemption, and you get it for free.** A long unrolled run — thirty rows of shift, a copy chain, a table of stores — has no branches, so it is one block, and one comment is the correct answer for all of it. Any rule phrased as lines-per-comment punishes exactly that code and lets a catch-all sentence over a branching routine pass. Compare a long routine under a single one-sentence comment that spans many basic blocks with an unrolled shift of similar length that spans one. The first is the defect, the second is right, and only a control-flow rule tells them apart.
 
-The laws are a floor, not a target. A block can carry more than one comment unit. A run of alternating `LD A,n` / `RST $10` rows is one block, so one comment would be legal; cut it into one comment per control code, because repetition of *shape* is not repetition of *meaning*. Write for the acts, then check the laws.
+The laws are a floor, not a target. A disassembly that clears them can still fall short of a principle, and that is its defect, not a license (see "These principles are the bar"). A block can carry more than one comment unit. A run of alternating `LD A,n` / `RST $10` rows is one block, so one comment would be legal; cut it into one comment per control code, because repetition of *shape* is not repetition of *meaning*. Write for the acts, then check the laws.
 
 `lint_comments.py` enforces the first two as `GROUP_SPLIT`, `GROUP_ENTRY` and `GROUP_SKIP`, and `make coverage` enforces the third — a routine is *explained* when no block in it is bare. A line-density figure can read the same for a disassembly averaging two comments per block and one averaging less than one. What no check reaches is a long single-entry, single-exit run whose one sentence is too thin for it: nothing structural separates it from a legitimate unrolled span, so it stays the Challenger's read.
+
+## A comment describes its own rows
+
+Two ways a comment stops doing that, both of them defects that read as normal prose until you look at what a block owes.
+
+**A sentence split across two comment units.** Each unit — one `{ }` group, one commented row — describes the rows it sits on. A unit that finishes the sentence the one above it left open describes nothing on its own:
+
+> **Bad:** `; {Leave it alone while the door still opens,` `; {and while the door still closes.`
+>
+> **Good:** each block says what *it* tests — and where the second genuinely refers to the first, it says so in a sentence of its own that names it.
+
+`SPLICE` gates it, on the pair of signals that make it exact: the previous unit ended without terminal punctuation and this one opens lowercase. Either signal alone also fires on correct prose.
+
+**A record's layout quoted into prose about code.** The layout has one home — the block whose bytes are the record, where the stride, the fields and the sentinel are stated once (`references/ctl-authoring.md`). Anywhere else, the offset is the implementation quoted into a sentence about behavior, and it binds that sentence to a layout nothing re-derives:
+
+> **Bad:** `Tracks the player's position — the record whose +0/+1 word holds its X/Y.`
+>
+> **Good:** `Tracks the player's position.`
+
+`LAYOUT_ECHO` gates it, and tells the two apart by location, which is decidable: an offset in a `c` block's prose is a citation, an offset in a data block's `D` or `N` is the definition. A disassembly held to this bar cites none. A geometric offset is not a record field, so "vertical bounds of +12 and +2 pixels" is not a hit.
 
 ## One home per fact
 
@@ -99,9 +119,34 @@ Never write "Takes no register inputs and returns nothing; clobbers …" — or 
 
 ## Prefer the native device over prose
 
-Before you describe something in words, check whether SkoolKit can *express* it directly. A sprite rendered with `#UDG` beats a paragraph about its shape; a bitfield as a `#TABLE` beats a sentence listing its bits; a timing computed with `#TSTATES` beats a hand-estimated "about 3 ms"; a literal encoded as an `@isub` constant beats a comment naming its value. The native device is richer for the reader and is derived from the actual bytes, so it cannot drift out of sync. Prose is for the *why* that no device can carry — the game rule, the trade-off, the bug. `references/expressive-palette.md` is the full catalog of devices; reach for them.
+Before you describe something in words, check whether SkoolKit can *express* it directly. A sprite rendered with `#UDG` beats a paragraph about its shape; a bitfield as a `#TABLE` beats a sentence listing its bits; a timing computed with `#TSTATES` beats a hand-estimated "about 3 ms" — when the timing is worth stating at all, which is when timing is the rule (see "A comment never echoes the implementation"); a literal encoded as an `@isub` constant beats a comment naming its value. The native device is richer for the reader and is derived from the actual bytes, so it cannot drift out of sync. Prose is for the *why* that no device can carry — the game rule, the trade-off, the bug. `references/expressive-palette.md` is the full catalog of devices; reach for them.
 
 A rendered image is a claim about the bytes, not a fact about the game. The attribute you pass to an image macro (`#UDG`/`#UDGARRAY`/`#FONT`) is a display choice you made. Never describe a sprite's color from it. The in-game color is whatever the draw code writes to the attribute file — trace it to a real value, or render at a neutral attribute and say the color is untraced. Any words around a rendered image must be traced, not invented.
+
+### Never describe a medium in its own units
+
+The render *is* how the artifact reaches the reader. The `#UDGARRAY` shows the sprite; the `#FRAMES` plays the animation; the `#AUDIO` plays the effect. Prose that says what the picture looks like or what the sound sounds like is the author doing by hand, badly, the job the device does exactly — and it is wrong in the same way whether or not the sentence is accurate.
+
+The test is the **units**. A description written in the medium's own units is transcription and comes out. A description written in the *game's* units is the content, and no device can carry it.
+
+| Medium | Its own units — never in prose | The game's units — what the entry owes |
+| --- | --- | --- |
+| Sprites, tiles, screens | shape, pose, orientation, what it resembles, pixel layout, a color read off the render | what the thing *is*, the event that draws it, the routine (`#R`), the color the draw code writes |
+| Animation | frame-by-frame narration, direction of motion, "a walk cycle" | what the sequence depicts, what triggers it, its frame count and table, its measured cadence |
+| Audio | the noise ("a rising warble", "a short descending blip"), notes, intervals, pitch in Hz, pitch contour, the score walked step by step in prose or as a period/duration `#TABLE` | what the sound means in play, the event that fires it, the routine, and a cadence derived within the bounds `references/agents.md` sets |
+| Text and font | glyph shapes, letterforms | what the text says and where it appears |
+
+**A derived structural figure stays; anything the ear supplies goes.** The line is not "derived versus quoted" — a pitch in Hz is derived, and it is still the clip read back in numbers, because pitch is what the clip conveys. What stays is what the code fixes and the render cannot assert: the trigger, the routine, a traced color, and a cadence derived within the bounds `references/agents.md` sets. The pitch formula itself is a *mechanism*, so it belongs once at the tone primitive that implements it, never per effect — "one home per fact" reaching audio:
+
+> **Bad:** Pitch period starts at #REGd=200 (~660 Hz) and the period rises by 1 across 2 cycles, so the second cycle slides a touch lower: a ~3 ms low tick.
+>
+> **Good:** The blip when an enemy is stunned, played by #R$6E80 each time a stun lands.
+
+What is left after the cut is short, and that is the point. An entry that goes near-empty once the transcription is gone is not finished — it is missing its trigger and its driver, which is what it owed all along. Send it back for those, never for the narration.
+
+This governs **every artifact the reader opens**, exactly as the no-narration rule does: the `.ctl` comments, the `.ref` catalogs, the behavior spec, the built pages. A sound catalog and a line comment beside a sprite blit are the same document to the person reading them.
+
+One part of it is exact and gates: `PITCH` reports a pitch stated in Hz, over the `.skool` and the prose files alike. The machine's own constants are not pitches — the clock is written in MHz and never matches, and the 50 Hz frame interrupt is a sanctioned assumption. The rest — a pose, a color narrated off a render, a melody walked step by step — is ordinary prose, so it stays the Challenger's, gated by reading (`references/roles/challenger.md`).
 
 ## What not to comment
 
@@ -130,7 +175,9 @@ A literal echoes the same way. The color is the fact the row owes the reader; th
 >
 > **Good:** `LD A,$38  ; Clear the play area to black ink on white paper.`
 
-The exemptions are the ones the citation rule below already names: a dispatcher's per-case comment, a catalog row, a record's field offset, the range a classifier tests. Each of those is a row whose subject *is* the value, so crossing the byte out leaves the comment saying nothing.
+The exemptions are two, and both are rows that *define* an encoding rather than use one: a catalog row, and a record's field offset at the block that defines the record. Crossing the byte out of either leaves the comment saying nothing.
+
+The dispatcher's per-case comment and the range a classifier tests are not a third, though the number names a case rather than counting anything. The principle holds there too: `face left (direction 3)` is `face left toward the player`, and `If spider (type 5)` is `If spider`. The checker reports `CP`/`AND`/`BIT` rows as well, so the doctrine and the check say one thing. Where the value really is part of the game's own name — `is the current player Player 2` — the deletion test keeps it and the check still reports it; dismiss those by reading, and do not rebuild the exclusion.
 
 When one thought genuinely spans several instructions, use a `{ }` comment group over exactly those rows — never `...` fragments stitched line to line.
 
@@ -178,7 +225,7 @@ The reported line, and what it owed instead:
 
 Nothing is lost. A reader who wants the byte reads the pickup dispatcher or the glyph catalog, where the byte is what the entry is about.
 
-**Where the line is drawn: does the text define the encoding, or cite it?** A code stays wherever the mapping *is* the content — the catalog row whose job is to say that `$1C` means SPEED, a `D` note stating a record's field values, a dispatcher's per-case comment. Strike the code out of one of those and the entry stops saying anything:
+**Where the line is drawn: does the text define the encoding, or cite it?** A code stays wherever the mapping *is* the content — the catalog row whose job is to say that `$1C` means SPEED, a `D` note stating a record's field values. Strike the code out of one of those and the entry stops saying anything:
 
 > `{ S | $1C | #UDGARRAY… | SPEED - the player runs faster … }`
 
@@ -190,21 +237,41 @@ So the test is the deletion, not the punctuation. Cross the code out and read wh
 
 The second outcome and the third look identical at the moment of deletion, so tell them apart by asking where the name lives: if the entry in front of you *is* where the encoding is defined, the code stays; if the name is defined somewhere else, go get it. This is "one home per fact" reaching an encoding: the mapping lives in the table that defines it, and every other mention names the thing or links there.
 
-Two things the rule does not reach. **A platform encoding** — port `$FE`, opcode `$C9`, the attribute byte's bit layout — is not the program's to reassign, so no edit to it can falsify the sentence; whether to spell one out at all is the separate question under "Spectrum architecture basics". An attribute *value* is not one of these. `$38` is a color this program picked and can repick, so a sentence citing it is a citation like any other; what belongs to the platform is the layout that gives `$38` its meaning, not the decision to write it. **A value the reader needs to use the code** stays too: the range a classifier tests (`$10-$1F` is wall, `$20-$2F` is the ladder band), a record's field offsets, a state byte's value domain in the behavior spec. Those are the interface, not an internal name for something the sentence already said.
+Two things the rule does not reach. **A platform encoding** — port `$FE`, opcode `$C9`, the attribute byte's bit layout — is not the program's to reassign, so no edit to it can falsify the sentence; whether to spell one out at all is the separate question under "Spectrum architecture basics". An attribute *value* is not one of these. `$38` is a color this program picked and can repick, so a sentence citing it is a citation like any other; what belongs to the platform is the layout that gives `$38` its meaning, not the decision to write it. **A value the reader needs to use the code** stays too: a record's field offsets where the record is defined, and a state byte's value domain in the behavior spec. Those are the interface, not an internal name for something the sentence already said.
 
-**No check ships for this; the Challenger asks the deletion question.** A pattern for the shape — a standalone `($XX)` in a `D` or `N` note — reports mostly misses, among them `OUT ($FE),A` quoted in a note. Widening it to catch more citations adds misses faster than right hits, and a widening keyed on one word of the game's vocabulary finds only the citations that use that word.
+**No check ships for this; the Challenger asks the deletion question.** The measurement behind this exempted a comment on a `CP`/`AND`/`BIT` row and the range a classifier tests. The current rule exempts neither, so some hits it scored as misses are defects. Whether a check ships here takes a measurement under the current rule.
+
+A pattern for the shape — a standalone `($XX)` in a `D` or `N` note — reports mostly misses, among them `OUT ($FE),A` quoted in a note. Widening it to catch more citations adds misses faster than right hits, and a widening keyed on one word of the game's vocabulary finds only the citations that use that word.
 
 **The reason not to ship is the ratio, not an inability to read the difference.** Many of the misses are the glyph catalog's own entries — `SPEED pickup, glyph letter S (tile codes $1C-$1F)` — and those are separable: a definition carries its `#UDGTABLE`/`#UDGARRAY` render and writes the code as a range, and a pattern reads both. A defect and a definition can be the same directive type in the same file, and what tells them apart is on the line. With the definitions filtered out, the findings worth acting on are still outnumbered by the ones an author reads and dismisses. That is what decides it. `scripts/lint_comments.py` is advisory, but its kinds feed the coverage verdict, so a kind at that precision costs more attention than it returns.
 
-The same shape in `graphics.ref`: 19 of the 40 lines carrying a `$XX` are `#TABLE` rows. A check firing there deletes nothing — it reports — but what it reports is the entries that define the encoding, in all three of the forms blessed a dozen lines above: the catalog row, the `N` note that states the code range, the dispatcher's per-case comment. Each comes back as a finding to dismiss by hand.
+The same shape in `graphics.ref`: 19 of the 40 lines carrying a `$XX` are `#TABLE` rows. A check firing there deletes nothing — it reports — but what it reports is the entries that define the encoding, in both of the forms blessed a dozen lines above: the catalog row and the `N` note that states a record's fields. Each comes back as a finding to dismiss by hand.
 
-## Derived facts stay, restatements go
+## A comment never echoes the implementation
 
-This is the line authors struggle with, because both look like "a number in a comment" and only one of them earns its place.
+**A comment exists to clarify what is not clear. The row is already clear about itself.** It shows its mnemonic, its operand and its label, and a comment that hands any of that back spends the line saying nothing. There is no base, no unit and no house style under which that changes.
 
-A **restatement** is the operand in other words — the same value, converted or not. `$64` written as `100`, `$1C` written as `28`, `$0F` written as `15 lives`. The base is a notation; the echo is the value. The row already carries it, so a comment carrying it again says it twice on one line. Writing it in decimal is not a repair, and the check compares values for exactly that reason.
+So a number in a comment has to justify itself, and it takes **two** things, not one. The value must be one **the row does not carry** — and it must be **part of the rule the reader is trying to understand**. Being unreachable from the row is not enough on its own: a delay loop converted to `~18 ms` is arithmetic nobody asked for, and it dates the moment the loop is retimed.
 
-A **derived fact** is a conversion the row cannot show: what the value *means* once the hardware or a game rule is applied to it. In `Period 200 = ~660 Hz pitch`, the `~660 Hz` is derived and stays; the `200` is the operand and goes. Same for `~18 ms`, `columns 9-22`, `y 38`. A reader cannot reach any of those by looking at the row, which is the whole test.
+The second condition is where most candidate numbers die. Ask what the reader does with it. `LD B,$32` under the frame interrupt is worth `about a second` when the second is the rule — a message that holds, a grace period, a spawn interval. The same conversion on a routine that just burns time while the beeper settles is noise.
+
+Timing earns its place when timing **is** the business logic, and then it is not decoration but the thing itself: a tape loader's bit-cell widths, a routine racing the raster, a frame budget the game is written against. Outside those, a figure in T-states or milliseconds is a fact about the hardware, and the reader already has the hardware.
+
+Everything else is the operand in other words, and the forms are worth naming:
+
+> **Bad — the other base.** `LD D,$64  ; start period 100.`  `$64` *is* 100.
+>
+> **Bad — a unit stuck on the front.** `CP $26  ; y 38.`  `$26` *is* 38, and `y` converts nothing. So are `15 lives` beside `LD A,$0F` and `columns 9-22` beside the two `CP` rows carrying 9 and 22.
+>
+> **Bad — the case named by its number.** `CP $05  ; If spider (type 5).` The intent is `If spider`.
+>
+> **Bad — the operand quoted back inside a group.** `LD A,($7E90)  ; {Cap the speed at a maximum of $0C.` The `$0C` is on the row below.
+
+`OPERAND_ECHO` compares **values** and ignores the words around them, for exactly this reason: a finding is not answered by naming the unit more precisely, or by saying which case the number picks. It is answered by writing what the row is *for*.
+
+**"It is the house style" is not a defense**, any more than "project X does it too" is — see "These principles are the bar" below. A form repeated through a `.ctl` is a defect repeated a hundred times, and the repair is the same on the hundredth row as on the first. The bar is these principles; no file, however consistent with itself, moves it.
+
+**A pitch in Hz is the one conversion that fails it**, and it fails on the other rule: the `#AUDIO` at the block already plays the pitch, so a figure in Hz is the clip read back in numbers rather than a fact the page was missing. Being derived is not enough — see "Never describe a medium in its own units". The tone formula belongs once at the primitive that implements it.
 
 So the repair for a flagged number is never the other base. It is the intent, or the derived fact:
 
@@ -212,7 +279,7 @@ So the repair for a flagged number is never the other base. It is the intent, or
 >
 > **Still bad:** `LD D,$64  ; Tone 1: start period 100, 10 cycles.`
 >
-> **Good:** `LD D,$64  ; Tone 1: the higher, shorter of the blip's two rising sweeps (~660 Hz).`
+> **Good:** `LD D,$64  ; Tone 1: the higher, shorter of the blip's two rising sweeps.`
 
 A memory address never takes a decimal equivalent at all: `$7A26` as an address stays hex.
 

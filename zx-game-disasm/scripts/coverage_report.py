@@ -316,6 +316,9 @@ def main():
     group_entry = prose.get('GROUP_ENTRY', 0)
     group_skip = prose.get('GROUP_SKIP', 0)
     base_echo = prose.get('BASE_ECHO', 0)
+    splice = prose.get('SPLICE', 0)
+    layout_echo = prose.get('LAYOUT_ECHO', 0)
+    pitch = prose.get('PITCH', 0)
     stamp = prose.get('STAMP', 0)
     # A typed uncertainty marker is legitimate text and unfinished work at the
     # same time: it says a claim is not derived yet, so it holds the project
@@ -326,7 +329,8 @@ def main():
     # instrument writing the headline, which is the defect this file already
     # carries a section about.
     prose_hard = (ret_group + selflink + diary + op_echo + ellipsis
-                  + group_split + group_entry + group_skip + base_echo)
+                  + group_split + group_entry + group_skip + base_echo
+                  + splice + layout_echo + pitch)
 
     # The honest unit is the basic block, not the line and not a ratio over
     # lines. A body is explained when every block in it — every stretch of
@@ -334,7 +338,9 @@ def main():
     # needs no threshold: the code decides how many blocks there are, so an
     # unrolled run is one block and answers to one comment, while a routine that
     # branches eight times owes eight.
-    sized = [r for r in routines if r['instr'] >= 5]
+    # Every code routine, with no size filter: a four-instruction routine is a
+    # routine, and its blocks owe comments like any other's.
+    sized = routines
 
     def explained(r):
         return r['bare_blocks'] == 0
@@ -467,7 +473,7 @@ def main():
     named_pct = 100 * (total_labels - auto_labels) / total_labels if total_labels else 100.0
 
     print(f"Documentation coverage for {args.skool}")
-    print(f"  ROUTINES     : {len(sized)} sized code routines (≥5 instructions)")
+    print(f"  ROUTINES     : {len(sized)} code routine(s)")
     print(f"    documented : {len(documented)} ({100*doc_frac:.0f}%) — every basic block spoken to")
     print(f"    skeletal   : {len(skeletal)} — a description/summary over blocks nothing explains")
     print(f"    bare       : {len(bare)} — no description and no line comments")
@@ -520,7 +526,8 @@ def main():
     print(f"  PROSE        : {ret_group} RET_GROUP, {selflink} SELFLINK, {diary} DIARY,"
           f" {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS, {group_split} GROUP_SPLIT,"
           f" {group_entry} GROUP_ENTRY, {group_skip} GROUP_SKIP,"
-          f" {base_echo} BASE_ECHO,"
+          f" {base_echo} BASE_ECHO, {splice} SPLICE, {layout_echo} LAYOUT_ECHO,"
+          f" {pitch} PITCH,"
           f" {open_markers} OPEN (gate the verdict); {stamp} STAMP (advisory)"
           + ("  — run `make lint-comments` for the line-level list" if prose else ""))
     if arrays is None:
@@ -601,7 +608,9 @@ def main():
             reasons.append(f"prose not at the bar ({ret_group} RET_GROUP, {selflink} SELFLINK,"
                            f" {diary} DIARY, {op_echo} OPERAND_ECHO, {ellipsis} ELLIPSIS,"
                            f" {group_split} GROUP_SPLIT, {group_entry} GROUP_ENTRY,"
-                           f" {group_skip} GROUP_SKIP, {base_echo} BASE_ECHO)")
+                           f" {group_skip} GROUP_SKIP, {base_echo} BASE_ECHO,"
+                           f" {splice} SPLICE, {layout_echo} LAYOUT_ECHO,"
+                           f" {pitch} PITCH)")
         if open_markers:
             reasons.append(f"{open_markers} typed uncertainty marker(s) still standing "
                            "— each is an underived claim with a dig-task owed")
