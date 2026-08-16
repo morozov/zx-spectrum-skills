@@ -1,0 +1,9 @@
+Found 4 label prefix(es) that name something else:
+
+  Line 11: SUBSUMED — move_player_run carries its own `N` narrative, so it is a behavior a reader looks up, not a branch position — yet its prefix claims it as part of move_player ($F000). Give it a name of its own
+
+  Line 13: MISPARENTED — move_player_down is prefixed `move_player` ($F000), but these bytes are inside move_player_run ($F010), which lies between them and has a narrative of its own. The prefix skips a level — stem it on move_player_run
+
+  Line 15: PRIVATE_HELPER — move_player_slide ($F030) is reached only from $F000, the entry that labels its prefix `move_player` — it is that routine's helper wearing its name, not a sibling a caller may pick. Name it for what it does, outside move_player's namespace
+
+  Line 23: UNREACHED — open_door_unlock_key1 is prefixed `open_door_unlock` ($F06C), which does not contain $F068 — control reaches these bytes without passing through open_door_unlock. The prefix claims a containment the flow refuses

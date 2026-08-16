@@ -20,6 +20,7 @@
 #                             each entry the type its bytes are
 #   make lint-names           Gate: prose names a labeled slot by its label
 #   make lint-label-namespace Gate: a label's prefix names something containing it
+#   make test-checks          Gate: each .ctl check still reports what its fixture says
 #   make lint-byte-counts     Gate: no instruction comment recites a byte count
 #   make lint-array-elements  Gate: every array record annotated individually
 #   make lint-images          Gate: every image macro put an image under html/
@@ -43,6 +44,7 @@
 # Locate the skill's scripts relative to this file: .../tools/disassembly.mk lives
 # beside .../scripts, so the project never has to point at them.
 SCRIPTS := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../scripts)
+FIXTURES := $(abspath $(SCRIPTS)/../fixtures)
 
 # --- The toolchain -----------------------------------------------------------
 #
@@ -71,6 +73,7 @@ TOOLS_verify-frag         := $(TOOLS_BIN)
 TOOLS_html                := $(TOOLS_SKOOL) skool2html.py
 TOOLS_coverage            := $(TOOLS_SKOOL)
 TOOLS_lint-comments       := $(TOOLS_SKOOL)
+TOOLS_test-checks         := $(TOOLS_SKOOL)
 TOOLS_lint                := $(TOOLS_SKOOL)
 TOOLS_lint-data-structure := $(TOOLS_SNAPSHOT)
 TOOLS_lint-publication    := $(TOOLS_SKOOL)
@@ -134,7 +137,7 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-images lint-baseline lint-array-elements lint-comments coverage html
+.PHONY: all gate tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-images lint-baseline lint-array-elements lint-comments coverage html
 
 # A recipe that redirects into its own target has already created that target by
 # the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
@@ -157,7 +160,7 @@ BASELINE ?= lint-baseline.txt
 # `lint-images` is listed after `html` because it reads what the build produced:
 # it is the one check whose subject is a directory of files rather than a text
 # file. Its own prerequisite is html/.stamp, so the order holds under `-j` too.
-all: $(ASM_FIXED) $(Z80_FIXED) test lint html lint-images
+all: $(ASM_FIXED) $(Z80_FIXED) test test-checks lint html lint-images
 
 # The same gate, with a result that cannot be misread. Under `-j` the HTML branch
 # can print `touch html/.stamp` while the asm branch is failing, so the tail of a
@@ -432,6 +435,16 @@ lint: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL)
 # per-commit gate would block the breadth phase. `make coverage` reports label-naming
 # progress (% named, auto-labels remaining); the goal is 100% before "done", not
 # before the first commit. See `scripts/coverage_report.py`.
+
+# The checks the gate trusts, held to their own fixtures. A fixture that is only
+# run says a check still produces findings; it does not say the check still
+# produces *these* findings. A check that loses a finding kind still prints the
+# others, and its falling count reads as progress. Each fixture carries a
+# recorded expectation and this diffs against it, so a rule that
+# stops firing is a red build rather than a quieter one. See
+# `fixtures/check-findings.sh` for why the whole output is the assertion.
+test-checks:
+	@$(FIXTURES)/check-findings.sh
 
 CHECK_address-order = $(SCRIPTS)/validate_ctl_address_order.py $(CTL)
 lint-address-order: $(CTL)

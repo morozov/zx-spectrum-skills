@@ -1,0 +1,33 @@
+Found 8 comment defect(s):
+
+[BASE_ECHO] 1
+  group-span.skool:57: '$8A (138)' spells one value in both bases — the base is a notation, so the parenthetical is the operand read back. State the intent, or the derived fact the row cannot show
+    c$EC35 LD A,($FC00)   ; {Clamp the stored width to a maximum of $8A (138), then
+
+[GROUP_ENTRY] 1
+  group-span.skool:42: a '{ }' comment group is entered at this row from outside its span ($EC2C) — a reader arriving by that jump is handed a sentence about instructions that never ran. Close the group before this row
+    *$EC22 LD A,$02       ;
+
+[GROUP_SKIP] 1
+  group-span.skool:63: a '{ }' comment group's own branch at $EC3A jumps forward over this row — on that path the rows below the branch do not run, so the sentence covers instructions the reader may never execute. Close the group at the branch
+    *$EC40 LD HL,$FD00    ;
+
+[GROUP_SPLIT] 1
+  group-span.skool:21: a '{ }' comment group spans 'JR $EC0B' — control leaves the span here, so the rows below it are a second act carrying the first one's sentence. Close the group on this instruction and open the next one below it
+    $EC05 JR $EC0B       ;
+
+[LAYOUT_ECHO] 1
+  group-span.skool:71: cites a record's field offset ('+0/+1') in prose about code — the layout belongs at the record's own block, stated once; here, name what the field holds
+    c$EC47 LD HL,($FC10)  ; Read the slot's +0/+1 position word.
+
+[OPERAND_ECHO] 1
+  group-span.skool:57: the comment quotes $8A, 138 — a value carried by an instruction inside its own span. Say what the span is for; the row below already shows the byte
+    c$EC35 LD A,($FC00)   ; {Clamp the stored width to a maximum of $8A (138), then
+
+[PITCH] 1
+  group-span.skool:83: states a pitch ('~1.3 kHz') — the #AUDIO plays the pitch, so the figure is the clip read back in numbers. Name what the sound means and what fires it; the tone formula belongs once at the primitive
+    c$EC56 LD D,$64       ; The door-close click, ~1.3 kHz.
+
+[SPLICE] 1
+  group-span.skool:75: this comment finishes the sentence the previous unit left open ('Hold the slot while the fade settles,') — each comment describes its own rows, so a clause that only makes sense after the one above it belongs in that one, or in a sentence of its own that names what it refers to
+    *$EC4E LD A,(HL)      ; {and release it once the fade has passed.

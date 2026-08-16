@@ -1,0 +1,7 @@
+Found 3 page(s) the .ctl should not publish:
+
+  entry-type.ctl:37: MUTABLE — `b $4110 Level number and lives` publishes 2 bytes as data the program was loaded with, and the code stores to every one of them: $4110 (level) from $4002, $4111 (lives) from $4007. Bytes the program writes as it runs are `g`, the page SkoolKit heads "Game status buffer entry at" — the type is what tells a reader whether a value survives a replay, a porter what to allocate rather than initialize, and an agent-trainer which addresses are state. Retype the entry `g`
+
+  entry-type.ctl:42: MUTABLE — `b $4112 Enemy step table` publishes 32 bytes as data the program was loaded with, and the code stores to 2 of them: $4130 (step_cursor) from $4011, $4131 from $4011. Bytes the program writes as it runs are `g`, the page SkoolKit heads "Game status buffer entry at" — the type is what tells a reader whether a value survives a replay, a porter what to allocate rather than initialize, and an agent-trainer which addresses are state. Retype the entry `g`, or - if the rest of it really is a static table with a runtime slot glued to its tail - split the written bytes into a `g` entry of their own
+
+  entry-type.ctl:46: MIXED — `t $4132 Text: GAME OVER` publishes one page headed as text, but not all of its contents are text: `B $4141` among its 2 sub-directives. Everything inside the entry renders on that page and is filed under that title in the memory map, so a reader looking for those bytes finds them under a message. Split the entry: one entry per thing, each headed by what it is

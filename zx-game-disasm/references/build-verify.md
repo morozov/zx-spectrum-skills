@@ -333,7 +333,7 @@ The check takes `--org` and `--size`, which the game Makefile already sets, and 
 
 ```
 scripts/validate_ctl_publication.py fixtures/fragmented-structure.ctl \
-    --org 0x4000 --size 8192 --skool fixtures/no-stores.skool
+    --org 0x4000 --size 6912 --skool fixtures/no-stores.skool
 scripts/validate_ctl_publication.py fixtures/outside-image.ctl \
     --org 0x4000 --size 256 --skool fixtures/no-stores.skool
 scripts/validate_ctl_publication.py fixtures/entry-type.ctl \
@@ -516,7 +516,7 @@ The laws read the brace-delimited span, not the paragraph. A mid-block `;` note 
 
 `OPERAND_ECHO` is the exception, and it has to be: a group opens on the row that carries the operand its first sentence names, which is where an echo like `LD HL,tile_map ; {Clear … (tile_map)` lives, and skipping the brace-carrying rows would miss every echo on a row that opens or closes a group. Its two halves are scoped differently. The **symbol** half runs per row — each row's `#R` against that row's own operand — because widened to the whole span it would report a group comment naming a routine its span calls, which is a paragraph doing its job, not a duplicate. The **literal** half is span-scoped: a byte quoted in a group's text is a byte the reader can see on a row below, which is the shape to catch — a clamp naming its threshold one row above the `CP` that tests it. That scoping needs one exemption, and it is structural: a value inside an arithmetic expression is a formula's constant, and the doctrine asks for the formula once at block level. Without it the check fires on every stated formula.
 
-`fixtures/group-span.skool` is the constructed case for the span laws, with each finding and the near misses that must stay silent — a loop top reached only from below it, a conditional early-out. Run `scripts/lint_comments.py fixtures/group-span.skool`: exactly one `GROUP_SPLIT` at `$8005`, one `GROUP_ENTRY` at `$EC22`, one `GROUP_SKIP` at `$EC40`, one `BASE_ECHO` at `$8035`, one `LAYOUT_ECHO` at `$8047`, one `SPLICE` at `$804E`, one `PITCH` at `$8056`.
+`fixtures/group-span.skool` is the constructed case for the span laws, with each finding and the near misses that must stay silent — a loop top reached only from below it, a conditional early-out. Run `scripts/lint_comments.py fixtures/group-span.skool`: exactly one `GROUP_SPLIT` at `$8005`, one `GROUP_ENTRY` at `$EC22`, one `GROUP_SKIP` at `$EC40`, one `BASE_ECHO` at `$8035`, one `LAYOUT_ECHO` at `$8047`, one `SPLICE` at `$804E`, one `PITCH` at `$8056`, and one `OPERAND_ECHO` also at `$8035` — the group comment there carries both a base parenthetical and a value a row of its own span shows, so one line answers to two rules. `fixtures/check-findings.sh` asserts that list, and this sentence is what a re-recorded expectation is reviewed against.
 
 Relocatability (a raw address in a comment) is not re-checked here: `skool2asm --create-labels` already emits "Comment contains address …" and the build fails on it, which is both authoritative and more precise than a regex.
 

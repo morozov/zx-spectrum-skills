@@ -1,0 +1,15 @@
+Found 2 ordering violation(s):
+
+  Violation at address $F010:
+    Line 33: i $F010
+        $F010 Reset the life counter.
+    should come AFTER
+    Line 34: @ $F010
+      @ $F010 label=reset_lives
+
+  Violation at address $F020:
+    Line 35: i $F020
+        $F020,3 Restage the player sprite pointer.
+    should come AFTER
+    Line 36: @ $F020
+      @ $F020 keep

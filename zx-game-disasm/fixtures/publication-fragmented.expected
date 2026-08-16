@@ -1,0 +1,5 @@
+Found 2 page(s) the .ctl should not publish:
+
+  fragmented-structure.ctl:28: FRAGMENTED — 6 consecutive `b` entries, $4000 through $4500, each with no sub-directive and each headed "loading screen" — the first reads "Loading screen row 0". That is one structure published as 6 pages and 6 memory-map rows, with no page saying what the whole of it is. Make it one entry with one title and a sub-directive per part
+
+  fragmented-structure.ctl:41: FRAGMENTED — 3 consecutive `b` entries, $4800 through $4840, each with no sub-directive and each headed "loading screen attributes" — the first reads "Loading-screen attributes; start cell reused for the score readout". That is one structure published as 3 pages and 3 memory-map rows, with no page saying what the whole of it is. Make it one entry with one title and a sub-directive per part

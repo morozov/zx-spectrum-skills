@@ -1,0 +1,5 @@
+Found 2 page(s) the .ctl should not publish:
+
+  outside-image.ctl:20: OUTSIDE — `b $1000` publishes a page and a memory-map row below the program image ($4000..$40FF). The program never occupies $1000, so the page documents memory this disassembly does not describe. Render-only or generated data belongs in a `.ref` `[Graphic:]` entry, not in the address space
+
+  outside-image.ctl:23: OUTSIDE — `b $1020` publishes a page and a memory-map row below the program image ($4000..$40FF). The program never occupies $1020, so the page documents memory this disassembly does not describe. Render-only or generated data belongs in a `.ref` `[Graphic:]` entry, not in the address space
