@@ -19,6 +19,7 @@
 #   make lint-publication     Gate: every page inside the image, one page per thing,
 #                             each entry the type its bytes are
 #   make lint-names           Gate: prose names a labeled slot by its label
+#   make lint-label-namespace Gate: a label's prefix names something containing it
 #   make lint-byte-counts     Gate: no instruction comment recites a byte count
 #   make lint-array-elements  Gate: every array record annotated individually
 #   make lint-images          Gate: every image macro put an image under html/
@@ -73,6 +74,7 @@ TOOLS_lint-comments       := $(TOOLS_SKOOL)
 TOOLS_lint                := $(TOOLS_SKOOL)
 TOOLS_lint-data-structure := $(TOOLS_SNAPSHOT)
 TOOLS_lint-publication    := $(TOOLS_SKOOL)
+TOOLS_lint-label-namespace := $(TOOLS_SKOOL)
 TOOLS_lint-images         := $(TOOLS_html)
 TOOLS_lint-baseline       := $(TOOLS_html)
 
@@ -132,7 +134,7 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-images lint-baseline lint-array-elements lint-comments coverage html
+.PHONY: all gate tap clean verify-frag test lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-images lint-baseline lint-array-elements lint-comments coverage html
 
 # A recipe that redirects into its own target has already created that target by
 # the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
@@ -399,7 +401,7 @@ test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 # in two places.
 LINT_CHECKS = address-order instruction-order lengths label-length identity \
               data-structure publication names byte-counts array-elements \
-              comments
+              comments label-namespace
 
 # Every check the gate holds a project to: the sweep's, plus the one that runs
 # after the site is built. The gate compares this against the number of checks the log
@@ -459,6 +461,22 @@ lint-label-length: $(CTL)
 CHECK_identity = $(SCRIPTS)/validate_ctl_identity.py $(CTL) --baseline $(BASELINE)
 lint-identity: $(CTL)
 	$(CHECK_identity)
+
+# An underscore in a label claims that these bytes are part of the thing the
+# prefix names, and a reader who follows a false claim lands in a routine that
+# does not contain them. Containment for a routine is dominance, so this reads the
+# generated .skool for the control flow — which is why it is not a .ctl-only
+# check and why the disassembler is among its tools.
+#
+# It gates what is decidable: a helper called from one entry wearing another's
+# name, a narrated behavior filed under someone else's prefix, a prefix that
+# reaches past the behavior the bytes actually sit in. What a suffix set *encodes*
+# is a judgment no check makes — `--report-families` prints the families for a
+# reviewer instead. See `references/ctl-authoring.md`.
+CHECK_label-namespace = $(SCRIPTS)/validate_ctl_label_namespace.py $(CTL) \
+    --skool $(SKOOL) --baseline $(BASELINE)
+lint-label-namespace: $(CTL) $(SKOOL)
+	$(CHECK_label-namespace)
 
 # Data-block schema check: every data entry — every block type but `c` and `i` —
 # must tile: its sub-directives cover every byte exactly once. Code modeled as an
@@ -591,6 +609,8 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 	$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/validate_ctl_label_namespace.py $(CTL) --skool $(SKOOL) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	[ $$refused -eq 0 ] || { echo "make lint-baseline: a check refused to record a key $(BASELINE) does not list, so it keeps what it said — the gate still fails on the finding."; exit $(BASELINE_REFUSED); }
 	@$(stamp_baseline_gate)

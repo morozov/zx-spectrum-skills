@@ -1,0 +1,37 @@
+@label=move_player
+c$F000 LD A,($9000)      ; The mode switch.
+ $F003 JR NZ,$F010       ; Non-zero runs the running body below.
+ $F005 CALL $F030        ; Zero hands off to the slide — its only caller.
+ $F008 CALL $F040        ; The fast step, which other routines call too.
+ $F00B RET               ;
+@label=move_player_run
+*$F010 LD A,($9001)      ; Read the controls.
+ $F013 JR Z,$F020        ; Not up: take the down path.
+ $F015 RET               ;
+@label=move_player_down
+*$F020 CP $02            ; Down held?
+ $F022 RET NZ            ;
+@label=move_player_down_apply
+ $F024 LD ($9002),A      ; Apply the step.
+ $F027 RET               ;
+
+@label=move_player_slide
+c$F030 LD A,($9003)      ; The momentum ramp.
+ $F033 RET               ;
+
+@label=move_player_fast
+c$F040 LD A,($9004)      ; One fast step.
+ $F043 RET               ;
+
+@label=poll_input
+c$F050 CALL $F040        ; The second caller, which makes $F040 a sibling.
+ $F053 RET               ;
+
+@label=open_door
+c$F060 LD A,($9005)      ; Which key.
+ $F063 JR NZ,$F06C       ; Key 2 goes straight to the unlock.
+@label=open_door_unlock_key1
+*$F068 LD A,$01          ; Key 1, then fall into the unlock below.
+@label=open_door_unlock
+*$F06C LD ($9006),A      ; UNREACHED: the unlock does not contain key1.
+ $F06F RET               ;

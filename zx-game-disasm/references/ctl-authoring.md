@@ -132,6 +132,28 @@ The first name is rarely the final one. As you understand a routine better, a tr
 
 A routine has more than one named address. Every internal branch target the disassembler splits out — loop tops, per-case branches, shared tails — is an entry point, and the auto-generated `<routine>_0`, `<routine>_1`, … labels are as opaque as raw hex. A reader following `JR NZ,parse_3` learns nothing. Name each for what that branch *does* (`parse_loop`, `parse_done`, `read_kempston`) as part of documenting the routine, so the control flow reads in words. A referenced data sub-block — a table the code indexes — is an entry point too and earns a name.
 
+### An underscore is a claim, and the build checks it
+
+`walk_player_left` tells a reader that these bytes are part of `walk_player`. That is a claim about the code, not decoration, and `lint-label-namespace` decides it. Containment for a routine means dominance — every path that reaches this address passes through the one the prefix names — so the check builds a control-flow graph across every `c` entry from the generated `.skool` and asks the dominator tree. Four ways the claim comes out false:
+
+- **A private helper wearing the entry's name.** `walk_player_slide` is a separate routine called from exactly one place, inside `walk_player`. Two addresses that read as alternatives, one qualified and one not, where only the unqualified one is ever invoked and a caller has no way to tell. A public sibling is a different thing and passes: `print_string_wide` beside `print_string`, called from many sites, offers a choice that exists.
+- **A behavior wearing another's name.** `walk_player_ice` carries its own `N` narrative — a reader looks it up as a unit, it is not a branch position — while the prefix files it as part of `walk_player`. A behavior with its own story takes a name of its own, outside the other's namespace.
+- **A prefix that skips a level.** `walk_player_left` sits inside `walk_player_ice`, not directly inside `walk_player`, so one family reads at two depths and the reader of the normal-floor code has no way to know `walk_player_left` is not also theirs.
+- **A containment the flow refuses.** `ladder_grab_rung1` is prefixed on `ladder_grab`, which sits *after* it and is fallen into — the containment runs the opposite way to the claim. This is the kind that catches a family where one member's name is a prefix of another's without being its parent.
+
+Three things the check leaves alone, and they are the shapes to reach for. A prefix on *data* associates and claims nothing — `hit_door_addr` names the variable `hit_door` works on, and there is no control flow to falsify. A stem that is not itself a label asserts nothing about an address, which makes `slide_left` under `walk_player_slide` the deliberate form: branch labels stemmed on the behavior's distinguishing word. And a run of branch positions — `slide_left`, `slide_left_dir`, `slide_left_step`, `slide_left_done` — are stages of one behavior, not nested inside each other, even though each dominates the next. So only a narrated label can be the *inner* behavior a prefix is told it skipped, which is what keeps a sequence of stages from collapsing into `slide_left_dir_step_done`.
+
+### What the suffix encodes
+
+A family reads when every member answers the same question — which direction, which stage, which floor — and stops reading when the suffixes turn out to be four kinds of thing at once. A `walk_player_*` family holding a gate state (`_active`), a floor type (`_ice`), a direction (`_left`) and an activity (`_push`) gives no notion to read them against, so no reading of any single one is available. Decide the question the suffix answers before the family grows past two members. `validate_ctl_label_namespace.py --report-families` prints every family with its members, which is the worklist for a project that already has some.
+
+Four rules no check can decide:
+
+- **Never abbreviate a phrase to its distinguishing-looking half.** Say a game's setting is ICE FLOOR; `walk_player_ice` keeps the half that also names the ICE-SKATES pickup, so a reader takes the routine for the pickup's. When the whole phrase will not fit, shorten a word across the family — never drop one.
+- **Name the job, not the mechanism.** A count or a data shape is mechanism: two step sizes is how the style is built, not what the routine does. That routine moves the player straight from the current frame's controls, keeping no momentum between frames, so it is `use_direct_steering` and the two steps belong in the comment.
+- **A behavior takes an imperative verb.** The name says what invoking it does. Branch positions inside it need no verb — they are places, not operations.
+- **Alternatives take parallel shapes.** Two implementations of one choice must be recognizable as a pair: `use_direct_steering` and `use_momentum_steering`, both reading as *use the ___ steering*, not one verb-led and one noun-led.
+
 `D` is the one-line-to-one-paragraph contract: what a caller needs to know. `N` is for the longer algorithm story when one is warranted — multi-paragraph, the formula, the state machine, the edge cases.
 
 **`D` and `R` are entry-level — they render only at a block start.** An "entry" is an address declared with a block-type line (`c`/`b`/…). A branch target or internal label inside a block (the `*` sub-entries) is *not* an entry, so a `D` or `R` written at a mid-block address is **silently dropped** by `sna2skool` — no warning, the contract and register table just vanish from the `.skool`/`.asm`. Only `N` and instruction comments render mid-block. So when several CALLable subroutines are lumped into one `c` block, only the first (the block start) gets a visible `D`/`R`. To give an interior subroutine its own contract description or `I:`/`O:` register table, **split it into its own `c` entry** at that address (a clean RET/CALL boundary makes this safe and byte-identical). Catch this by grepping the generated `.skool` for the `D` text you wrote — if it is absent, the directive landed at a non-entry address. The build stays green either way, so the round-trip will not flag it.
@@ -435,7 +457,7 @@ The build runs ten `.ctl` linters; violations fail the build. The first four kee
 9. **No recited lengths** (`validate_ctl_byte_counts.py`) — an instruction comment must not state the size of the span it works on; a rate ("6 bytes per enemy") is the exemption. See `references/comment-style.md`.
 10. **Array elements** (`validate_ctl_array_elements.py`) — every record of an array of records is named on its own line, and a span that is not a record array is exempt by a declaration rather than by assertion. See [Data structures and tables](#data-structures-and-tables).
 
-An eleventh check, `validate_rendered_images.py` (`make lint-images`), gates the built site rather than the `.ctl`: every image macro must name an output file, and every named file must be under `html/`. It runs after `make html`, because its subject is what the build produced.
+A twelfth check, `validate_rendered_images.py` (`make lint-images`), gates the built site rather than the `.ctl`: every image macro must name an output file, and every named file must be under `html/`. It runs after `make html`, because its subject is what the build produced.
 
 Run the `.ctl` ones yourself while editing (`python3 scripts/validate_ctl_address_order.py {game}.ctl`) rather than waiting for the full build.
 

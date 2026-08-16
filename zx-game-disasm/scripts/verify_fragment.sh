@@ -181,6 +181,10 @@ lint_run names "$SCRIPTS/validate_prose_names.py" "$SPLICED" \
     --baseline "$BASELINE" --ignore-stale
 lint_run byte-counts "$SCRIPTS/validate_ctl_byte_counts.py" "$SPLICED" \
     --baseline "$BASELINE" --ignore-stale
+# Reads the skool disassembled from the spliced .ctl, so the dominator trees are
+# built over the fragment's own map — the same reason `publication` gets it.
+lint_run label-namespace "$SCRIPTS/validate_ctl_label_namespace.py" "$SPLICED" \
+    --skool "$tmp/game.skool" --baseline "$BASELINE" --ignore-stale
 
 # Advisory comment-quality pre-filter over the spliced skool. It runs ahead of the
 # verdict so a red sweep still carries it: it is what the Challenger reads, and a
@@ -189,13 +193,13 @@ echo
 echo "--- lint-comments (advisory) ---"
 "$SCRIPTS/lint_comments.py" "$tmp/game.skool" || true
 
-# The ten `lint_run` calls above. The count is written out rather than derived
+# The `lint_run` calls above. The count is written out rather than derived
 # from the gate's, which is larger by `lint-images` — the one gating check with no
 # counterpart here, because it reads the built site and a fragment builds none. A
-# number carried over from the makefile would keep counting eleven if the gate
-# gained a twelfth check this file did not, which is worse than saying so in
+# number carried over from the makefile would keep its old count if the gate
+# gained a check this file did not, which is worse than saying so in
 # words.
-lint_report 10
+lint_report 11
 
 echo "verify-frag: OK [fixed-asm flags: $FIXED_FLAGS] — every .ctl check the gate" \
      "runs. lint-images is the one it also runs and this cannot: it reads the" \
