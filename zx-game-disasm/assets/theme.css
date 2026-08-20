@@ -68,6 +68,18 @@
   --measure:       1200px;
   --index-measure: 720px;
   --gutter:        32px;
+
+  /* Type scale. Six steps, one role each. A size that is not one of these is a
+     size with no role. */
+  --type-display:  30px;   /* the index title */
+  --type-heading:  24px;   /* h2, a page section */
+  --type-subhead:  20px;   /* h3, an entry title, a card title */
+  --type-body:     18px;   /* prose, descriptions, comments, list entries */
+  --type-small:    15px;   /* the listing, table cells, secondary notes */
+  --type-micro:    12px;   /* table heads, labels, the header bar */
+  /* Dim text on a raised surface - a card, a table head. --text-dim is
+     tuned against the page background and measures under 4.5:1 there. */
+  --text-dim-raised: #93a695;
   --header-height: 80px;
 }
 
@@ -92,10 +104,10 @@ h1, h2, h3, h4 {
   color: var(--text);
 }
 
-h1 { font-size: 22px; }
-h2 { font-size: 17px; }
-h3 { font-size: 15px; }
-h4 { font-size: 13px; }
+h1 { font-size: var(--type-display); }
+h2 { font-size: var(--type-heading); }
+h3 { font-size: var(--type-subhead); }
+h4 { font-size: var(--type-subhead); }
 
 blockquote {
   padding-left: 14px;
@@ -166,15 +178,28 @@ td.logo a {
   font-family: var(--font-sans);
   font-weight: 600;
   letter-spacing: 1px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--yellow);
   text-decoration: none;
+}
+
+/* The page title. It is the h1, so it outranks the section headings below it
+   rather than sitting under them at label size. Family and transform come from
+   the cell, which a project may set to its own display face. */
+td.page-header h1 {
+  margin: 0;
+  font-family: inherit;
+  font-size: var(--type-display);
+  font-weight: 400;
+  letter-spacing: 2px;
+  text-transform: inherit;
+  color: var(--text);
 }
 
 td.page-header {
   flex: 0 0 auto;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 3px;
   text-transform: uppercase;
   color: var(--text-dim);
@@ -199,11 +224,13 @@ td.page-header {
 }
 
 header {
-  padding: 72px 0 48px;
+  padding: 56px 0 40px;
   text-align: center;
 }
 
+
 .game-title {
+  margin: 0;
   font-family: var(--font-sans);
   font-weight: 600;
   letter-spacing: 1px;
@@ -214,7 +241,7 @@ header {
 
 .subtitle {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--type-small);
   font-weight: 300;
   letter-spacing: 4px;
   text-transform: uppercase;
@@ -232,7 +259,7 @@ header {
 .divider {
   position: relative;
   height: 2px;
-  margin: 48px 0;
+  margin: 32px 0 36px;
   background: linear-gradient(
     90deg,
     transparent 0%,
@@ -258,18 +285,18 @@ header {
 /* ── Index navigation ────────────────────── */
 
 nav {
-  padding-bottom: 72px;
+  padding-bottom: 24px;
 }
 
 /* A project may re-declare --section-color per section for a game palette. */
 .section {
   --section-color: var(--text-dim);
-  margin-bottom: 40px;
+  margin-bottom: 34px;
 }
 
 .section-label {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-micro);
   letter-spacing: 3px;
   text-transform: uppercase;
   color: var(--section-color);
@@ -289,8 +316,11 @@ nav {
 
 .link-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 8px;
+  /* auto-fill keeps the tracks a short section cannot fill, so a two-link
+     group sits beside three reserved columns and the page reads as a broken
+     grid. auto-fit drops the empty tracks instead. */
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
 }
 
 .link-card {
@@ -301,11 +331,22 @@ nav {
   border-radius: 6px;
   color: var(--text);
   text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--type-subhead);
+  font-weight: 600;
+  line-height: 1.35;
   transition: background 0.12s, border-color 0.12s, transform 0.12s;
   position: relative;
   overflow: hidden;
+}
+
+/* What is behind the card, under its name. */
+.link-note {
+  display: block;
+  margin-top: 5px;
+  font-weight: 400;
+  font-size: var(--type-small);
+  line-height: 1.45;
+  color: var(--text-dim-raised);
 }
 
 .link-card::before {
@@ -346,7 +387,7 @@ table.asm-navigation td {
   background: transparent;
   padding: 8px 0;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-small);
   color: var(--text-dim);
 }
 
@@ -362,7 +403,7 @@ table.asm-navigation td.next { width: 30%; text-align: right; }
 
 div.description {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--type-subhead);
   font-weight: 700;
   color: var(--yellow);
   margin: 24px 0 0;
@@ -372,17 +413,20 @@ div.description {
   border-radius: 0 4px 4px 0;
 }
 
+/* An entry's description is the page's primary prose - what the routine does -
+   so it takes the reading color and the reading size. --text-dim is the token
+   for de-emphasis, and it measures 4.85:1 where this measures 15.7:1. */
 div.details {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--type-body);
   line-height: 1.7;
-  color: var(--text-dim);
+  color: var(--text);
   padding: 4px 0;
 }
 
 div.comments {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--type-body);
   line-height: 1.75;
   color: var(--text);
   padding: 8px 0 4px;
@@ -390,7 +434,7 @@ div.comments {
 
 div.paragraph {
   margin-top: 8px;
-  font-size: 14px;
+  font-size: var(--type-body);
   line-height: 1.75;
 }
 
@@ -400,11 +444,13 @@ div.paragraph {
    reads as two lines. The cap keeps a wide listing inside the measure so only
    the prose comment column takes up the slack. */
 table.disassembly {
-  width: auto;
+  /* Fit the reading column rather than set it: the comment column takes what
+     is left and wraps, so the listing shares the page's one edge. */
+  width: 100%;
   max-width: 100%;
   border-collapse: collapse;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--type-small);
   line-height: 1.6;
   margin-bottom: 24px;
 }
@@ -422,7 +468,7 @@ td.address-1 {
   vertical-align: top;
   padding: 1px 14px 1px 0;
   white-space: pre;
-  font-size: 12px;
+  font-size: var(--type-small);
 }
 
 td.address-2 {
@@ -432,7 +478,7 @@ td.address-2 {
   vertical-align: top;
   padding: 1px 14px 1px 0;
   white-space: pre;
-  font-size: 12px;
+  font-size: var(--type-small);
 }
 
 td.asm-label {
@@ -450,7 +496,7 @@ td.bytes {
   vertical-align: top;
   padding: 1px 14px 1px 0;
   white-space: pre;
-  font-size: 11px;
+  font-size: var(--type-small);
 }
 
 td.instruction {
@@ -474,7 +520,7 @@ td.comment-0 {
   padding: 1px 0;
   font-family: var(--font-mono);
   font-style: italic;
-  font-size: 12px;
+  font-size: var(--type-small);
 }
 
 td.comment-1 {
@@ -487,7 +533,7 @@ td.comment-1 {
   vertical-align: top;
   width: 45%;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--type-small);
   line-height: 1.6;
 }
 
@@ -528,7 +574,7 @@ table.output th {
   background: rgba(255, 255, 255, 0.07);
   color: var(--text-dim);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 2px;
   text-transform: uppercase;
   padding: 5px 12px;
@@ -540,7 +586,7 @@ table.output td {
   background: rgba(255, 255, 255, 0.035);
   color: var(--text);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--type-small);
   padding: 4px 12px;
 }
 
@@ -566,7 +612,7 @@ table.map th {
   background: rgba(255, 255, 255, 0.07);
   color: var(--text-dim);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 2px;
   text-transform: uppercase;
   padding: 10px 16px;
@@ -585,14 +631,14 @@ table.map td {
   padding: 7px 16px;
   vertical-align: top;
   border-bottom: 1px solid var(--rule);
-  font-size: 14px;
+  font-size: var(--type-small);
 }
 
 /* Address cells by entry type */
 td.map-c, td.map-g, td.map-b, td.map-w, td.map-s, td.map-u,
 td.map-page, td.map-byte {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--type-small);
   white-space: nowrap;
 }
 
@@ -604,7 +650,7 @@ td.map-page, td.map-byte { color: var(--text-dim); text-align: center; }
 
 td.map-length {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--type-small);
   color: var(--text-dim);
   text-align: center;
   white-space: nowrap;
@@ -622,20 +668,20 @@ td.map-t-desc { color: var(--text); }
 
 div.map-entry-title-10 {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--type-body);
   font-weight: 500;
   color: var(--text);
 }
 
 div.map-entry-title-11 {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--type-body);
   font-weight: 600;
   color: var(--text);
 }
 
 div.map-entry-desc {
-  font-size: 12px;
+  font-size: var(--type-small);
   color: var(--text-dim);
   margin-top: 3px;
   line-height: 1.5;
@@ -663,7 +709,7 @@ div.box-2 {
 
 div.box-title {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--type-subhead);
   font-weight: 700;
   color: var(--yellow);
   margin-bottom: 10px;
@@ -690,14 +736,14 @@ div.list-entry-2 { background: var(--tint-strong); }
 
 div.list-entry-title {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: var(--type-subhead);
   font-weight: 700;
   color: var(--yellow);
   margin-bottom: 8px;
 }
 
 div.list-entry-desc {
-  font-size: 14px;
+  font-size: var(--type-body);
   color: var(--text);
   margin-top: 6px;
   line-height: 1.6;
@@ -708,7 +754,7 @@ ul.list-entry {
   margin-bottom: 0;
   padding-left: 20px;
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--type-body);
   line-height: 1.7;
 }
 
@@ -724,7 +770,7 @@ table.default th {
   background: rgba(255, 255, 255, 0.07);
   color: var(--text-dim);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-micro);
   letter-spacing: 1px;
   text-transform: uppercase;
   padding: 7px 14px;
@@ -736,7 +782,7 @@ table table.default td,
 table.default td {
   background: rgba(255, 255, 255, 0.03);
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--type-body);
   padding: 6px 14px;
   border-bottom: 1px solid var(--rule);
 }
@@ -760,7 +806,7 @@ ul.contents {
 
 ul.contents li a {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-small);
   color: var(--cyan);
   text-decoration: none;
   padding: 5px 11px;
@@ -808,6 +854,44 @@ a {
   transition: color 0.1s;
 }
 
+/* Color alone must not carry a link (WCAG 1.4.1) - but only where color is
+   the only signal, which is a link sitting inside a run of prose. A link that
+   is the whole of its cell or card is already marked by being the cell's
+   content, and underlining those turns a map into a column of underlines.
+   So this names the prose containers rather than matching every href. */
+.page-content div.paragraph a,
+.page-content div.details a,
+.page-content div.comments a,
+.page-content li a,
+.page-content td.comment-1 a,
+.page-content table.default td a {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(63, 214, 220, 0.4);
+}
+
+.page-content a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* Off-canvas until focused, so a keyboard reader can pass the sticky bar. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 200;
+  padding: 10px 16px;
+  background: var(--surface-mid);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--type-small);
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
 a:hover,
 a.map-entry-title:hover {
   color: var(--yellow);
@@ -826,7 +910,7 @@ footer {
   border-top: 1px solid var(--border);
   text-align: center;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-small);
   color: var(--text-dim);
 }
 

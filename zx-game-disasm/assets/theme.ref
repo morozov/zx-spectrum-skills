@@ -26,7 +26,8 @@
 <# endfor #>
 </head>
 <body class="{SkoolKit[page_id]}">
-<table class="header">
+<a class="skip-link" href="#content">Skip to content</a>
+<table class="header" role="presentation">
 <tr>
 <# if(SkoolKit[page_header][0]) #>
 <td class="page-header">{SkoolKit[page_header][0]}</td>
@@ -36,13 +37,13 @@
 <# else #>
 <td class="logo"><a href="{SkoolKit[index_href]}">{Game[Logo]}</a></td>
 <# endif #>
-<td class="page-header">{SkoolKit[page_header][1]}</td>
+<td class="page-header"><h1>{SkoolKit[page_header][1]}</h1></td>
 </tr>
 </table>
-<div class="page-content">
+<main class="page-content" id="content">
 <# include({SkoolKit[include]}) #>
 <# include(footer) #>
-</div>
+</main>
 </body>
 </html>
 
@@ -61,13 +62,16 @@
 <# endfor #>
 </head>
 <body class="{SkoolKit[page_id]}">
+<a class="skip-link" href="#content">Skip to content</a>
 <div class="container">
 <header>
-<div class="game-title">{Game[Game]}</div>
+<h1 class="game-title">{Game[Game]}</h1>
 <div class="subtitle">{Game[Release]}</div>
 </header>
 <div class="divider"></div>
+<main id="content">
 <# include({SkoolKit[include]}) #>
+</main>
 <# include(footer) #>
 </div>
 </body>
