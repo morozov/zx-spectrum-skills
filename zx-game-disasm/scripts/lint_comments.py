@@ -945,6 +945,20 @@ def scan(path):
             add(lineno, 'REFPOINTER', line.strip(),
                 f"points the reader at '{rm.group(0)}' — render the resource "
                 'here (#UDG / #AUDIO); the .ref file is only the index')
+        # ELLIPSIS runs before the group skip below, because the splice it looks
+        # for is *made of* groups: one closes on '...' and the next opens on
+        # '...', chaining a thought across two groups instead of writing one over
+        # the rows it covers. Skipping braced rows would blind the check to its
+        # own primary case, the form `; {Copy one glyph row...` /
+        # `; {...stepping down one row.`.
+        # The marker is authored, so testing the group's own text is exact.
+        if instr is not None:
+            spliced = comment_body(comment)
+            if spliced.startswith(('...', '…')) or spliced.endswith(('...', '…')):
+                add(lineno, 'ELLIPSIS', line.strip(),
+                    "a '...'-spliced continuation — one thought spanning "
+                    "instructions is a '{ }' comment group, not chained fragments")
+
         # A comment carrying a '{' or '}' belongs to a multi-line group that
         # spans a *set* of instructions; its text is wrapped across those lines
         # and is not authored on any single one. Whether such a group spans the
@@ -976,11 +990,6 @@ def scan(path):
                           operand_addresses(operands),
                           operand_literals(mnemonic, operands))]):
                     add(echo_lineno, 'OPERAND_ECHO', echo_text, OPERAND_ECHO_DETAIL)
-            stripped = comment.strip()
-            if stripped.startswith(('...', '…')) or stripped.endswith(('...', '…')):
-                add(lineno, 'ELLIPSIS', line.strip(),
-                    "a '...'-spliced continuation — one thought spanning "
-                    "instructions is a '{ }' comment group, not chained fragments")
 
     close_para()
     close_group()

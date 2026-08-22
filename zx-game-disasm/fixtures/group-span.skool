@@ -10,10 +10,13 @@
 ;   SPLICE      at $EC4E — a comment finishing the sentence above it.
 ;   LAYOUT_ECHO at $EC47 — a code comment citing a record's field offset.
 ;   PITCH       at $EC56 — a comment stating the pitch the clip plays.
+;   ELLIPSIS    at $EC5C and $EC5E — one thought chained across two groups
+;               by '...' instead of written over the rows it covers.
 ;
 ; Silent by construction: the branch target at $EC11 is its span's own loop top,
-; reached only from below it; and the conditional RET at $EC21 abandons the act
-; rather than starting another.
+; reached only from below it; the conditional RET at $EC21 abandons the act
+; rather than starting another; and the elided sequence at $EC62 is an ellipsis
+; standing for omitted values, not a comment spliced across rows.
 
 @label=split_span
 c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
@@ -83,3 +86,20 @@ c$EC47 LD HL,($FC10)  ; Read the slot's +0/+1 position word.
 c$EC56 LD D,$64       ; The door-close click, ~1.3 kHz.
  $EC58 CALL $FD00     ; {Hold it for one tick of the 50 Hz frame interrupt.
  $EC5B RET            ;
+
+; A thought chained across two comment groups by '...'. The rows it covers are a
+; single act, so they owe one group over both, not two groups holding half a
+; sentence each. The splice is authored, which is what makes it decidable — and
+; it hides inside braces, so the check must look inside them too.
+@label=copy_glyph_row
+c$EC5C LD A,(DE)      ; {Copy one font row to the screen...
+ $EC5D INC H          ; }
+*$EC5E LD (HL),A      ; {...stepping down one pixel row each time.
+ $EC5F DJNZ $EC5C     ; }
+ $EC61 RET            ;
+
+; An ellipsis standing for values left out of a sequence. It elides, it does not
+; splice, and the row it sits on is the whole thought.
+@label=score_run
+c$EC62 LD A,(HL)      ; A run scores 10, 20, 30 ... up to 250.
+ $EC64 RET            ;
