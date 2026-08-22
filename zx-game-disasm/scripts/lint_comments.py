@@ -46,6 +46,9 @@ ones a reviewer would otherwise flag by hand:
                    pitch, so the figure is the clip read back in numbers. The
                    machine's own constants (the 3.5 MHz clock, the 50 Hz frame
                    interrupt) are not pitches and are not reported
+  - UNRENDERED     a data block whose title names a sprite, glyph, font or tune,
+                   carrying no render macro. The catalog page is an index; a
+                   block that encodes one element shows that element
   - EULOGY         more than a couple of dozen words on a `u` block — bytes
                    nothing uses. It owes that it is unused plus any real trivia,
                    never the proof: the reader census, the fill that stops short,
@@ -129,7 +132,7 @@ CHECK = 'comments'
 GATING_KINDS = frozenset((
     'RET_GROUP', 'SELFLINK', 'DIARY', 'OPERAND_ECHO', 'ELLIPSIS',
     'GROUP_SPLIT', 'GROUP_ENTRY', 'GROUP_SKIP', 'BASE_ECHO', 'SPLICE',
-    'LAYOUT_ECHO', 'PITCH', 'SYNTH_ECHO', 'EULOGY', 'OPEN',
+    'LAYOUT_ECHO', 'PITCH', 'SYNTH_ECHO', 'EULOGY', 'UNRENDERED', 'OPEN',
 ))
 
 # The finding's own row carries its address, so the baseline key is that address
@@ -288,6 +291,26 @@ PITCH_RE = re.compile(r'(?i)(?<![\w.])~?\s*(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<k>k?)
 # it worth knowing. Nothing else exists to say, so the ceiling is a real bound
 # rather than a preference — which is why a cap is the right instrument here and
 # the wrong one for prose in general (see references/prose-bar.md).
+# A block whose own title says it holds a picture, a glyph or a tune owes the
+# reader the thing itself. The catalog page is an index — it shows everything at
+# once — and an index is not where someone lands when they follow a link to one
+# block. `#UDGARRAY` is one line and is derived from the same bytes the listing
+# shows, so there is no cost to weigh against.
+RENDER_MACRO_RE = re.compile(r'#(UDGARRAY|UDGTABLE|UDG|FONT|SCR|FRAMES|PLOT|COPY|AUDIO)')
+# What the title has to name for the block to owe a render.
+RENDERABLE_RE = re.compile(
+    r'(?i)\b(sprite|bitmap|glyph|glyphs|font|wordmark|logo|tileset)\b')
+# …and what disqualifies it: a block *about* sprites is not a block *of* them.
+NOT_RENDERABLE_RE = re.compile(
+    r'(?i)\b(state|flag|flags|counter|count|pool|buffer|pointer|pointers'
+    r'|residual|selector|progress|codes|index)\b')
+UNRENDERED_DETAIL = (
+    "the title says this block holds something the reader can see or hear, and "
+    "the block does not show it. Render it here, from these bytes — #UDGARRAY for "
+    "a sprite or a glyph, #FONT for a character set, #AUDIO for an effect. The "
+    "catalog page is an index of everything at once; it is not the block"
+)
+
 EULOGY_WORDS = 25
 EULOGY_DETAIL = (
     "{} words on bytes nothing uses. An unused block owes 'Unused.' and, if one "
@@ -718,6 +741,36 @@ def diary_detail(hit):
             "TODO:) or file a dig-task")
 
 
+def unrendered_elements(lines):
+    """Yield (lineno, title) for data blocks that name a renderable element and
+    show none. Decided by the block's own title, so the author declares what the
+    bytes are and the check holds them to it."""
+    index, total = 0, len(lines)
+    while index < total:
+        if not lines[index].startswith(';'):
+            index += 1
+            continue
+        start, block = index, []
+        while index < total and lines[index].startswith(';'):
+            block.append(lines[index][1:].strip())
+            index += 1
+        entry = index
+        while entry < total and (lines[entry].startswith('@') or not lines[entry].strip()):
+            entry += 1
+        if entry >= total or not re.match(r'^[bgtws][$][0-9A-Fa-f]{4}', lines[entry]):
+            continue
+        title = next((b for b in block if b and b != '.'), '')
+        if not RENDERABLE_RE.search(title) or NOT_RENDERABLE_RE.search(title):
+            continue
+        gutter, row = [], entry
+        while row < total and lines[row].strip() and not lines[row].startswith(';'):
+            gutter.append(lines[row])
+            row += 1
+        if RENDER_MACRO_RE.search(' '.join(block + gutter)):
+            continue
+        yield start + 1, title[:120]
+
+
 def unused_annotations(lines):
     """Yield (lineno, word count, first line) for every `u` entry's annotation.
 
@@ -828,6 +881,9 @@ def scan(path):
         audio_block_lines.update(range(run_start + 1, len(lines) + 1))
 
     violations_pending = []
+
+    for lineno, title in unrendered_elements(lines):
+        violations_pending.append((lineno, 'UNRENDERED', title, UNRENDERED_DETAIL))
 
     # Unused blocks, and what they were given. A `u` entry's whole annotation is
     # its block comment plus whatever sits in its gutter, and both are where the

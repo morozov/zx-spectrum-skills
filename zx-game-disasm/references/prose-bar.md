@@ -71,6 +71,23 @@ A ceiling on one description is the wrong instrument: a well-written disassembly
 
 **S8 — three or more items sharing a template are a `#TABLE`.** A record layout, an enum, a dispatch list. Written out as prose it is a table nobody can read.
 
+## A thing the reader can see or hear is shown at its own block
+
+The catalog page is an **index**. It exists to show everything at once — every sprite, every frame, every effect, side by side — and that is a different job from documenting one block. Someone following a link to `$A640` lands on a page titled "Player sprite: walking frame" and, if the block renders nothing, reads sixteen rows of hex.
+
+So: **if a block encodes one element the reader can see or hear, that block shows it.** A sprite frame, a font glyph, a tile group, a fragment, a sound effect. One `#UDGARRAY`, `#FONT` or `#AUDIO` line, derived from the same bytes the listing below it already prints. The index still indexes; it is not a substitute.
+
+> **Bad:**
+> ```
+> ; Player sprite: walking frame
+> @label=player_sprite_walk
+> b$A640 DEFB $18,$18  ; {Working copy of the walking-frame bitmap, 2 bytes per row.
+> ```
+>
+> **Good:** the same, with `#UDGARRAY2,7,...($A640-$A65E-2)(player_walk)` in the block comment, so the page shows the player.
+
+`UNRENDERED` gates it, and the block's own title decides: a title naming a sprite, bitmap, glyph, font, wordmark, logo or tileset, with no render macro anywhere in the block. A block *about* those things — a sprite pointer table, a glyph-code index, a bank's state flags — names them too and owes no picture, so that vocabulary is excluded.
+
 ## A rendered thing is not described in words
 
 Where the page renders the artifact — an `#AUDIO` clip, a `#UDGARRAY` sprite, a `#FRAMES` animation — the render *is* the description. Prose beside it that says what the picture looks like, or what the sound sounds like, is the author doing by hand and badly the job the device does exactly.

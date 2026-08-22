@@ -14,6 +14,7 @@
 ;               by '...' instead of written over the rows it covers.
 ;   SYNTH_ECHO  at $EC66 — prose beside an #AUDIO saying how the tone is made.
 ;   EULOGY     at $EC6E — a proof that a block of unused bytes is unused.
+;   UNRENDERED at $EC76 — a block titled a sprite that shows no sprite.
 ;
 ; Silent by construction: the branch target at $EC11 is its span's own loop top,
 ; reached only from below it; the conditional RET at $EC21 abandons the act
@@ -21,7 +22,9 @@
 ; standing for omitted values, not a comment spliced across rows; and the entry
 ; at $EC6A renders its sound and says only what the sound is and what fires it,
 ; which is what an entry beside a clip owes; and the unused block at $EC72 says
-; that it is unused and one thing worth knowing, which is all one owes.
+; that it is unused and one thing worth knowing, which is all one owes; the
+; sprite at $EC7A renders itself, and the pointer table at $EC7E names sprites
+; without holding one, so neither owes a picture.
 
 @label=split_span
 c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
@@ -133,3 +136,16 @@ u$EC6E DEFS $04
 ; runs contiguously into the table below.
 @label=loader_residue
 u$EC72 DEFS $04
+
+; Player sprite: normal player bitmap
+@label=player_sprite
+b$EC76 DEFB $30,$30   ; Two bytes per pixel row.
+
+; Shot sprite bitmap
+; #UDGARRAY2,7,3,2($EC7A;$EC7C)(shot_sprite)
+@label=shot_sprite
+b$EC7A DEFB $18,$18   ; Two bytes per pixel row.
+
+; Sprite pointer table, one entry per sprite slot
+@label=sprite_pointers
+b$EC7E DEFW $EC76     ; The normal player.
