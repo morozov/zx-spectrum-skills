@@ -66,6 +66,7 @@ Usage: coverage_report.py <file.skool> [--ctl FILE] [--ref FILE ...]
 """
 
 import argparse
+import os
 import re
 import sys
 
@@ -227,6 +228,68 @@ def analyze(skool):
                 end_block()
         end_block()
     return routines, placeholders
+
+
+# --- The prose bar ----------------------------------------------------------
+#
+# `references/prose-bar.md` states the bar in numbers, and this is where "done"
+# reads them. The figures are distributions over the project, never a ceiling on
+# one sentence: a ceiling is satisfiable by splicing one long sentence into two
+# badly joined short ones, which is worse prose and a better number. The bars
+# below are a choice, not a measurement.
+#
+# Vale reports the same prose in far more detail (`make lint-prose`). This runs
+# without it, because "is it done?" must be answerable on any machine.
+DESC_MEDIAN_BAR, DESC_P90_BAR = 20, 50
+SENT_MEDIAN_BAR, SENT_P90_BAR = 12, 20
+
+SENTENCE_SPLIT_RE = re.compile(r'(?<=[.!?])\s+')
+
+
+def percentile(values, fraction):
+    """The value at `fraction` through a sorted list, or 0 for an empty one."""
+    if not values:
+        return 0
+    ordered = sorted(values)
+    return ordered[min(len(ordered) - 1, int(len(ordered) * fraction))]
+
+
+def prose_shape(skool_path):
+    """Measure the project's description and sentence lengths.
+
+    Returns (description lengths, block-prose sentence lengths, long-sentence
+    count), or None when the prose cannot be read. Reuses `extract_prose` so a
+    unit here is the same unit the linter sees.
+    """
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        from extract_prose import read_units
+    except ImportError:
+        return None
+    descriptions, sentences, long_sentences = [], [], 0
+    previous = None
+    for kind, para in read_units(skool_path):
+        was, previous = previous, kind
+        if kind != 'block':
+            continue
+        text = ' '.join(t for _, t in para).strip()
+        if not text:
+            continue
+        # An entry's block comment opens with its title and continues, after a
+        # bare ';', into the description. Units arrive in file order and an
+        # entry's instructions separate one entry's block from the next's, so
+        # the first block unit after anything else is a title and the rest are
+        # description. Titles are not measured here; `lint-identity` owns them.
+        if was != 'block':
+            continue
+        descriptions.append(len(text.split()))
+        for sentence in SENTENCE_SPLIT_RE.split(text):
+            words = len(sentence.split())
+            if words > 2:
+                sentences.append(words)
+                if words > 30:
+                    long_sentences += 1
+    return descriptions, sentences, long_sentences
 
 
 def main():
@@ -584,10 +647,37 @@ def main():
     # so the bar is zero of them — the same shape as the bar on auto-labels, and
     # for the same reason.
     unrendered_count = len(images_new)
+
+    # The prose bar. A project whose descriptions and sentences run past it is
+    # not done, in the same sense a bare basic block is not done: the reader
+    # arrives and cannot read what is there.
+    shape = prose_shape(args.skool)
+    over_bar = []
+    if shape is not None:
+        descriptions, sentences, long_sentences = shape
+        desc_med, desc_p90 = percentile(descriptions, 0.5), percentile(descriptions, 0.9)
+        sent_med, sent_p90 = percentile(sentences, 0.5), percentile(sentences, 0.9)
+        print()
+        print(f"  PROSE BAR    : description median {desc_med} words"
+              f" (bar {DESC_MEDIAN_BAR}), p90 {desc_p90} (bar {DESC_P90_BAR});"
+              f" sentence median {sent_med} (bar {SENT_MEDIAN_BAR}),"
+              f" p90 {sent_p90} (bar {SENT_P90_BAR})")
+        print(f"                 {long_sentences} sentence(s) over 30 words"
+              " — read them; `make lint-prose` for the rest")
+        if desc_med > DESC_MEDIAN_BAR:
+            over_bar.append(f"description median {desc_med} words (bar {DESC_MEDIAN_BAR})")
+        if desc_p90 > DESC_P90_BAR:
+            over_bar.append(f"description p90 {desc_p90} words (bar {DESC_P90_BAR})")
+        if sent_med > SENT_MEDIAN_BAR:
+            over_bar.append(f"sentence median {sent_med} words (bar {SENT_MEDIAN_BAR})")
+        if sent_p90 > SENT_P90_BAR:
+            over_bar.append(f"sentence p90 {sent_p90} words (bar {SENT_P90_BAR})")
+
     far = (bare_blocks > 0 or (sound and audio == 0) or auto_ids > 0
            or auto_labels > 0 or (catalog_gfx and not inline_gfx)
            or (audio and inline_audio == 0) or prose_hard > 0
-           or open_markers > 0 or baselined > 0 or unrendered_count > 0)
+           or open_markers > 0 or baselined > 0 or unrendered_count > 0
+           or over_bar)
     print()
     if far:
         reasons = []
@@ -621,6 +711,10 @@ def main():
         if unrendered_count:
             reasons.append(f"{unrendered_count} image macro(s) rendered nothing and are not "
                            "in the baseline — run `make lint-images` for the list")
+        if over_bar:
+            reasons.append("prose over the bar in " + ", ".join(over_bar)
+                           + " — see references/prose-bar.md, and `make lint-prose`"
+                           " for the sentences")
         print("VERDICT: NOT at the bar — " + "; ".join(reasons)
               + ". Do not call it mature/done; this is the upgrade backlog.")
     else:
