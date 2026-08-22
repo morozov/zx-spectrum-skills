@@ -1,0 +1,30 @@
+The shapes `extract_prose.py` has to lift, and the markup it has to drop.
+
+Expected, and nothing else:
+  The title above is one unit; this paragraph is a second; the one below a
+  third. A bare ';' ends a unit and a lone '.' ends a unit, and both must,
+  because SkoolKit uses the first between a title and its description and the
+  second between description paragraphs.
+
+  A braced group is one unit however many rows it spans. An indented ';' row
+  carrying no address continues the comment above it - dropping those was what
+  cut sentences in half and made every sentence-scoped check read half a
+  sentence. A routine link keeps its address, because the address is what the
+  density rules count. Every other macro goes, and a table span goes whole.
+  A directive between two rows of a group does not break the group.
+
+One thought over three rows, carrying a link to
+$ED00 and a register HL that reads as English.
+
+A standalone row is its own unit.
+
+A row whose comment runs on
+past a directive and onto an
+indented row is one unit.
+
+A table is markup, not prose, and leaves nothing behind.
+
+The sentence after the table is still its own unit.
+
+A cell rendered by  and sized
+by 42 keeps only its words.

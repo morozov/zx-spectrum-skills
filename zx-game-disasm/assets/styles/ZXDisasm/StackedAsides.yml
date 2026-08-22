@@ -1,0 +1,6 @@
+extends: occurrence
+message: "%d asides in one sentence - split it."
+level: warning
+scope: sentence
+max: 1
+token: '\([^)]{6,}\)'

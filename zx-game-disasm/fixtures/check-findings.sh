@@ -86,6 +86,16 @@ run label-namespace \
 run comments-group-span \
     scripts/lint_comments.py fixtures/group-span.skool
 
+# The prose extractor feeds Vale, so a silent regression in it shows up as a
+# check that stops reporting rather than as an error. Both halves are asserted:
+# the Markdown it emits, and the line map that puts a finding back on a real
+# source line.
+run prose-extract \
+    scripts/extract_prose.py --out - --map - fixtures/prose-extract.skool
+run prose-extract-map \
+    scripts/extract_prose.py --out /dev/null --map - --print-map \
+    fixtures/prose-extract.skool
+
 if [ "$record" = 1 ]; then
     echo "check-findings: recorded $ran expectation(s) — review the diff before committing"
     exit 0

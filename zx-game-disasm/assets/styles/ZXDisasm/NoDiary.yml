@@ -1,0 +1,14 @@
+extends: existence
+message: "'%s' narrates the investigation - the disassembly is the provenance."
+link: references/prose-bar.md
+level: error
+ignorecase: true
+tokens:
+  - verified live
+  - verified in emulation
+  - under emulation
+  - observed in play
+  - reproduced under
+  - not fully pinned
+  - this pass
+  - PROVISIONAL

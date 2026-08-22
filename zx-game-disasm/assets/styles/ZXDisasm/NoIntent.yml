@@ -1,0 +1,12 @@
+extends: existence
+message: "'%s' claims what the author intended - say what the code does."
+link: references/prose-bar.md
+level: error
+ignorecase: true
+tokens:
+  - intended design
+  - by design
+  - the author intended
+  - was meant to
+  - is supposed to
+  - deliberate choice

@@ -498,6 +498,20 @@ It records that kind's findings and nothing else — a key of any other kind in 
 
 `fixtures/baseline-monotonic.sh` is the regression: it adopts two checks, introduces a finding at a new address and a second finding at an address the file already lists, and asserts both are refused with the file untouched; it rewords a message and clears the finding and asserts both are accepted; then it clears the check's last line and asserts that `--adopt` on that now-empty section is still refused, which is the case the header exists for.
 
+### The prose check
+
+`make lint-prose` runs the sentence-level bar in `references/prose-bar.md`. It does not reimplement it. Vale is the prose linter technical writing already uses, and it ships the Microsoft and Google style guides as executable rules; the project adds only the handful of rules this domain needs.
+
+**Setup, once per project.** Install Vale (`brew install vale`, or https://vale.sh/docs/install). Copy `assets/vale.ini.template` to `.vale.ini` and `assets/styles/ZXDisasm/` to `styles/ZXDisasm/` at the project root. Run `vale sync` to fetch the packages. Add `/styles/Microsoft/`, `/styles/Google/` and `/.prose/` to `.gitignore` — those are fetched and generated, and only `styles/ZXDisasm/` is the project's own.
+
+**Why there is a shim.** Vale reads Markdown and the comments of the programming languages it knows. Assembly is not one of them, and `.vale.ini`'s `[formats]` section only renames an extension, so pointing it at a `.skool` would lint the Z80 listing as prose. So `scripts/extract_prose.py` lifts every block comment, instruction comment, `.ctl` annotation and `.ref` paragraph into one Markdown file with a line map, and `scripts/vale_report.py` translates the findings back onto real source lines. Nothing but Markdown reaches Vale. Both halves are held by fixtures (`prose-extract`, `prose-extract-map`), because a regression in an extractor presents as a check that quietly stops reporting.
+
+**What gates.** Errors fail the target; warnings and suggestions report. `Microsoft.SentenceLength` is a suggestion by design — it is meant to be read, not obeyed, and a hard cap on a sentence is satisfiable by splicing one long sentence into two badly joined short ones.
+
+**The filter is part of the check.** The Microsoft guide is written for consumer-facing product documentation, and a set of its rules encode that voice or fire on the domain rather than on the prose: `Contractions` would rewrite "does not track the map" as an error, `QuestionMarks` advises using questions sparingly where this skill asks for them, `Acronyms` reads the game's own on-screen captions as undefined, and `Repetition` reports `NOP` twice because the code says it twice. `.vale.ini` switches each off with the reason and the count that justified it. Read those before adding to the list; the filter is how the real errors stay visible instead of sitting under findings about a machine.
+
+`Microsoft.Ellipses` is off for a different reason: it is a strict superset of `lint-comments`' own `ELLIPSIS` kind and less precise, reporting elided sequences ("a run scores 10, 20, 30 ... up to 250") alongside the splices that are the defect, and it cannot say what to write instead.
+
 ### The comment-quality check
 
 `make lint-comments` runs `scripts/lint_comments.py` over the generated `.skool` and flags the mechanical comment defects a green build never catches: a comment on a bare `RET`, a comment that only restates the instruction, a placeholder label (`work_b`, `helper_8e3a`, `L5B50`), and a `{ }` group whose span crosses an act boundary (`GROUP_SPLIT`, `GROUP_ENTRY` — below).

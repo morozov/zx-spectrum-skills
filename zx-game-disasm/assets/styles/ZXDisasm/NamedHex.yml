@@ -1,0 +1,7 @@
+extends: conditional
+message: "Bare '%s' with nothing named in the sentence - say what it is, not what it is worth."
+link: references/prose-bar.md
+level: warning
+scope: sentence
+first: '\$[0-9A-Fa-f]{4}'
+second: '\b[a-z][a-z_]{4,}\b'

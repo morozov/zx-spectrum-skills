@@ -302,6 +302,10 @@ The comments that matter most capture what a reader could never reconstruct:
 
 - **Coordinate conventions.** In sprite and collision code, state the frame of reference once — e.g. `(x+1, y+2)` relative to the sprite's top-left corner — so every offset after it reads cleanly.
 
+## How well it has to be written
+
+This file says what a comment is *for*. `references/prose-bar.md` says how well it has to be written: the terminology registry, the description budget, the sentence rules, and the measured bar each is held to. Those are gated — `make lint-prose` and `make coverage` read them — so they are not advice. Read that file before the first comment, not while polishing the last one.
+
 ## The depth standard
 
 The bar is *depth*, far past a routine-level one-liner pass: nearly every code routine has an explained body, sound is rendered with `#AUDIO`, and data tables are laid out with `#TABLE`. Concretely:

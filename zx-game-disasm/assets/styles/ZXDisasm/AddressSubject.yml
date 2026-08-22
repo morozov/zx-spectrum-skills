@@ -1,0 +1,7 @@
+extends: existence
+message: "Sentence opens on '%s' - make a thing the subject, not an address."
+link: references/prose-bar.md
+level: warning
+scope: sentence
+raw:
+  - '^\s*((#R)?\$[0-9A-Fa-f]{4}|Slot \d|Byte \d|Bit \d)\b'

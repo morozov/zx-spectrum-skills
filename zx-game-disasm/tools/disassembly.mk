@@ -24,6 +24,8 @@
 #   make lint-byte-counts     Gate: no instruction comment recites a byte count
 #   make lint-array-elements  Gate: every array record annotated individually
 #   make lint-images          Gate: every image macro put an image under html/
+#   make lint-prose           Advisory: Vale over the prose, carrying the Microsoft
+#                             and Google style guides; errors gate, the rest reports
 #   make lint-baseline        Re-record the gating checks' findings as the baseline
 #                             (it can only shrink the file; it fails on growth) and
 #                             stamp the gate it was recorded under into its header
@@ -73,6 +75,7 @@ TOOLS_verify-frag         := $(TOOLS_BIN)
 TOOLS_html                := $(TOOLS_SKOOL) skool2html.py
 TOOLS_coverage            := $(TOOLS_SKOOL)
 TOOLS_lint-comments       := $(TOOLS_SKOOL)
+TOOLS_lint-prose          := $(TOOLS_SKOOL)
 TOOLS_test-checks         := $(TOOLS_SKOOL)
 TOOLS_lint                := $(TOOLS_SKOOL)
 TOOLS_lint-data-structure := $(TOOLS_SNAPSHOT)
@@ -137,7 +140,7 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-images lint-baseline lint-array-elements lint-comments coverage html
+.PHONY: all gate tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-images lint-baseline lint-array-elements lint-comments lint-prose coverage html
 
 # A recipe that redirects into its own target has already created that target by
 # the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
@@ -672,6 +675,38 @@ CHECK_comments = $(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) \
 lint-comments: $(SKOOL)
 	$(CHECK_comments) --advisory
 
+# Style-guide prose linting, delegated to Vale rather than reimplemented.
+#
+# `lint-comments` above catches the defects that need the *listing* — an operand
+# echoed back, a group spanning a jump, a length the row already carries. This
+# catches the ones that need only the *sentence*, and the difference matters: the
+# sentence-level rules are the technical-writing profession's, they are already
+# written, and every one this project hand-rolled is one it has to maintain. Vale
+# ships the Microsoft and Google style guides as executable rules; `styles/ZXDisasm`
+# (from the skill's `assets/`) adds the few this domain needs and `.vale.ini`
+# switches off the ones that fire on a disassembly rather than on its prose.
+#
+# Vale reads neither a `.skool` nor a `.ctl` — it lints Markdown and the comments
+# of 23 languages, and assembly is not one of them. So `extract_prose.py` lifts
+# every block comment, instruction comment, `.ctl` annotation and `.ref` paragraph
+# into one Markdown file with a line map, and `vale_report.py` translates the
+# findings back onto real source lines. Nothing but Markdown reaches Vale.
+#
+# Advisory in the same sense as `lint-comments`: `--fail-on error` gates on the
+# errors while the report still carries the warnings and suggestions.
+# `Microsoft.SentenceLength` is a suggestion by design — it is meant to be read,
+# not obeyed. Run `vale sync` once in the project root to fetch the packages.
+PROSE_MD  = .prose/prose.md
+PROSE_MAP = .prose/prose.map.json
+
+$(PROSE_MD): $(SKOOL) $(CTL) $(PROSE)
+	@mkdir -p $(dir $(PROSE_MD))
+	$(SCRIPTS)/extract_prose.py --out $(PROSE_MD) --map $(PROSE_MAP) $(SKOOL) $(PROSE)
+
+CHECK_prose = $(SCRIPTS)/vale_report.py $(PROSE_MD) --map $(PROSE_MAP)
+lint-prose: $(PROSE_MD)
+	$(CHECK_prose)
+
 # Advisory documentation-coverage report — the "is it done?" gauge. Shows the
 # basic blocks that carry no comment (the bar is zero), the comment units per
 # block, inline-graphics/naming/relocatability signals, and audio/table/
@@ -800,4 +835,4 @@ html/.stamp: $(SKOOL) $(wildcard *.ref) $(wildcard *.js) $(THEME)/theme.ref $(TH
 	touch $@
 
 clean:
-	rm -rf html *.asm *.bin *.skool *.z80
+	rm -rf html .prose *.asm *.bin *.skool *.z80
