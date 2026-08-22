@@ -46,6 +46,11 @@ ones a reviewer would otherwise flag by hand:
                    pitch, so the figure is the clip read back in numbers. The
                    machine's own constants (the 3.5 MHz clock, the 50 Hz frame
                    interrupt) are not pitches and are not reported
+  - SYNTH_ECHO     prose beside an #AUDIO describing how the tone is produced —
+                   periods, cycles, T-states, a period formula. The clip is the
+                   synthesis; the words owe what the sound means in play, what
+                   fires it, and the routine. Block prose and .ref catalogs only:
+                   the routine's body is where the algorithm belongs
   - LAYOUT_ECHO    a record's field offset cited in a code block's prose — the
                    layout's one home is the record's own definition; a comment
                    about behavior names the thing, not the byte it sits at
@@ -120,7 +125,7 @@ CHECK = 'comments'
 GATING_KINDS = frozenset((
     'RET_GROUP', 'SELFLINK', 'DIARY', 'OPERAND_ECHO', 'ELLIPSIS',
     'GROUP_SPLIT', 'GROUP_ENTRY', 'GROUP_SKIP', 'BASE_ECHO', 'SPLICE',
-    'LAYOUT_ECHO', 'PITCH', 'OPEN',
+    'LAYOUT_ECHO', 'PITCH', 'SYNTH_ECHO', 'OPEN',
 ))
 
 # The finding's own row carries its address, so the baseline key is that address
@@ -273,6 +278,19 @@ def operand_target(operands, label_addrs):
 # with their thousands separators so a sample rate reads as one number rather
 # than lending its tail to a false hit.
 PITCH_RE = re.compile(r'(?i)(?<![\w.])~?\s*(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<k>k?)Hz\b')
+# Synthesis vocabulary: how the tone is *made*. Periods, cycles, T-states, and a
+# formula computing a period from a counter.
+SYNTH_RE = re.compile(
+    r'(?i)\bperiods?\b|\bcycles?\b|\bT-states?\b|\bhalf-cycle\b'
+    r'|\b\d+\s*\*\s*[A-Za-z_#(]|#REG[a-z]+\s*='
+)
+SYNTH_DETAIL = (
+    "describes how the tone is produced ('{}') beside the #AUDIO that plays it — "
+    "the clip is the synthesis, so the words owe what the sound means in play, the "
+    "event that fires it and the routine. The period formula is a mechanism and "
+    "belongs once, at the tone primitive that implements it"
+)
+
 PITCH_DETAIL = (
     "states a pitch ('{}') — the #AUDIO plays the pitch, so the figure is the "
     'clip read back in numbers. Name what the sound means and what fires it; '
@@ -689,7 +707,25 @@ def scan_prose(path):
     an instruction column this file does not have."""
     violations = []
     with open(path, 'r', encoding='utf-8') as f:
-        for lineno, raw in enumerate(f, 1):
+        lines = f.readlines()
+
+    # An entry that renders its sound owes the render and the meaning, not the
+    # method. A page's shared model, stated once in a section that renders
+    # nothing, is the one home for it and stays — so the signal is the #AUDIO
+    # beside the prose, which is on the page and decidable.
+    audio_lines = set()
+    start, holds_audio = 0, False
+    for index, raw in enumerate(lines):
+        if raw.startswith('['):
+            if holds_audio:
+                audio_lines.update(range(start + 1, index + 1))
+            start, holds_audio = index, False
+        if '#AUDIO' in raw:
+            holds_audio = True
+    if holds_audio:
+        audio_lines.update(range(start + 1, len(lines) + 1))
+
+    for lineno, raw in enumerate(lines, 1):
             text = raw.strip()[:120]
             pair = base_echo(raw)
             if pair:
@@ -706,12 +742,39 @@ def scan_prose(path):
             if dm:
                 violations.append((lineno, 'DIARY', text,
                                    diary_detail(dm.group(0))))
+            if lineno in audio_lines and not raw.lstrip().startswith('#'):
+                sm = SYNTH_RE.search(raw)
+                if sm:
+                    violations.append((lineno, 'SYNTH_ECHO', text,
+                                       SYNTH_DETAIL.format(sm.group(0).strip())))
     return violations
 
 
 def scan(path):
     with open(path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
+
+    # Which block comments render their sound. An entry's block comment is one
+    # contiguous run of column-0 ';' lines, so the run is the unit and the
+    # #AUDIO in it is the signal: prose sitting beside the clip that plays the
+    # effect must not also say how the effect is made. Instruction comments are
+    # not marked — the body is where the algorithm is explained, and it should
+    # be. This is the same shape as LAYOUT_ECHO: decided by location, not by
+    # reading the prose.
+    audio_block_lines = set()
+    run_start, run_audio = None, False
+    for index, raw in enumerate(lines):
+        if raw.startswith(';'):
+            if run_start is None:
+                run_start, run_audio = index, False
+            if '#AUDIO' in raw:
+                run_audio = True
+            continue
+        if run_start is not None and run_audio:
+            audio_block_lines.update(range(run_start + 1, index + 1))
+        run_start, run_audio = None, False
+    if run_start is not None and run_audio:
+        audio_block_lines.update(range(run_start + 1, len(lines) + 1))
 
     violations = []
 
@@ -780,6 +843,11 @@ def scan(path):
             units.append((para_lineno, ' '.join(para_text)))
             joined = ' '.join(para_text)
             layout_rows.append((para_lineno, joined.strip()[:120], joined, in_code))
+            if para_lineno in audio_block_lines:
+                sm = SYNTH_RE.search(joined)
+                if sm:
+                    add(para_lineno, 'SYNTH_ECHO', joined.strip()[:120],
+                        SYNTH_DETAIL.format(sm.group(0).strip()))
         para_lineno, para_text = None, []
 
     def close_group():

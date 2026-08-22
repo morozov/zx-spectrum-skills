@@ -71,6 +71,22 @@ A ceiling on one description is the wrong instrument: a well-written disassembly
 
 **S8 — three or more items sharing a template are a `#TABLE`.** A record layout, an enum, a dispatch list. Written out as prose it is a table nobody can read.
 
+## A rendered thing is not described in words
+
+Where the page renders the artifact — an `#AUDIO` clip, a `#UDGARRAY` sprite, a `#FRAMES` animation — the render *is* the description. Prose beside it that says what the picture looks like, or what the sound sounds like, is the author doing by hand and badly the job the device does exactly.
+
+For sound this has a second, sharper form: **prose that says how the tone is produced.** Frame counts, cycle counts, T-states, a period computed from a counter. That is the synthesis, and the clip *is* the synthesis. Writing it out is the same defect as listing the notes.
+
+> **Bad:** 7 frames of 12 cycles each, with the period computed as 2*counter + 10 and held flat within each frame.
+>
+> **Good:** The chime a key makes as the player picks it up. Played by #R$6E90 when the key is taken.
+
+An entry beside a clip owes three things: **what the sound means in play, the event that fires it, and the routine.** Nothing else. If that leaves the entry short, the entry is finished — it was never missing a paragraph about periods.
+
+The production method is not deleted, it is *placed*. The algorithm belongs in the routine's body, at the instructions that implement it, where a reader is reading code. The period formula belongs once, at the tone primitive that computes it, because every effect shares it. Both are "one home per fact"; the catalog is not that home.
+
+`SYNTH_ECHO` gates this, and it decides by location rather than by reading: synthesis vocabulary in block prose or a `.ref` section that carries an `#AUDIO`. Instruction comments are never reported — the body is exactly where the algorithm should be.
+
 ## What the prose never does
 
 - **Claim what the original author intended.** Say what the code does. An inference is marked as one, in the reader's own words.

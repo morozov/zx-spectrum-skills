@@ -12,11 +12,14 @@
 ;   PITCH       at $EC56 — a comment stating the pitch the clip plays.
 ;   ELLIPSIS    at $EC5C and $EC5E — one thought chained across two groups
 ;               by '...' instead of written over the rows it covers.
+;   SYNTH_ECHO  at $EC66 — prose beside an #AUDIO saying how the tone is made.
 ;
 ; Silent by construction: the branch target at $EC11 is its span's own loop top,
 ; reached only from below it; the conditional RET at $EC21 abandons the act
 ; rather than starting another; and the elided sequence at $EC62 is an ellipsis
-; standing for omitted values, not a comment spliced across rows.
+; standing for omitted values, not a comment spliced across rows; and the entry
+; at $EC6A renders its sound and says only what the sound is and what fires it,
+; which is what an entry beside a clip owes.
 
 @label=split_span
 c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
@@ -103,3 +106,17 @@ c$EC5C LD A,(DE)      ; {Copy one font row to the screen...
 @label=score_run
 c$EC62 LD A,(HL)      ; A run scores 10, 20, 30 ... up to 250.
  $EC64 RET            ;
+
+; The ALARM siren, 7 frames of 12 cycles each, with the period computed as
+; 2*counter + 10 and held flat within each frame.
+; #AUDIO(alarm-siren)
+@label=sfx_alarm
+c$EC66 LD D,$14       ; Step the pitch down once per poll.
+ $EC68 RET            ;
+
+; The same shape, written the way it should be. It renders the clip and says what
+; the sound is and what fires it, so nothing here is the clip read back.
+; #AUDIO(door-opened)
+@label=sfx_door
+c$EC6A LD D,$28       ; The blip a door makes as it slides open.
+ $EC6C RET            ;
