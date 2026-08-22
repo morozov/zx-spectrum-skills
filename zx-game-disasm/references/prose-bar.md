@@ -87,6 +87,26 @@ The production method is not deleted, it is *placed*. The algorithm belongs in t
 
 `SYNTH_ECHO` gates this, and it decides by location rather than by reading: synthesis vocabulary in block prose or a `.ref` section that carries an `#AUDIO`. Instruction comments are never reported — the body is exactly where the algorithm should be.
 
+## Unused bytes owe one line
+
+A block nothing uses has one fact: it is unused. Write that, and stop.
+
+If something about it is genuinely worth knowing, that is welcome and it is one sentence — the bytes decode to a message the programmer left, the block pads an alignment the next table needs, the values are the loader's leftovers from the BASIC area. Trivia is content. A reader enjoys it.
+
+What an unused block never owes is **the proof that it is unused**. No census of which routines do not read it. No account of which fill stops short of it. No note on why no stride could be found. That is the author's working-out, and the reader did not come for it.
+
+> **Bad:** Undetermined zero-fill tail of the state block before the sprite bank; no reader found, and the only writer is the level-setup clear, whose fill stops seven bytes in.
+>
+> **Bad:** Nothing in the image reads these bytes, and the values vary from one to the next, so nothing fixes a stride: the size is the whole claim, and the listing shows the bytes.
+>
+> **Good:** Unused.
+>
+> **Good:** Unused. The loader's leftovers from the old BASIC area, kept because the image runs contiguously into the level table.
+
+`EULOGY` gates it at a couple of dozen words over the block comment and its gutter together. A cap is the right instrument here, and only here: the content of an unused block is bounded by what exists to say, which is one fact and perhaps one more. Everywhere else the bar is a distribution, for the reason under "How a sentence reads".
+
+**Type it `u`, not `s`.** `s` asserts the game fills the block at runtime, and `ctl-authoring.md` rightly makes that claim cost a named writer. A block nothing writes is not a buffer — it is unused, and typing it `s` buys an exemption from this rule by making a claim about the game that is not true.
+
 ## What the prose never does
 
 - **Claim what the original author intended.** Say what the code does. An inference is marked as one, in the reader's own words.

@@ -13,13 +13,15 @@
 ;   ELLIPSIS    at $EC5C and $EC5E — one thought chained across two groups
 ;               by '...' instead of written over the rows it covers.
 ;   SYNTH_ECHO  at $EC66 — prose beside an #AUDIO saying how the tone is made.
+;   EULOGY     at $EC6E — a proof that a block of unused bytes is unused.
 ;
 ; Silent by construction: the branch target at $EC11 is its span's own loop top,
 ; reached only from below it; the conditional RET at $EC21 abandons the act
 ; rather than starting another; and the elided sequence at $EC62 is an ellipsis
 ; standing for omitted values, not a comment spliced across rows; and the entry
 ; at $EC6A renders its sound and says only what the sound is and what fires it,
-; which is what an entry beside a clip owes.
+; which is what an entry beside a clip owes; and the unused block at $EC72 says
+; that it is unused and one thing worth knowing, which is all one owes.
 
 @label=split_span
 c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
@@ -120,3 +122,14 @@ c$EC66 LD D,$14       ; Step the pitch down once per poll.
 @label=sfx_door
 c$EC6A LD D,$28       ; The blip a door makes as it slides open.
  $EC6C RET            ;
+
+; Undetermined tail of the state block; no reader found in the image, and the
+; only writer is the level-setup clear, whose fill stops seven bytes in, so
+; nothing fixes a stride here and the size is the whole claim.
+@label=unused_tail
+u$EC6E DEFS $04
+
+; Unused. The loader's leftovers from the old BASIC area, kept because the image
+; runs contiguously into the table below.
+@label=loader_residue
+u$EC72 DEFS $04

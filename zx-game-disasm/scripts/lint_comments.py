@@ -46,6 +46,10 @@ ones a reviewer would otherwise flag by hand:
                    pitch, so the figure is the clip read back in numbers. The
                    machine's own constants (the 3.5 MHz clock, the 50 Hz frame
                    interrupt) are not pitches and are not reported
+  - EULOGY         more than a couple of dozen words on a `u` block — bytes
+                   nothing uses. It owes that it is unused plus any real trivia,
+                   never the proof: the reader census, the fill that stops short,
+                   the stride that could not be found
   - SYNTH_ECHO     prose beside an #AUDIO describing how the tone is produced —
                    periods, cycles, T-states, a period formula. The clip is the
                    synthesis; the words owe what the sound means in play, what
@@ -125,7 +129,7 @@ CHECK = 'comments'
 GATING_KINDS = frozenset((
     'RET_GROUP', 'SELFLINK', 'DIARY', 'OPERAND_ECHO', 'ELLIPSIS',
     'GROUP_SPLIT', 'GROUP_ENTRY', 'GROUP_SKIP', 'BASE_ECHO', 'SPLICE',
-    'LAYOUT_ECHO', 'PITCH', 'SYNTH_ECHO', 'OPEN',
+    'LAYOUT_ECHO', 'PITCH', 'SYNTH_ECHO', 'EULOGY', 'OPEN',
 ))
 
 # The finding's own row carries its address, so the baseline key is that address
@@ -280,6 +284,19 @@ def operand_target(operands, label_addrs):
 PITCH_RE = re.compile(r'(?i)(?<![\w.])~?\s*(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<k>k?)Hz\b')
 # Synthesis vocabulary: how the tone is *made*. Periods, cycles, T-states, and a
 # formula computing a period from a counter.
+# What a block of unused bytes owes: that it is unused, and any one thing about
+# it worth knowing. Nothing else exists to say, so the ceiling is a real bound
+# rather than a preference — which is why a cap is the right instrument here and
+# the wrong one for prose in general (see references/prose-bar.md).
+EULOGY_WORDS = 25
+EULOGY_DETAIL = (
+    "{} words on bytes nothing uses. An unused block owes 'Unused.' and, if one "
+    "exists, the single thing worth knowing about it — bytes that decode to a "
+    "message, padding an alignment the next table needs. It does not owe the "
+    "proof that it is unused: no census of readers, no account of which fill "
+    "stops short, no note on why no stride could be found"
+)
+
 SYNTH_RE = re.compile(
     r'(?i)\bperiods?\b|\bcycles?\b|\bT-states?\b|\bhalf-cycle\b'
     r'|\b\d+\s*\*\s*[A-Za-z_#(]|#REG[a-z]+\s*='
@@ -701,6 +718,40 @@ def diary_detail(hit):
             "TODO:) or file a dig-task")
 
 
+def unused_annotations(lines):
+    """Yield (lineno, word count, first line) for every `u` entry's annotation.
+
+    A `u` block is bytes nothing uses, so the only content that exists is that
+    it is unused plus any one fact worth knowing. Everything a project writes
+    past that is the proof, and the proof is what the reader did not come for.
+    """
+    index, total = 0, len(lines)
+    while index < total:
+        if not lines[index].startswith(';'):
+            index += 1
+            continue
+        start = index
+        block = []
+        while index < total and lines[index].startswith(';'):
+            block.append(lines[index][1:].strip())
+            index += 1
+        entry = index
+        while entry < total and (lines[entry].startswith('@') or not lines[entry].strip()):
+            entry += 1
+        if entry >= total or not re.match(r'^u\$[0-9A-Fa-f]{4}', lines[entry]):
+            continue
+        gutter, row = [], entry
+        while row < total and lines[row].strip() and not lines[row].startswith(';'):
+            if ';' in lines[row]:
+                gutter.append(lines[row].split(';', 1)[1])
+            row += 1
+        text = ' '.join(block + gutter).replace('{', ' ').replace('}', ' ')
+        text = MACRO_SPAN_RE.sub(' ', text)
+        text = MACRO_RE.sub(' ', text)
+        first = next((b for b in block if b and b != '.'), '')
+        yield start + 1, len(text.split()), first[:120]
+
+
 def scan_prose(path):
     """Scan a reader-facing prose deliverable (.ref catalog, spec page) for
     investigation vocabulary. Only DIARY applies — the rest of the checks read
@@ -776,7 +827,17 @@ def scan(path):
     if run_start is not None and run_audio:
         audio_block_lines.update(range(run_start + 1, len(lines) + 1))
 
-    violations = []
+    violations_pending = []
+
+    # Unused blocks, and what they were given. A `u` entry's whole annotation is
+    # its block comment plus whatever sits in its gutter, and both are where the
+    # eulogy lands. Counted together, reported once, at the block.
+    for lineno, words, first in unused_annotations(lines):
+        if words > EULOGY_WORDS:
+            violations_pending.append((lineno, 'EULOGY', first,
+                                       EULOGY_DETAIL.format(words)))
+
+    violations = list(violations_pending)
 
     def add(lineno, kind, text, detail):
         violations.append((lineno, kind, text, detail))
