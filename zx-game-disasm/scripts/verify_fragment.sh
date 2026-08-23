@@ -57,7 +57,7 @@ import sys, re
 base = open(sys.argv[1]).read().splitlines()
 frag = open(sys.argv[2]).read().splitlines()
 
-BLOCK = re.compile(r'^([bcwtsgi]) \$([0-9A-Fa-f]+)')
+BLOCK = re.compile(r'^([bcgistuw]) \$([0-9A-Fa-f]+)')  # every block type, `u` included
 def block_addr(line):
     m = BLOCK.match(line)
     return int(m.group(2), 16) if m else None
@@ -71,13 +71,39 @@ fa = [block_addr(l) for l in frag if block_addr(l) is not None]
 if not fa:
     sys.exit("fragment has no block-start line")
 fmin, fmax = min(fa), max(fa)
+
+# This splices one contiguous span, so a fragment holding two non-adjacent
+# entries would delete every base entry between them and then fail at the render
+# on the missing labels — which reads as a defect in the fragment. Refuse it
+# instead, and say which entries would have gone.
+covered = set(fa)
+between = sorted(a for a in (block_addr(l) for l in base)
+                 if a is not None and fmin < a < fmax and a not in covered)
+if between:
+    sys.exit("fragment covers non-adjacent entries: splicing it as one span would "
+             "delete %d base entr%s between them (%s%s). Verify one entry per "
+             "fragment, then splice the combined fragment with splice_ctl.py, "
+             "which replaces block for block."
+             % (len(between), 'y' if len(between) == 1 else 'ies',
+                ', '.join('$%04X' % a for a in between[:6]),
+                ', …' if len(between) > 6 else ''))
+
 above = sorted(a for a in (block_addr(l) for l in base)
                if a is not None and a > fmax)
 end = above[0] if above else None
 
-out, inserted = [], False
+# A `.` paragraph-continuation line carries no address of its own — and the `$79`
+# in one is an item code, not an address — so it has to inherit the block above
+# it. Without that it survives a replace that deletes its block, leaving orphaned
+# prose dangling after the new entry, which no drop report covers.
+out, inserted, last = [], False, None
 for l in base:
     a = line_addr(l)
+    if a is None:
+        if l.strip():
+            a = last
+    else:
+        last = a
     if a is not None and a >= fmin and (end is None or a < end):
         if not inserted:
             out.extend(frag)

@@ -86,6 +86,13 @@ run label-namespace \
 run comments-group-span \
     scripts/lint_comments.py fixtures/group-span.skool
 
+# Where one block ends and the next begins. Each case is a boundary that, read
+# wrong, deletes a line with no report: a `u` block, a non-`label=` directive
+# at the next header's address, a run of directives at a span's start, and the
+# pre-flight window, which must agree with the write path on all three.
+run block-boundaries \
+    fixtures/block-boundaries.py
+
 run registry-terms \
     scripts/validate_glossary_terms.py fixtures/registry-prose.ref \
     --registry fixtures/registry.ref

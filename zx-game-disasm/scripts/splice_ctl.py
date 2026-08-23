@@ -6,7 +6,7 @@ mechanical merge that makes a parallel Worker fan-out safe.
 A depth Worker owns one or more code routines and returns a *fragment*: the `.ctl`
 directives for those routines' address ranges only (entry label, `c` title, `D`,
 `N`, `R`, and the per-instruction comment lines), and nothing outside them. This
-tool replaces each `c ADDR` block in the base `.ctl` with the fragment's version
+tool replaces each block entry in the base `.ctl` with the fragment's version
 of that block, in place. Because the `.ctl` is address-ordered and fragments are
 address-disjoint, the result is deterministic and order-preserving — no
 hand-merging, no re-derivation.
@@ -14,9 +14,9 @@ hand-merging, no re-derivation.
 Two invariants are enforced, and a violation is a hard error (the fragment is not
 cleanly splice-able and the Worker overstepped its range):
 
-  - every `c ADDR` block in the fragment must exist in the base (same address);
+  - every block entry in the fragment must exist in the base (same address);
   - the fragment must contain *only* lines whose address lies inside one of its
-    own `c` blocks — no stray directive in a shared region (e.g. a label added to
+    own blocks — no stray directive in a shared region (e.g. a label added to
     the low-RAM variable block, which is a separate single-owner task).
 
 A third condition is reported but does not fail: an `@` directive that sits in the
@@ -48,9 +48,8 @@ import sys
 # Addresses in a .ctl are either `$HEX` (the recommended form, matching the hex
 # skool) or bare decimal — accept both.
 _A = r'(\$?[0-9A-Fa-f]+)'
-HEADER = re.compile(r'^([bcwtsgi]) ' + _A + r'\b')     # a block-entry line
+HEADER = re.compile(r'^([bcgistuw]) ' + _A + r'\b')   # a block-entry line, `u` included
 CLINE = re.compile(r'^c ' + _A + r'\b')                # a code-block entry
-LABEL = re.compile(r'^@ ' + _A + r' label=')
 ADDR_LINE = re.compile(r'^(?:[@ ]?[A-Za-z*]?\s*)?' + _A + r'\b')
 DIRECTIVE = re.compile(r'^@ ' + _A + r' ([A-Za-z][-\w]*)')  # any `@ ADDR name…` line
 
@@ -65,21 +64,36 @@ def load(path):
         return f.read().splitlines()
 
 
+def directives_above(lines, index, addr):
+    """The first index of the run of `@ ADDR …` lines directly above `index`
+    that carry `addr`.
+
+    Backing up over `label=` alone would leave every other directive at the
+    next header's address inside the *previous* block's span, so a splice would
+    delete it and the fixed asm would then warn about an unreplaced address — a
+    red gate two steps from the edit, naming the wrong file. Every directive at
+    an address belongs to the block that address starts, and there can be more
+    than one.
+    """
+    first = index
+    while first > 0:
+        above = DIRECTIVE.match(lines[first - 1])
+        if not above or paddr(above.group(1)) != addr:
+            break
+        first -= 1
+    return first
+
+
 def block_span(lines, ci):
     """Span (start, end) of the block whose `c`/`b`/... entry is at index ci,
-    pulling in an immediately-preceding `@ ADDR label=` line for the same address."""
+    pulling in the preceding `@ ADDR …` directives for the same address."""
     addr = paddr(HEADER.match(lines[ci]).group(2))
-    start = ci
-    if ci > 0 and LABEL.match(lines[ci - 1]) and paddr(LABEL.match(lines[ci - 1]).group(1)) == addr:
-        start = ci - 1
+    start = directives_above(lines, ci, addr)
     end = len(lines)
     for k in range(ci + 1, len(lines)):
         if HEADER.match(lines[k]):
-            end = k
-            # a label line immediately before the next header belongs to it
-            if k > 0 and LABEL.match(lines[k - 1]) and \
-               paddr(LABEL.match(lines[k - 1]).group(1)) == paddr(HEADER.match(lines[k]).group(2)):
-                end = k - 1
+            # every directive at the next header's address belongs to it
+            end = directives_above(lines, k, paddr(HEADER.match(lines[k]).group(2)))
             break
     return start, end
 
@@ -180,7 +194,10 @@ def main():
         if addr not in base_blocks:
             sys.exit(f"fragment block c {addr} not present in base — not splice-able")
         bs, be = base_blocks[addr]
-        lo = paddr(HEADER.match(base[bs] if not LABEL.match(base[bs]) else base[bs + 1]).group(2))
+        # `bs` may sit above a run of `@ ADDR …` directives, not just one
+        # `label=` line, so find the header rather than assuming its offset.
+        head = next(i for i in range(bs, be) if HEADER.match(base[i]))
+        lo = paddr(HEADER.match(base[head]).group(2))
         hi = (paddr(HEADER.match(base[be]).group(2)) if be < len(base) and HEADER.match(base[be])
               else 10 ** 9)
         owned.append((lo, hi))
