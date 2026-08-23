@@ -680,6 +680,15 @@ div.map-entry-title-11 {
   color: var(--text);
 }
 
+/* SkoolKit's own stylesheet sets `font-family: sans` on these four selectors.
+   `sans` is not a CSS generic, so a browser discards it and falls back to its
+   default serif. The theme's `body` rule cannot win against them, being less
+   specific, so they are named here. */
+div.map-entry-title-11,
+div.map-entry-desc,
+td.map-s-desc,
+td.map-u-desc { font-family: var(--font-sans); }
+
 div.map-entry-desc {
   font-size: var(--type-small);
   color: var(--text-dim);
