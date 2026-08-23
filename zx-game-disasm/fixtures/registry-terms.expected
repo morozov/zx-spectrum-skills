@@ -1,7 +1,5 @@
 terms: 3 violation(s) of the registry in registry.ref; 2 qualified row(s) not checked — a form named in one grammatical role is a hand pass
-  fixtures/registry-prose.ref:2: write 'afterward', not 'afterwards'
-    A routine that returns nonzero has work left, and the caller retries afterwards.
-  fixtures/registry-prose.ref:2: write 'non-zero', not 'nonzero'
-    A routine that returns nonzero has work left, and the caller retries afterwards.
-  fixtures/registry-prose.ref:4: write 'center', not 'centred'
-    The table below is centred by SkoolKit's own keyword, which is not this project's
+
+  registry-prose.ref:2: write 'afterward', not 'afterwards' — A routine that returns nonzero has work left, and the caller retries afterwards.
+  registry-prose.ref:2: write 'non-zero', not 'nonzero' — A routine that returns nonzero has work left, and the caller retries afterwards.
+  registry-prose.ref:4: write 'center', not 'centred' — The table below is centred by SkoolKit's own keyword, which is not this project's

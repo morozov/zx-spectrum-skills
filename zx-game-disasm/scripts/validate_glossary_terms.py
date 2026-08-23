@@ -96,11 +96,23 @@ def violations(path, pairs):
                     yield lineno, form, preferred, raw.strip()[:120]
 
 
+def token(finding):
+    """The baseline's third field: `<file>:<banned form>`.
+
+    The file has to be in the key for the same reason `validate_prose_names.py`
+    puts it there: an accepted form in one file and the same form newly written
+    into another would otherwise share one key and one count, so fixing the first
+    would pay for the second and the gate would stay green on the defect the
+    check exists for.
+    """
+    return '%s:%s' % (os.path.basename(finding[3]), finding[4].lower())
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.strip().split('\n')[0])
     parser.add_argument('files', nargs='+', help='the .skool, .ctl, .ref and spec files')
     parser.add_argument('--registry', help='the .ref page holding the Write/Not table')
-    parser.add_argument('--baseline', help="the gating linters' known-failing baseline")
+    ctl_baseline.add_arguments(parser)
     args = parser.parse_args()
 
     source = args.registry
@@ -120,34 +132,45 @@ def main():
     # back as violations.
     registry_path = os.path.abspath(source)
 
-    found = []
+    # Findings carry (lineno, kind, message, path, form) so the baseline can key
+    # on the file and the form, the way every multi-file check here does.
+    findings = []
     for path in args.files:
         if not os.path.exists(path) or os.path.abspath(path) == registry_path:
             continue
         for lineno, form, preferred, line in violations(path, pairs):
-            found.append((path, lineno, form, preferred, line))
-
-    accepted = ctl_baseline.load(args.baseline, CHECK) if args.baseline else None
-    standing = []
-    for path, lineno, form, preferred, line in found:
-        key = (CHECK, 'TERM', '%s %s' % (os.path.basename(path), form))
-        if accepted is not None and accepted.take(key):
-            continue
-        standing.append((path, lineno, form, preferred, line))
+            findings.append((lineno, 'TERM',
+                             "write '%s', not '%s' — %s" % (preferred, form, line),
+                             path, form))
 
     note = ('; %d qualified row(s) not checked — a form named in one grammatical '
             'role is a hand pass' % skipped) if skipped else ''
-    if not standing:
-        print('%s: %d registry term(s) enforced, none violated%s'
-              % (CHECK, len(pairs), note))
+
+    if args.write_baseline:
+        if not args.baseline:
+            print('Error: --write-baseline needs --baseline', file=sys.stderr)
+            return 2
+        ctl_baseline.report_write(
+            args.baseline, CHECK,
+            *ctl_baseline.write(args.baseline, CHECK, findings, [], token_of=token))
         return 0
 
-    print('%s: %d violation(s) of the registry in %s%s'
-          % (CHECK, len(standing), os.path.basename(source), note))
-    for path, lineno, form, preferred, line in standing:
-        print("  %s:%d: write '%s', not '%s'" % (path, lineno, preferred, form))
-        print('    %s' % line)
-    return 1
+    new, held, stale = ctl_baseline.partition(args.baseline, CHECK, findings, [],
+                                              report_stale=not args.ignore_stale,
+                                              token_of=token)
+    if new:
+        print('%s: %d violation(s) of the registry in %s%s'
+              % (CHECK, len(new), os.path.basename(source), note))
+        print()
+        for lineno, _, message, path, _form in new:
+            print('  %s:%d: %s' % (os.path.basename(path), lineno, message))
+        print()
+    elif not held and not stale:
+        print('%s: %d registry term(s) enforced, none violated%s'
+              % (CHECK, len(pairs), note))
+
+    ctl_baseline.report(args.baseline, CHECK, held, stale)
+    return 1 if new or stale else 0
 
 
 if __name__ == '__main__':
