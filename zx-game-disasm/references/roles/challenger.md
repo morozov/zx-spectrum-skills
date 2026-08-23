@@ -66,3 +66,5 @@ A Worker's fragment is not the only thing you gate. When the Manager closes a di
 
 A clear per-claim verdict, a COMMIT/SPLIT/REJECT decision, and — for SPLIT — the exact dig-tasks to file (each with its address and open question). Hand these back to the Manager.
 </content>
+
+- **An entry that does not stand alone, or is not about its own bytes.** A catalog entry opening on "then", "the same" or "more of the same" refers to a block the reader reached this page without seeing. A sprite entry spending its prose on which pointer a handler writes is documenting the handler. Both are yours: `references/prose-bar.md` states them, and neither has a check, because no pattern separates them from correct prose.

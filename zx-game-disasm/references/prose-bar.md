@@ -112,6 +112,22 @@ So: **if a block encodes one element the reader can see or hear, that block show
 
 `UNRENDERED` gates it, and the block's own title decides: a title naming a sprite, bitmap, glyph, font, wordmark, logo or tileset, with no render macro anywhere in the block. A block *about* those things — a sprite pointer table, a glyph-code index, a bank's state flags — names them too and owes no picture, so that vocabulary is excluded.
 
+## An entry stands alone, and is about its own bytes
+
+Two rules the Challenger reads for, because neither is decidable by pattern.
+
+**An entry stands alone.** A reader arrives at a block by following a link, not by scrolling into it, so a sentence that only makes sense after the block above says nothing to the person actually reading it. "More of the same leftover." "The stunned player then draws again." The "then" and the "same" point at a paragraph that reader never saw.
+
+**An entry is about its own bytes.** A sprite entry owes what the sprite is, the event that draws it, and the routine — not the plumbing by which a pointer comes to hold it. Which slot the handler writes, which field it swaps, what happens to the player afterwards: that is the handler's, and it is already documented there.
+
+> **Bad:** Stunned-player sprite the trap installs into the player's sprite pointer (slot 1) during its hold state (#R$B7E2). The stunned player then draws again.
+>
+> **Good:** The player while the trap holds it, drawn through its hold state (#R$B7E2).
+
+The good form names the object and the frame: "Trap release frame 1 (state 4); stepped by #R$B7E2."
+
+**Why no check.** Both shapes fail the bar. The back-reference — a sentence opening on "then", "also", "the same" — is almost always a routine referring to its own previous sentence, which is correct. The plumbing shape, scoped to catalog entries that render, is rare, and its hits include legitimate ones. A pattern narrowed until it catches the known instance is the keyed match this skill rejects elsewhere; the precision is what decides, and here it decides against.
+
 ## A rendered thing is not described in words
 
 Where the page renders the artifact — an `#AUDIO` clip, a `#UDGARRAY` sprite, a `#FRAMES` animation — the render *is* the description. Prose beside it that says what the picture looks like, or what the sound sounds like, is the author doing by hand and badly the job the device does exactly.
