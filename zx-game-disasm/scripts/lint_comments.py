@@ -297,22 +297,46 @@ PITCH_RE = re.compile(r'(?i)(?<![\w.])~?\s*(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<k>k?)
 # it worth knowing. Nothing else exists to say, so the ceiling is a real bound
 # rather than a preference — which is why a cap is the right instrument here and
 # the wrong one for prose in general (see references/prose-bar.md).
-# A code the program assigns, cited beside the thing it stands for: "the drone
-# (type 19)", "Guard behavior handler (enemy type 3)". The reader came for the
-# drone; 19 is the byte this build happens to spell it with, and reassigning the
-# types makes every such sentence silently false.
+# A number the player cannot see does not belong in prose. Not a state index, not
+# an object type, not a tile or slot code, not a bit position. Say what happens —
+# "enters the death reaction", not "(state 2)"; "the rocket", not "type 17"; "a
+# wall or border", not "tile codes $21-$44". The `#R` reference already written is
+# the reader's way to the encoding, and repeating it beside the name is noise.
 #
-# A bare `$XX` anywhere in prose is too broad a shape to check: most such hits
-# are not this defect. A dispatch code *named as a code* in a **`c` block's**
-# prose is precise, because the block type decides it: the mapping's home is
-# the data block that holds the table, and a routine is named by what it does.
+# Type codes, tile ranges and state numbers are one rule, because they share
+# one shape: a number *labeled by an encoding noun*. A number the
+# player meets carries a domain noun instead — "500 points", "3 lives", "250
+# frames" — and is kept.
+#
+# Four exemptions, each structural rather than a judgment:
+#
+#   A table row. `{ $02 | silver key | … }` is the code's only home, and
+#   striking it out leaves a row about no code. Prose in the same block is not
+#   covered by this: "for character codes $20 to $5A" on the font block is a
+#   citation like any other, and the render below it already shows the glyphs.
+#
+#   An `R` line. A routine's register contract is where it states the convention
+#   its callers must honor — "I:DE pointer to the string (bit 7 set marks the
+#   final character)". That is the implementer speaking, not a caller citing.
+#
+#   A platform encoding. ULA bit 4, port $FE, an opcode byte. Not this program's
+#   to reassign, so no edit to the game can falsify the sentence.
+#
+#   A Z80 mnemonic. `BIT 7`, `SET 3`, `RES 0` are instructions that happen to
+#   read like codes.
+CODE_ECHO_NOUN = r'(?:state|type|class|slot|bit|code|codes|index|mode|phase|octant)'
+CODE_ECHO_NUM = r'(?:\$[0-9A-Fa-f]{1,2}(?![0-9A-Fa-f])|\b\d{1,3}\b)'
 CODE_ECHO_RE = re.compile(
-    r'(?i)\b(?:object |enemy |item |slot )?(?:type|class)[- ]\$?[0-9A-Fa-f]{1,2}\b')
+    r'(?i)\b' + CODE_ECHO_NOUN + r'[-\s]+' + CODE_ECHO_NUM +
+    r'|\b' + CODE_ECHO_NOUN + r's?\s+\$[0-9A-Fa-f]{2}\s*(?:to|[-\u2013])\s*\$?[0-9A-Fa-f]{2}\b')
+CODE_ECHO_PLATFORM_RE = re.compile(r'(?i)\bULA\b|\bport \$?[0-9A-Fa-f]|\bopcode\b|\bROM\b')
+CODE_ECHO_MNEMONIC_RE = re.compile(r'(?i)\b(BIT|SET|RES|RST|IM)\s+\d')
 CODE_ECHO_DETAIL = (
-    "cites the code the program assigns ('{}') beside the thing it stands for. "
-    "Name the thing: the reader came for the enemy, not for the byte this build "
-    "spells it with, and reassigning the codes makes the sentence false without "
-    "touching it. The mapping's one home is the table that defines it"
+    "cites a number the player cannot see ('{}'). Say what happens, not which "
+    "code it is: 'starts to explode', not 'state 2'; 'the rocket', not "
+    "'type 17'; 'a wall or border', not a tile range. The #R reference already "
+    "there is the reader's way to the encoding. A number the player meets — a "
+    "score, a count, a duration — stays"
 )
 
 # A block whose own title says it holds a picture, a glyph or a tune owes the
@@ -766,12 +790,13 @@ def diary_detail(hit):
 
 
 def code_echoes(lines):
-    """Yield (lineno, line, token) for dispatch codes cited in a `c` block's prose.
+    """Yield (lineno, line, token) for an unobservable number cited in prose.
 
-    Scoped to code blocks because that is what tells a citation from a
-    definition. The type-to-handler mapping lives in a data block, where the
-    number is the entry's whole content; in a routine's own title or description
-    it is the routine named by its slot in someone else's table.
+    Reads every block comment, of every block type, minus the four structural
+    exemptions above. Block type is deliberately *not* the test: it would let
+    "for character codes $20 to $5A" pass because the font block is data — a
+    prose citation wearing a data block's exemption. What earns the exemption
+    is the table row, not the block it sits in.
     """
     index, total = 0, len(lines)
     while index < total:
@@ -782,15 +807,17 @@ def code_echoes(lines):
         while index < total and lines[index].startswith(';'):
             block.append(lines[index][1:].strip())
             index += 1
-        entry = index
-        while entry < total and (lines[entry].startswith('@') or not lines[entry].strip()):
-            entry += 1
-        if entry >= total or not re.match(r'^c[$][0-9A-Fa-f]{4}', lines[entry]):
-            continue
-        for offset, text in enumerate(block):
+        for offset, raw in enumerate(block):
+            if raw.startswith(('{', '#TABLE', '#UDGTABLE', '#LIST', 'TABLE#', 'LIST#')):
+                continue                       # a table row: the code is its key
+            if REGISTER_LINE_RE.match(raw):
+                continue                       # the routine's own contract
+            text = MACRO_RE.sub(' ', MACRO_SPAN_RE.sub(' ', raw))
+            if CODE_ECHO_PLATFORM_RE.search(text) or CODE_ECHO_MNEMONIC_RE.search(raw):
+                continue
             hit = CODE_ECHO_RE.search(text)
             if hit:
-                yield start + offset + 1, text[:120], hit.group(0)
+                yield start + offset + 1, raw[:120], hit.group(0)
 
 
 def unrendered_elements(lines):

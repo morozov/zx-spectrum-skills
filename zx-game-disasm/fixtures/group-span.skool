@@ -15,7 +15,8 @@
 ;   SYNTH_ECHO  at $EC66 — prose beside an #AUDIO saying how the tone is made.
 ;   EULOGY     at $EC6E — a proof that a block of unused bytes is unused.
 ;   UNRENDERED at $EC76 — a block titled a sprite that shows no sprite.
-;   CODE_ECHO  at $EC82 — a routine named by its dispatch number.
+;   CODE_ECHO  at $EC82, $EC84 and $EC8A — numbers the player cannot see:
+;               a dispatch code, a state index, a tile range.
 ;
 ; Silent by construction: the branch target at $EC11 is its span's own loop top,
 ; reached only from below it; the conditional RET at $EC21 abandons the act
@@ -26,7 +27,10 @@
 ; that it is unused and one thing worth knowing, which is all one owes; the
 ; sprite at $EC7A renders itself, and the pointer table at $EC7E names sprites
 ; without holding one, so neither owes a picture; and the dispatch table at
-; $EC86 is where a type number is the content, so it is not reported.
+; $EC86 is where a type number is the content, so it is not reported. Nor are
+; the register contract at $EC8E, the platform bit at $EC90, or the Z80
+; mnemonic at $EC92 — a contract states a convention, and a port bit and an
+; instruction are not this program's to reassign.
 
 @label=split_span
 c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
@@ -163,3 +167,29 @@ c$EC82 LD A,(HL)      ; Read its state.
 ; The entry that defines the mapping, where the number is the content.
 @label=dispatch_table
 b$EC86 DEFW $EC82     ; Type 12, the drone.
+
+; Enemy state machine
+;
+; On a hit the object enters state 2 and stops moving. A solid tile is a
+; wall/border (tile codes $21-$44).
+@label=enemy_state
+c$EC84 LD A,(HL)      ; Read it.
+
+; Score award
+;
+; The drone is worth 300 points and the shield lasts 640 frames, both of which
+; the player meets, so both stay.
+@label=score_award
+c$EC8A LD A,$05       ; Award it.
+
+; Print a string
+;
+; I:DE address of the message (bit 7 set on its last character)
+@label=print_string
+c$EC8E LD A,(DE)      ; Read a character.
+
+; Speaker toggle
+;
+; Flips ULA bit 4 and returns. The BIT 7 test above it reads the mute flag.
+@label=speaker
+c$EC90 XOR $10        ; Toggle it.

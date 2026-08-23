@@ -75,25 +75,31 @@ Those two forms are exempt because **the caller is priced into the description b
 
 **S8 — three or more items sharing a template are a `#TABLE`.** A record layout, an enum, a dispatch list. Written out as prose it is a table nobody can read.
 
-## A thing is named, not numbered
+## A number the player cannot see does not belong in prose
 
-The program assigns codes to its own things — a dispatch type, a tile class, a pickup byte. Those are the bytes this build happens to spell them with. Reassign them and every sentence citing one is silently false, without a word of it changing.
+Not a state index, not an object type, not a tile or slot code, not a bit position, not a record offset. Say what happens:
 
-So a routine is named by what it does, and a thing by what it is:
-
-> **Bad:** Drone behavior handler (object type 19)
+> **Bad:** enters the falling state (state 2) · the bird (type 17) · a solid tile is a wall or a floor (tile codes $10-$1F) · player B's pointer (slot 1)
 >
-> **Bad:** Type-9 enemy: the moth. Circles the lamp and dies when the light goes out.
->
-> **Good:** Drone behavior handler
->
-> **Good:** The moth. Circles the lamp and dies when the light goes out.
+> **Good:** enters the falling state · the bird · a solid tile is a wall or a floor · player B's pointer
 
-The test is the deletion. Cross the code out and read what is left. If it still names the thing, the code was a citation and stays crossed out. If what is left names nothing *because the code was standing in for the name* — "turns the mine into the type-8 enemy" becoming "into the enemy" — then the sentence never carried the fact, and the repair is to go and read the name off the table.
+The `#R` reference already in the sentence is the reader's way to the encoding. Repeating the code beside the name is noise they did not ask for, and it rots: reassign the codes and every sentence citing one is silently false without a word of it changing.
 
-The one place a code belongs is the entry that **defines** the mapping. Strike it out of a dispatch table's row and the row says nothing, because the mapping is that entry's whole job.
+**Keep a number the player meets, or a port must reproduce.** Scores, lives, speeds, durations, counts of things on screen. The shape tells them apart — an unobservable number is labeled by an *encoding* noun (`state 2`, `type 17`, `slot 1`), a kept one by a *domain* noun (`500 points`, `3 lives`, `250 frames`).
 
-`CODE_ECHO` gates the routine half, decided by block type: a code named as a code in a `c` block's prose. The table lives in a data block, so the definition is never reported.
+**Four exemptions, all structural.**
+
+*A table row whose number is its key.* `{ $02 | silver key | … }` — strike the code and the row is about no code. This is the row, **not** the block it sits in: "the game font, for character codes $20 to $5A" is prose on a data block and is a citation like any other. Write "space through Z", or nothing, since the block renders the glyphs.
+
+*An `R` line.* A routine's register contract is where it establishes the convention its callers must honor — `I:HL address of the message (a $FF byte ends it)`. The implementer states it once; every caller that repeats it is citing.
+
+*A platform encoding.* ULA bit 4, port `$FE`, an opcode byte. Not this program's to reassign, so no edit can falsify the sentence.
+
+*A Z80 mnemonic.* `BIT 7`, `SET 3`, `RES 0` are instructions that read like codes.
+
+`CODE_ECHO` gates it over every block comment of every block type.
+
+**Every kind of unobservable number is one rule** — type codes, tile ranges and state numbers alike. If a fourth kind turns up, it is this rule, not a new one.
 
 ## A thing the reader can see or hear is shown at its own block
 
