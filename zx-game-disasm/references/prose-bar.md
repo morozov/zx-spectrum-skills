@@ -75,6 +75,26 @@ Those two forms are exempt because **the caller is priced into the description b
 
 **S8 — three or more items sharing a template are a `#TABLE`.** A record layout, an enum, a dispatch list. Written out as prose it is a table nobody can read.
 
+## A thing is named, not numbered
+
+The program assigns codes to its own things — a dispatch type, a tile class, a pickup byte. Those are the bytes this build happens to spell them with. Reassign them and every sentence citing one is silently false, without a word of it changing.
+
+So a routine is named by what it does, and a thing by what it is:
+
+> **Bad:** Drone behavior handler (object type 19)
+>
+> **Bad:** Type-9 enemy: the moth. Circles the lamp and dies when the light goes out.
+>
+> **Good:** Drone behavior handler
+>
+> **Good:** The moth. Circles the lamp and dies when the light goes out.
+
+The test is the deletion. Cross the code out and read what is left. If it still names the thing, the code was a citation and stays crossed out. If what is left names nothing *because the code was standing in for the name* — "turns the mine into the type-8 enemy" becoming "into the enemy" — then the sentence never carried the fact, and the repair is to go and read the name off the table.
+
+The one place a code belongs is the entry that **defines** the mapping. Strike it out of a dispatch table's row and the row says nothing, because the mapping is that entry's whole job.
+
+`CODE_ECHO` gates the routine half, decided by block type: a code named as a code in a `c` block's prose. The table lives in a data block, so the definition is never reported.
+
 ## A thing the reader can see or hear is shown at its own block
 
 The catalog page is an **index**. It exists to show everything at once — every sprite, every frame, every effect, side by side — and that is a different job from documenting one block. Someone following a link to `$A640` lands on a page titled "Player sprite: walking frame" and, if the block renders nothing, reads sixteen rows of hex.

@@ -46,6 +46,11 @@ ones a reviewer would otherwise flag by hand:
                    pitch, so the figure is the clip read back in numbers. The
                    machine's own constants (the 3.5 MHz clock, the 50 Hz frame
                    interrupt) are not pitches and are not reported
+  - CODE_ECHO      a dispatch code named as a code in a `c` block's prose —
+                   "the drone (type 19)", "Guard behavior handler (enemy type 3)".
+                   The routine is named by what it does; the number is the
+                   byte this build spells it with, and it belongs to the table
+                   that defines the mapping
   - UNRENDERED     a data block whose title names a sprite, glyph, font or tune,
                    carrying no render macro. The catalog page is an index; a
                    block that encodes one element shows that element
@@ -132,7 +137,8 @@ CHECK = 'comments'
 GATING_KINDS = frozenset((
     'RET_GROUP', 'SELFLINK', 'DIARY', 'OPERAND_ECHO', 'ELLIPSIS',
     'GROUP_SPLIT', 'GROUP_ENTRY', 'GROUP_SKIP', 'BASE_ECHO', 'SPLICE',
-    'LAYOUT_ECHO', 'PITCH', 'SYNTH_ECHO', 'EULOGY', 'UNRENDERED', 'OPEN',
+    'LAYOUT_ECHO', 'PITCH', 'SYNTH_ECHO', 'EULOGY', 'UNRENDERED',
+    'CODE_ECHO', 'OPEN',
 ))
 
 # The finding's own row carries its address, so the baseline key is that address
@@ -291,6 +297,24 @@ PITCH_RE = re.compile(r'(?i)(?<![\w.])~?\s*(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<k>k?)
 # it worth knowing. Nothing else exists to say, so the ceiling is a real bound
 # rather than a preference — which is why a cap is the right instrument here and
 # the wrong one for prose in general (see references/prose-bar.md).
+# A code the program assigns, cited beside the thing it stands for: "the drone
+# (type 19)", "Guard behavior handler (enemy type 3)". The reader came for the
+# drone; 19 is the byte this build happens to spell it with, and reassigning the
+# types makes every such sentence silently false.
+#
+# A bare `$XX` anywhere in prose is too broad a shape to check: most such hits
+# are not this defect. A dispatch code *named as a code* in a **`c` block's**
+# prose is precise, because the block type decides it: the mapping's home is
+# the data block that holds the table, and a routine is named by what it does.
+CODE_ECHO_RE = re.compile(
+    r'(?i)\b(?:object |enemy |item |slot )?(?:type|class)[- ]\$?[0-9A-Fa-f]{1,2}\b')
+CODE_ECHO_DETAIL = (
+    "cites the code the program assigns ('{}') beside the thing it stands for. "
+    "Name the thing: the reader came for the enemy, not for the byte this build "
+    "spells it with, and reassigning the codes makes the sentence false without "
+    "touching it. The mapping's one home is the table that defines it"
+)
+
 # A block whose own title says it holds a picture, a glyph or a tune owes the
 # reader the thing itself. The catalog page is an index — it shows everything at
 # once — and an index is not where someone lands when they follow a link to one
@@ -741,6 +765,34 @@ def diary_detail(hit):
             "TODO:) or file a dig-task")
 
 
+def code_echoes(lines):
+    """Yield (lineno, line, token) for dispatch codes cited in a `c` block's prose.
+
+    Scoped to code blocks because that is what tells a citation from a
+    definition. The type-to-handler mapping lives in a data block, where the
+    number is the entry's whole content; in a routine's own title or description
+    it is the routine named by its slot in someone else's table.
+    """
+    index, total = 0, len(lines)
+    while index < total:
+        if not lines[index].startswith(';'):
+            index += 1
+            continue
+        start, block = index, []
+        while index < total and lines[index].startswith(';'):
+            block.append(lines[index][1:].strip())
+            index += 1
+        entry = index
+        while entry < total and (lines[entry].startswith('@') or not lines[entry].strip()):
+            entry += 1
+        if entry >= total or not re.match(r'^c[$][0-9A-Fa-f]{4}', lines[entry]):
+            continue
+        for offset, text in enumerate(block):
+            hit = CODE_ECHO_RE.search(text)
+            if hit:
+                yield start + offset + 1, text[:120], hit.group(0)
+
+
 def unrendered_elements(lines):
     """Yield (lineno, title) for data blocks that name a renderable element and
     show none. Decided by the block's own title, so the author declares what the
@@ -881,6 +933,10 @@ def scan(path):
         audio_block_lines.update(range(run_start + 1, len(lines) + 1))
 
     violations_pending = []
+
+    for lineno, text, token in code_echoes(lines):
+        violations_pending.append((lineno, 'CODE_ECHO', text,
+                                   CODE_ECHO_DETAIL.format(token)))
 
     for lineno, title in unrendered_elements(lines):
         violations_pending.append((lineno, 'UNRENDERED', title, UNRENDERED_DETAIL))

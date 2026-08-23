@@ -15,6 +15,7 @@
 ;   SYNTH_ECHO  at $EC66 — prose beside an #AUDIO saying how the tone is made.
 ;   EULOGY     at $EC6E — a proof that a block of unused bytes is unused.
 ;   UNRENDERED at $EC76 — a block titled a sprite that shows no sprite.
+;   CODE_ECHO  at $EC82 — a routine named by its dispatch number.
 ;
 ; Silent by construction: the branch target at $EC11 is its span's own loop top,
 ; reached only from below it; the conditional RET at $EC21 abandons the act
@@ -24,7 +25,8 @@
 ; which is what an entry beside a clip owes; and the unused block at $EC72 says
 ; that it is unused and one thing worth knowing, which is all one owes; the
 ; sprite at $EC7A renders itself, and the pointer table at $EC7E names sprites
-; without holding one, so neither owes a picture.
+; without holding one, so neither owes a picture; and the dispatch table at
+; $EC86 is where a type number is the content, so it is not reported.
 
 @label=split_span
 c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
@@ -149,3 +151,15 @@ b$EC7A DEFB $18,$18   ; Two bytes per pixel row.
 ; Sprite pointer table, one entry per sprite slot
 @label=sprite_pointers
 b$EC7E DEFW $EC76     ; The normal player.
+
+; Drone behavior handler (object type 12)
+;
+; Type-12 enemy: the drone. Roams the play area until a shot destroys it.
+@label=enemy_drone
+c$EC82 LD A,(HL)      ; Read its state.
+
+; Object dispatch table, one handler per type
+;
+; The entry that defines the mapping, where the number is the content.
+@label=dispatch_table
+b$EC86 DEFW $EC82     ; Type 12, the drone.
