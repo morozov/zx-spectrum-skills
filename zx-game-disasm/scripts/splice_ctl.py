@@ -49,7 +49,6 @@ import sys
 # skool) or bare decimal — accept both.
 _A = r'(\$?[0-9A-Fa-f]+)'
 HEADER = re.compile(r'^([bcgistuw]) ' + _A + r'\b')   # a block-entry line, `u` included
-CLINE = re.compile(r'^c ' + _A + r'\b')                # a code-block entry
 ADDR_LINE = re.compile(r'^(?:[@ ]?[A-Za-z*]?\s*)?' + _A + r'\b')
 DIRECTIVE = re.compile(r'^@ ' + _A + r' ([A-Za-z][-\w]*)')  # any `@ ADDR name…` line
 
@@ -98,13 +97,17 @@ def block_span(lines, ci):
     return start, end
 
 
-def code_blocks(lines):
-    """Map addr -> (start, end) for every `c ADDR` block."""
+def entry_blocks(lines):
+    """Map addr -> (start, end) for every block entry, whatever its type.
+
+    Data entries are spliced exactly as code entries are, so this must not be
+    restricted to `c`. Gating on a code block would refuse every
+    `b`/`g`/`u`/`i` fragment outright."""
     out = {}
     for k, ln in enumerate(lines):
-        m = CLINE.match(ln)
+        m = HEADER.match(ln)
         if m:
-            out[paddr(m.group(1))] = block_span(lines, k)
+            out[paddr(m.group(2))] = block_span(lines, k)
     return out
 
 
@@ -181,18 +184,18 @@ def main():
             print(advice, file=sys.stderr)
         return 0
 
-    base_blocks = code_blocks(base)
-    frag_blocks = code_blocks(frag)
+    base_blocks = entry_blocks(base)
+    frag_blocks = entry_blocks(frag)
 
     if not frag_blocks:
-        sys.exit("fragment contains no `c ADDR` block")
+        sys.exit("fragment contains no block-entry line")
 
     # Invariant 2: every fragment line must fall inside one of the fragment's own
-    # c-block address ranges (computed from the base's block extents).
+    # block address ranges (computed from the base's block extents).
     owned = []
     for addr in frag_blocks:
         if addr not in base_blocks:
-            sys.exit(f"fragment block c {addr} not present in base — not splice-able")
+            sys.exit(f"fragment block at {addr} not present in base — not splice-able")
         bs, be = base_blocks[addr]
         # `bs` may sit above a run of `@ ADDR …` directives, not just one
         # `label=` line, so find the header rather than assuming its offset.

@@ -22,10 +22,9 @@
 # directive name, not on the line.
 #
 # `--check-only` reports the same drops over the fragment's address span and
-# writes nothing, for a caller that performs its own splice. `frag-retype.ctl` is
-# why that mode is not just the splice with the write removed: it retypes a `b`
-# block to `c`, which this tool refuses to splice at all, and block-for-block
-# matching would pair it with nothing and report no drop.
+# writes nothing, for a caller that performs its own splice. `frag-retype.ctl`
+# retypes a `b` block to `c`: blocks pair by address whatever their type, so the
+# splice takes the retype and names the field label it drops.
 #
 # The `.ctl` here is the same 13-byte self-modifying probe as
 # `fixtures/verify-frag-flags.sh`, plus a two-byte record, so the directives are
@@ -39,7 +38,8 @@
 #                                 exit 0, both gone from the spliced .ctl
 #      re-label fragment:         no warning, exit 0
 #      drop fragment --check-only: the same two named, no file written
-#      retype fragment:           refused (block not present in base)
+#      retype fragment:           `@ $F00E label=player_y` named, exit 0,
+#                                 the block spliced in as `c $F00D`
 #      retype fragment --check-only: `@ $F00E label=player_y` named, exit 0
 #   -> `splice-dropped-directive: OK`, exit 0
 set -euo pipefail
@@ -144,8 +144,11 @@ if cmp -s base.ctl out-unwritten.ctl; then echo "PASS  check-only: wrote nothing
 else echo "FAIL  check-only: the base was modified"; fail=1; fi
 
 cp base.ctl out-retype.ctl
-run "retype fragment" reject out-retype.ctl frag-retype.ctl
-want_in "retype fragment: refused as unspliceable" "not present in base"
+run "retype fragment" accept out-retype.ctl frag-retype.ctl
+want_in     "retype fragment: names the field label the retype drops" '@ $F00E label=player_y'
+OUT="$(cat out-retype.ctl)"
+want_in     "retype fragment: the block is spliced in as code" 'c $F00D Player position update'
+want_not_in "retype fragment: the field label really is gone" 'label=player_y'
 
 run "retype fragment, --check-only" accept --check-only base.ctl frag-retype.ctl
 want_in     "check-only: names the field label the retype drops" '@ $F00E label=player_y'
