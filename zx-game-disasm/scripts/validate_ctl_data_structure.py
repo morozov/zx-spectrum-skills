@@ -637,8 +637,16 @@ def check_untyped(block, threshold, by_address):
                        f"widen them or state its stride")
         else:
             extent = 'unbounded' if size is None else f'{size} bytes'
+            # A partner exemption is invisible from the prose that holds it open:
+            # it reads as an ordinary cross-reference, so an edit that strips a
+            # sentence can close it from another file, and this fires in an entry
+            # the edit never opened. Say so, because nothing else will.
             message = (f"{extent} with no sub-directives — declare the stride, "
-                       f"cover it with a render, or model it as code")
+                       f"cover it with a render, or model it as code. If this "
+                       f"block was passing before, check whether a prose edit "
+                       f"removed the #R that named its render's partner: the "
+                       f"exemption needs the two blocks to name each other, and "
+                       f"the link can be anywhere in the body")
         violations.append((block['line_number'], 'UNTYPED', message))
         return violations
 

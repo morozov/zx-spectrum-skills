@@ -23,6 +23,7 @@ The same rule covers **every address the reader sees**, not just directives: a r
 - [Text blocks and string terminators](#text-blocks-and-string-terminators)
 - [Data structures and tables](#data-structures-and-tables)
 - [One page per thing](#one-page-per-thing)
+- [Where an `N` note can land](#where-an-n-note-can-land)
 - [Register annotations and cross-references](#register-annotations-and-cross-references)
 - [Validation rules](#validation-rules)
 
@@ -428,6 +429,16 @@ Nor is a hyphenated compound modifier an alias. "The second-enemy bonus" names a
 An alias with no positional word in it — "the chasing enemy" — is beyond any linter: no tool can know it means `enemy_a` rather than a third enemy. That one is settled when the name is chosen and held by the vocabulary section of the project's `AGENTS.md`.
 
 **Every image macro must produce an image.** A `#UDGARRAY` in the `.ctl` is a claim that a picture appears at that block. The claim is checkable — `make lint-images` compares the filenames the macros declare against the files the site build wrote — and it is not the same claim as "the HTML built". The frame-only `(*name)` defines a frame and writes no file, so a `.ctl` that writes it in place of `(name)` builds green and publishes no image. Write `(name)` to publish the image, `(name*frame)` to publish it *and* define the frame for a `#FRAMES` animation; `(*frame)` alone publishes nothing and is only ever an ingredient of an animation that does.
+
+## Where an `N` note can land
+
+Two placement rules, both enforced by checks that name neither, and both hit when moving a fact out of a description into the body.
+
+**An `N` sits after the entry's `@ … label=` line, never before it.** `lint-instruction-order` reads the directives at an address in order and fails on a note that precedes the label.
+
+**Attach it to an unlabeled row.** A note on a *labeled* address reads as that label's own behavior, and `lint-label-namespace` then wants the label renamed to match what the note says. Land it on a row inside the block instead, and the note describes the act rather than renaming the entry.
+
+The pair matters because a cross-reference sometimes has to live in the body rather than beside a render — a data block's render exemption needs its partner named by `#R`, and stripping that sentence from the prose beside the clip closes the exemption from another file. Put the link back somewhere in the body, under these two rules, and both checks pass.
 
 ## Register annotations and cross-references
 
