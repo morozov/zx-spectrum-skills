@@ -1,0 +1,11 @@
+[Term:spelling:One spelling per word]
+American English, and one spelling wherever the project has used two.
+
+#TABLE(default)
+{ =h Write | =h Not }
+{ afterward | afterwards }
+{ center, centered | centre, centred }
+{ non-zero | nonzero }
+{ zeroes, the verb - a routine zeroes a block | zeros as the verb }
+{ front end as a noun | front-end as a noun }
+TABLE#

@@ -1,0 +1,13 @@
+[Page:Sample]
+A routine that returns nonzero has work left, and the caller retries afterwards.
+
+The table below is centred by SkoolKit's own keyword, which is not this project's
+prose and is not reported.
+
+#TABLE(default,centre,centre)
+{ =h A | =h B }
+{ one | two }
+TABLE#
+
+Nothing here writes zeros or front-end, because a form the registry qualifies by
+grammatical role is a hand pass and this check does not decide it.

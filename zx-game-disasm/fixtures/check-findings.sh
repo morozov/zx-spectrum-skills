@@ -86,6 +86,10 @@ run label-namespace \
 run comments-group-span \
     scripts/lint_comments.py fixtures/group-span.skool
 
+run registry-terms \
+    scripts/validate_glossary_terms.py fixtures/registry-prose.ref \
+    --registry fixtures/registry.ref
+
 # The prose extractor feeds Vale, so a silent regression in it shows up as a
 # check that stops reporting rather than as an error. Both halves are asserted:
 # the Markdown it emits, and the line map that puts a finding back on a real

@@ -33,7 +33,9 @@ Reuse also *amplifies*. Sites multiply. The term climbs from prose into the labe
 3. Does the code hold the contrast the word implies?
 4. Does it name the thing, or a property you inferred about it?
 
-**The registry is `glossary.ref`.** Each `[Term:…]` declares the canonical term and the variants that must not appear. That file is not a prose page; it is what the checker reads.
+**The registry is `glossary.ref`, and `make lint-terms` reads it.** Publish the pairs as a `#TABLE` under a `Write | Not` header — the left cell is what to write, the right cell the forms that must not appear — and the check holds every other file to it.
+
+Two limits, stated because a registry that claims more enforcement than it has is worse than none. A row qualified by grammatical role — "zeros **as the verb**" — is not decidable by pattern, so it is counted in the report and left to a hand pass. And the pairs are spellings and synonyms; the entity-level rules T1 to T5 above are the Challenger's, judged by reading.
 
 ## How long a description runs
 

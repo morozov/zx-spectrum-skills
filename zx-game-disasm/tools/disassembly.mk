@@ -19,6 +19,8 @@
 #   make lint-publication     Gate: every page inside the image, one page per thing,
 #                             each entry the type its bytes are
 #   make lint-names           Gate: prose names a labeled slot by its label
+#   make lint-terms           Gate: the prose keeps the spellings glossary.ref
+#                             publishes in its Write/Not registry
 #   make lint-label-namespace Gate: a label's prefix names something containing it
 #   make test-checks          Gate: each .ctl check still reports what its fixture says
 #   make lint-byte-counts     Gate: no instruction comment recites a byte count
@@ -76,6 +78,7 @@ TOOLS_html                := $(TOOLS_SKOOL) skool2html.py
 TOOLS_coverage            := $(TOOLS_SKOOL)
 TOOLS_lint-comments       := $(TOOLS_SKOOL)
 TOOLS_lint-prose          := $(TOOLS_SKOOL)
+TOOLS_lint-terms          := $(TOOLS_SKOOL)
 TOOLS_test-checks         := $(TOOLS_SKOOL)
 TOOLS_lint                := $(TOOLS_SKOOL)
 TOOLS_lint-data-structure := $(TOOLS_SNAPSHOT)
@@ -93,7 +96,7 @@ TOOLS_lint-baseline       := $(TOOLS_html)
 # disassembler to produce one.
 TOOLS_FREE_GOALS := clean gate lint-address-order lint-instruction-order \
                     lint-lengths lint-label-length lint-identity \
-                    lint-names lint-byte-counts lint-array-elements
+                    lint-names lint-terms lint-byte-counts lint-array-elements
 
 # Preflight. An absent toolchain is not a state in which "every target is up to
 # date" carries any meaning: with nothing installed and nothing stale, make runs
@@ -407,7 +410,7 @@ test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 # in two places.
 LINT_CHECKS = address-order instruction-order lengths label-length identity \
               data-structure publication names byte-counts array-elements \
-              comments label-namespace
+              comments label-namespace terms
 
 # Every check the gate holds a project to: the sweep's, plus the one that runs
 # after the site is built. The gate compares this against the number of checks the log
@@ -542,6 +545,18 @@ lint-publication: $(CTL) $(CTL_EXTRA) $(SKOOL)
 # second door"). The .ctl and every reader-facing file beside it are swept, since
 # a term settles wherever nothing looks. See `references/ctl-authoring.md`.
 CHECK_names = $(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) --baseline $(BASELINE)
+
+# The project's own terminology registry, enforced. `glossary.ref` publishes a
+# `Write | Not` table; without a check, a project can declare the registry and
+# violate it in the same build: the table lands, the rename does not, and the
+# site publishes "Write X / Not Y" beside headings still reading Y. Rows the
+# registry qualifies by grammatical role ("zeros as the verb") are not decidable
+# by pattern and are counted in the report rather than reported, so the check
+# never claims more enforcement than it has.
+CHECK_terms = $(SCRIPTS)/validate_glossary_terms.py $(SKOOL) $(CTL) $(PROSE) \
+    --baseline $(BASELINE)
+lint-terms: $(CTL)
+	$(CHECK_terms)
 lint-names: $(CTL)
 	$(CHECK_names)
 
