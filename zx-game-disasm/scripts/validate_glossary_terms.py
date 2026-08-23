@@ -159,8 +159,10 @@ def main():
                                               report_stale=not args.ignore_stale,
                                               token_of=token)
     if new:
-        print('%s: %d violation(s) of the registry in %s%s'
-              % (CHECK, len(new), os.path.basename(source), note))
+        # `Found N …` is the shape `lint_sweep.sh` reads a finding count from; a
+        # check that prints its own phrasing is reported as "count unread".
+        print('Found %d violation(s) of the registry in %s%s'
+              % (len(new), os.path.basename(source), note))
         print()
         for lineno, _, message, path, _form in new:
             print('  %s:%d: %s' % (os.path.basename(path), lineno, message))
