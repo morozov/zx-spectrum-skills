@@ -118,6 +118,18 @@ So: **if a block encodes one element the reader can see or hear, that block show
 
 `UNRENDERED` gates it, and the block's own title decides: a title naming a sprite, bitmap, glyph, font, wordmark, logo or tileset, with no render macro anywhere in the block. A block *about* those things — a sprite pointer table, a glyph-code index, a bank's state flags — names them too and owes no picture, so that vocabulary is excluded.
 
+## A title that lists things is a page that holds things
+
+`validate_ctl_publication.py` already gates one page per thing. A title carrying a comma-separated list is how a page that holds several announces itself:
+
+> Door-lock flags, the ladder-collision results, and the bonus timers
+
+Ask the question the title raises. What do these share, that they are on one page? If the answer is nothing, the page is a bag and the seams are where the title puts its commas — split it. If the answer is that they are *interleaved*, so no address range separates them, say that in the description, because the reader is about to wonder the same thing.
+
+Not every list is a defect. "Missile shot sprites, left and right" is one thing in two mirrored forms. The test is not the comma; it is whether the reader would draw the same boundary.
+
+No check ships. Titles that carry a list are rare, and a legitimate one is as common as a defect, so a pattern here reports one defect for every one it gets wrong.
+
 ## An entry stands alone, and is about its own bytes
 
 Two rules the Challenger reads for, because neither is decidable by pattern.
