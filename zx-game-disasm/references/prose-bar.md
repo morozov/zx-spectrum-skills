@@ -116,7 +116,13 @@ So: **if a block encodes one element the reader can see or hear, that block show
 
 Two rules the Challenger reads for, because neither is decidable by pattern.
 
-**An entry stands alone.** A reader arrives at a block by following a link, not by scrolling into it, so a sentence that only makes sense after the block above says nothing to the person actually reading it. "More of the same leftover." "The stunned player then draws again." The "then" and the "same" point at a paragraph that reader never saw.
+**An entry stands alone.** A reader arrives at a block by following a link, not by scrolling into it, so a sentence that only makes sense after the block above says nothing to the person actually reading it. It takes three shapes.
+
+A *connective* pointing at the previous block: "More of the same leftover", "The stunned player then draws again". The "same" and the "then" name a paragraph that reader never saw.
+
+A *position* standing in for a description: "The page above the sprite bank." Above is an address relation, and the page shows no map — so this locates the block by a neighbor instead of saying what it is. The address is already in the heading. Say what the bytes are and what touches them.
+
+A *description that restates its own title* and adds nothing else. If the title is "Back buffer and work RAM" and the description says where it sits, the entry has one fact in it and has spent a paragraph not saying it.
 
 **An entry is about its own bytes.** A sprite entry owes what the sprite is, the event that draws it, and the routine — not the plumbing by which a pointer comes to hold it. Which slot the handler writes, which field it swaps, what happens to the player afterwards: that is the handler's, and it is already documented there.
 
