@@ -212,21 +212,31 @@ lint_run byte-counts "$SCRIPTS/validate_ctl_byte_counts.py" "$SPLICED" \
 lint_run label-namespace "$SCRIPTS/validate_ctl_label_namespace.py" "$SPLICED" \
     --skool "$tmp/game.skool" --baseline "$BASELINE" --ignore-stale
 
-# Advisory comment-quality pre-filter over the spliced skool. It runs ahead of the
-# verdict so a red sweep still carries it: it is what the Challenger reads, and a
-# fragment being sent back over a finding is when its author most wants it.
-echo
-echo "--- lint-comments (advisory) ---"
-"$SCRIPTS/lint_comments.py" "$tmp/game.skool" || true
+# Comment-quality check over the spliced skool. It runs ahead of the verdict so a
+# red sweep still carries it: it is what the Challenger reads, and a fragment
+# being sent back over a finding is when its author most wants it.
+# `comments` gates in `make`, so it gates here: a fragment carrying an `OPEN`
+# marker must not be green here and red in the Manager's `make`, which is the one
+# thing this script promises cannot happen. It needs the project's baseline for
+# the same reason every other gating check does.
+lint_run comments "$SCRIPTS/lint_comments.py" "$tmp/game.skool" \
+    --baseline "$BASELINE"
 
-# The `lint_run` calls above. The count is written out rather than derived
-# from the gate's, which is larger by `lint-images` — the one gating check with no
+# `terms` likewise: the registry in glossary.ref gates the build, and a fragment
+# that reintroduces a banned spelling should fail where it is written.
+lint_run terms "$SCRIPTS/validate_glossary_terms.py" "$SPLICED" \
+    --registry "$(dirname "$CTL")/glossary.ref" --baseline "$BASELINE"
+
+# The `lint_run` calls above. The count is written out rather than derived from
+# the gate's, which is larger by `lint-images` — the one gating check with no
 # counterpart here, because it reads the built site and a fragment builds none. A
 # number carried over from the makefile would keep its old count if the gate
-# gained a check this file did not, which is worse than saying so in
-# words.
-lint_report 11
+# gained a check this file did not, which is worse than saying so in words.
+lint_report 13
 
 echo "verify-frag: OK [fixed-asm flags: $FIXED_FLAGS] — every .ctl check the gate" \
-     "runs. lint-images is the one it also runs and this cannot: it reads the" \
-     "built site, so it stays the Manager's \`make\` to settle."
+     "runs, except the checks that read the built site. A fragment builds no" \
+     "site, so those stay the Manager's \`make\` to settle."
+echo "verify-frag: a clean sweep is not a round-trip. These are .ctl checks; that" \
+     "the spliced source still assembles to the original bytes is the Manager's" \
+     "\`make\`, and no linter here implies it."
