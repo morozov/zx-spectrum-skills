@@ -1270,6 +1270,15 @@ def main():
         print(f'  advisory, not gated: {tally}'
               + ('' if args.advisory else '  — run `lint_comments.py … --advisory`'
                                           ' for the list'))
+        # STAMP counts phrases, and a phrase is bounded by comment units. Splitting
+        # one unit into two, or rewording a sentence, moves the count without
+        # touching the duplication it tracks, so the number reads like a
+        # project-quality figure and is not one.
+        if 'STAMP' in by_kind(advisory):
+            print('  (a STAMP count is not comparable across an edit: the phrase it '
+                  'matches is bounded by comment units, so splitting a unit or '
+                  'rewording a sentence moves the tally without changing what is '
+                  'duplicated. Read the list, not the delta.)')
         if args.advisory:
             for kind, items in sorted(by_kind(advisory).items()):
                 print(f'\n[{kind}] {len(items)}')

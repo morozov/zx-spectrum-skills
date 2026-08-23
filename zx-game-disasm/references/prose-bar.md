@@ -67,6 +67,8 @@ A ceiling on one description is the wrong instrument: a well-written disassembly
 
 **S5 — two addresses per sentence at most.** The exception is the stock forms `Used by the routines at …` and `Written by …`, which are a list and read as one.
 
+Those two forms are exempt because **the caller is priced into the description budget, not into a backlink.** SkoolKit generates no "Used by" line. So a description that drops its caller clause drops the caller from the reader's reach on that page — the fact survives only at the call site, on a page this page does not link to. "One home per fact" would permit the call site to be that home, and it is not, because nothing points there. Keep the clause, and do not count it against the sentence budget.
+
 **S6 — a bare `$XXXX` needs a name in the same sentence.** A label, a constant, or what the thing is. The reader came for the name; the address is the citation.
 
 **S7 — no sentence opens on an address, `Slot N`, `Byte` or `Bit`.** Make a thing the subject.
