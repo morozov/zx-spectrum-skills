@@ -498,6 +498,12 @@ It records that kind's findings and nothing else — a key of any other kind in 
 
 `fixtures/baseline-monotonic.sh` is the regression: it adopts two checks, introduces a finding at a new address and a second finding at an address the file already lists, and asserts both are refused with the file untouched; it rewords a message and clears the finding and asserts both are accepted; then it clears the check's last line and asserts that `--adopt` on that now-empty section is still refused, which is the case the header exists for.
 
+### What a clean fragment sweep does not prove
+
+`verify_fragment.sh` runs every `.ctl` check the gate runs except `lint-images`, which reads a built site a fragment does not produce. It does not prove the round-trip. A fragment set can pass all of them and still break byte-identity: a splice that swallows the `i` line marking the end of the loaded image runs the image on to `$FFFF`, `pasmo` emits the extra bytes without complaint, and every linter stays green because nothing about the annotations is wrong. The verdict line says so in those words, and a Worker validating fragments should read it that way: these checks are about the control file, and the bytes are the Manager's `make`.
+
+`comments` and `terms` gate here as they do in `make`, so a fragment carrying an `OPEN` marker is red in `verify-frag` as it is in the Manager's `make`. Green here and red there is the one outcome the script promises cannot happen.
+
 ### The prose check
 
 `make lint-prose` runs the sentence-level bar in `references/prose-bar.md`. It does not reimplement it. Vale is the prose linter technical writing already uses, and it ships the Microsoft and Google style guides as executable rules; the project adds only the handful of rules this domain needs.
