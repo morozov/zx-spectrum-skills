@@ -355,8 +355,16 @@ $(BIN_PRISTINE): $(Z80_PRISTINE)
 	$(SCRIPTS)/extract_bytes.py $(Z80_PRISTINE) $(ORG) $(SIZE) $@
 
 # Disassemble the snapshot into skool, applying the control file.
+# sna2skool warns and continues when it cannot place a .ctl line — a hard-wrapped
+# directive loses every line after the first this way, and the truncated comment
+# then passes every downstream check, because from their point of view the text
+# simply is not there. Fail here instead, the way the asm render already does.
 $(SKOOL): $(Z80_PRISTINE) $(CTL) $(CTL_EXTRA)
-	$(SNA2SKOOL) --hex $(Z80_PRISTINE) --ctl $(CTL) $(addprefix --ctl ,$(CTL_EXTRA)) > $@
+	@$(SNA2SKOOL) --hex $(Z80_PRISTINE) --ctl $(CTL) $(addprefix --ctl ,$(CTL_EXTRA)) \
+	    > $@.tmp 2> $@.stderr; rc=$$?; \
+	if grep -q 'Ignoring line' $@.stderr; then rc=1; fi; \
+	if [ $$rc -ne 0 ]; then cat $@.stderr >&2; rm -f $@.tmp $@.stderr; exit $$rc; fi; \
+	cat $@.stderr; rm -f $@.stderr; mv $@.tmp $@
 
 # The round-trip: reassembled non-fixed bytes must equal the pristine bytes.
 test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
