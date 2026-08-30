@@ -55,6 +55,13 @@
   --hover:       rgba(20, 55, 130, 0.65);  /* link card, contents pill       */
   --rule:        rgba(22, 36, 72, 0.4);    /* row separator inside a table   */
   --rule-strong: rgba(22, 36, 72, 0.7);    /* the -2 variants' border        */
+
+  /* The lamp. Hovering an annotated group of the listing lights it: this much
+     white falls on every surface in the group, over whatever color that surface
+     already carries. Each of them derives its lit value from its own token with
+     color-mix, which premultiplies alpha and so gives the same source-over as a
+     white veil laid over the group. */
+  --lit: 0%;
   --code-punct:  #8a9099;                  /* punctuation, unnamed tokens    */
   --header-bg:   rgba(7, 13, 26, 0.95);
   --header-blur: blur(10px);
@@ -524,11 +531,17 @@ td.comment-0 {
 }
 
 td.comment-1 {
+  --paper: rgba(255, 255, 255, 0.03);
+  /* The edges are flattened onto the page's black rather than laid over the
+     paper as a translucent white. Collapsed borders paint the same pixels where
+     they cross, so two translucent lines compound there and the crossing comes
+     out brighter than either of them. Opaque, a crossing is one of the two. */
+  --edge: color-mix(in srgb, #fff 10%, var(--bg));
+  --edge-soft: color-mix(in srgb, #fff 8%, var(--bg));
   color: var(--text);
-  background: rgba(255, 255, 255, 0.03);
-  border-left: 1px solid rgba(255, 255, 255, 0.10);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 1px solid color-mix(in srgb, #fff var(--lit), var(--edge));
+  border-top: 1px solid color-mix(in srgb, #fff var(--lit), var(--edge-soft));
+  border-bottom: 1px solid color-mix(in srgb, #fff var(--lit), var(--edge-soft));
   padding: 1px 14px;
   vertical-align: top;
   width: 45%;
@@ -547,13 +560,18 @@ td.comment-1:empty {
   border-bottom: none;
 }
 
-table.disassembly tr.asm-group-hover > td {
-  background: rgba(255, 255, 255, 0.04);
+/* Every cell of the listing paints its own paper through the lamp, so the light
+   is one quantity added over whatever that cell carries rather than a color per
+   cell. The child chain keeps the paint off the register tables nested in an
+   entry description, which set their own. */
+table.disassembly > tbody > tr > td {
+  background-color: color-mix(in srgb, #fff var(--lit), var(--paper, transparent));
 }
 
-table.disassembly tr.asm-group-hover > td.comment-1 {
-  background: rgba(255, 255, 255, 0.08);
-  border-left-color: rgba(255, 255, 255, 0.35);
+/* --lit inherits into every cell of the group, so the one declaration lights the
+   listing's paper, the comment band and its edges by the same amount. */
+table.disassembly tr.asm-group-hover {
+  --lit: 4%;
 }
 
 span.register {
