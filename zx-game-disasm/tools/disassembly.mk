@@ -837,6 +837,10 @@ THEME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../assets)
 # recipe stays a plain command and make 3.81's shell-less fast path cannot lose a
 # variable assignment prefixed to it (see "The toolchain" above).
 HTML_SUBS := $(SCRIPTS)/html_operand_subs.py
+# Every $-hex value in the site's text is wrapped in span.hex, which the theme sets
+# in the monospace face. It runs after skool2html, inside the html/.stamp recipe,
+# so no page ships without it and a rebuilt page is never left unwrapped.
+HTML_HEX := $(SCRIPTS)/html_hex_mono.py
 export SKOOL_HTML_SUB_MODE := $(if $(filter -r,$(ASM_FIXED_FLAGS)),3,$(if $(filter -s,$(ASM_FIXED_FLAGS)),2,1))
 
 # [Game] JavaScript is a single key, so a ref file that names theme.js owns the
@@ -853,8 +857,9 @@ HTML_JAVASCRIPT := theme.js$(if $(HTML_JS),;$(HTML_JS))
 
 html: html/.stamp
 
-html/.stamp: $(SKOOL) $(wildcard *.ref) $(wildcard *.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS)
+html/.stamp: $(SKOOL) $(wildcard *.ref) $(wildcard *.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS) $(HTML_HEX)
 	$(SKOOL2HTML) -d html -H -a -c "Config/InitModule=$(SCRIPTS):html_operand_subs" -c "Game/JavaScript=$(HTML_JAVASCRIPT)" --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
+	$(HTML_HEX) html
 	touch $@
 
 clean:

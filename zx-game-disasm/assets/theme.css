@@ -971,6 +971,24 @@ code {
   border-radius: 3px;
 }
 
+/* A $-hex value in running text sets as inline code does: the monospace face, a
+   lighter ground and a small rounded outline, in the prose's own color so it
+   marks the value without competing with it. html_hex_mono.py wraps the values after the site is built; the listing's
+   own instruction cells are left as they are. */
+.hex {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+  padding: 0 4px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Inside a link into the listing the link's own size already applies. */
+a .hex { font-size: inherit; }
+
 /* A link into the disassembly reads as code. Matching on the path is what
    SkoolKit's generated markup allows — it puts no class on a #R link — so the
    match is at least held to a site-relative href, and a third-party URL that
