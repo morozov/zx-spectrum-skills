@@ -194,6 +194,10 @@ def check_title(entry):
 def check_descriptions(entry, labeled):
     """Report a sub-directive that neither describes nor names its bytes."""
     violations = []
+    if entry['type'] == 'u':
+        # An unused entry's own description says the one thing there is to say;
+        # its sub-blocks are runs of bytes nothing reads, with nothing to name.
+        return violations
     for sub in entry['subs']:
         if sub['described'] or sub['address'] in labeled:
             continue

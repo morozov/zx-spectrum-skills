@@ -23,6 +23,9 @@ Five checks, all arithmetic over directives the .ctl already carries:
   POINTER      (needs --bin) a B span whose byte pairs land in-image at/above
                the relocatability floor is a pointer table typed as bytes
 
+An unused entry (`u`) is exempt from every check here: its bytes have no layout
+to declare.
+
 A block drawn by an image or audio macro is exempt from UNTYPED: the macro is
 the schema and the render is its proof. The macro may sit in the block's own
 prose, or on a partner block the two name each other through — a beeper sound is
@@ -813,6 +816,10 @@ def main():
 
     violations = []
     for block in blocks:
+        if block['type'] == 'u':
+            # Bytes nothing uses have no layout to declare: asking an unused entry
+            # for a stride, a tiling or a type would invent structure for them.
+            continue
         found = check_untyped(block, args.threshold, by_address)
         found += check_tiling(block)
         found += check_divisibility(block)
