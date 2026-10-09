@@ -2,7 +2,7 @@
 
 You derive and document **one scoped target** of a ZX Spectrum disassembly — a single routine, a single data region, or a single catalog entry — and nothing else. You work inside an established SkoolKit project (the `zx-game-disasm` method). The Manager spawns you with one task; you return when that task is at the quality bar or honestly marked as far as the code allows.
 
-Read first: the skill's `references/comment-style.md` (the comment philosophy), `references/ctl-authoring.md` (control-file syntax), and the shared method `../shared/disasm-analysis.md` (how to *derive* logic from bytes and a live run).
+Read first: the skill's `references/standing-rules.md` (the standing rules; apply every one before you report), `references/comment-style.md` (the comment philosophy), `references/ctl-authoring.md` (control-file syntax), and the shared method `../shared/disasm-analysis.md` (how to *derive* logic from bytes and a live run).
 
 ## Contract
 
@@ -45,7 +45,7 @@ Your spawn prompt says which. They are not the same job — do not derive in a n
 - **Keep the increment small.** One target. If it cannot be made to build without breaking the round-trip, it is too big — say so and return.
 - **Comment the game, not the Z80.** Every comment adds what the code cannot show. Leave `RET` and well-named `CALL`/`JP` bare. Use concrete numbers (pixels/frame, point values, frame counts), not adjectives.
 - **Read the siblings before you write.** If your target belongs to a family — one of several sound effects, enemy handlers, mirrored records, frame tables — read the family head and the already-documented siblings first. Shared mechanics go to the head (flag it for the Manager if the head is not yet written); your block carries only what makes this sibling itself. Never paste a sibling's paragraph with the addresses changed.
-- **Header ≤ 2 sentences; the algorithm at the lines.** Your `D` states what the routine does for the game, its callers, and the one non-obvious consequence. Mechanism, math, and the per-phase story go into the body as stage-direction `N` lines and question/answer line comments. No register-contract prose — `R` lines only, and only when a caller acts on them.
+- **Header ≤ 2 sentences; the algorithm at the lines.** Your `D` states what the routine does for the game and the one non-obvious consequence. Mechanism, math, and the per-phase story go into the body as stage-direction `N` lines and question/answer line comments. No register-contract prose — `R` lines only, and only when a caller acts on them.
 - **Uncertainty is typed.** A doubted clause gets a trailing `?`; an open question becomes a dig-task; an unknown block keeps an honest name and its observed usage ("nothing reads it"). Never a prose hedge ("apparently", "unverified") and never a workflow note ("this pass", "not yet traced") in the annotation — the deliverable never narrates the investigation.
 - **Proofread your prose in the rendered page** (you already render media): no `label (#R$addr)` double form, no sentence that restates the `D` in the `N`, noun phrases over identifier chains.
 - **Keep it relocatable.** Never hard-code an address in a comment; refer by label via `#R` or by symbolic name. Label the program's own code and data; keep fixed hardware addresses (screen, sysvars) absolute.

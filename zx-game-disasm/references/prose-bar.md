@@ -65,9 +65,9 @@ A ceiling on one description is the wrong instrument: a well-written disassembly
 
 **S4 — no semicolon joining two clauses, and asides do not stack.** Never two asides in one sentence: no parenthetical inside a parenthetical, no colon and semicolon together.
 
-**S5 — two addresses per sentence at most.** The exception is the stock forms `Used by the routines at …` and `Written by …`, which are a list and read as one.
+**S5 — two addresses per sentence at most.** The exception is the stock form `Written by …`, which is a list and reads as one.
 
-Those two forms are exempt because **the caller is priced into the description budget, not into a backlink.** SkoolKit generates no "Used by" line. So a description that drops its caller clause drops the caller from the reader's reach on that page — the fact survives only at the call site, on a page this page does not link to. "One home per fact" would permit the call site to be that home, and it is not, because nothing points there. Keep the clause, and do not count it against the sentence budget.
+Nothing in a project states its callers: no `Used by #FOREACH(EREF…)` note, no "called by" or "dispatched by" clause in a description, and no generated line. `skoolkit.ini` sets `ListRefs=0`, so `sna2skool` writes neither the entry-level "Used by" nor the "This entry point is used by …" line at an entry point. A routine can have any number of callers, the list is not what the page is about, and the toolchain tracks the references anyway. What a routine does at its callers' request is its own description. Writers are not tracked by the toolchain, so a `Written by …` line about state is still authored.
 
 **S6 — a bare `$XXXX` needs a name in the same sentence.** A label, a constant, or what the thing is. The reader came for the name; the address is the citation.
 

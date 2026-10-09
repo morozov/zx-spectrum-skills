@@ -579,7 +579,8 @@ CHECK_byte-counts = $(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) --baseline $(B
 lint-byte-counts: $(CTL)
 	$(CHECK_byte-counts)
 
-# The register rows: one register per row, and one style for what a row says.
+# The register rows: one register per row, and one style for what a row says. See
+# `references/standing-rules.md`.
 CHECK_registers = $(SCRIPTS)/validate_ctl_registers.py $(CTL) --baseline $(BASELINE)
 lint-registers: $(CTL)
 	$(CHECK_registers)

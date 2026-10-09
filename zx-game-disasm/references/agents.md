@@ -30,6 +30,8 @@ Read the difference. `NOTHING REBUILT` re-ran the round-trip and the linters ove
 
 ## Non-negotiables
 
+- **Read `references/standing-rules.md` first.** It holds the standing rules: provenance, unused bytes, one entry per thing, fonts and glyphs, names, comment layers, counts, evidence, and how to work.
+
 - **Every checkpoint is green.** `make` passes: byte-identical round-trip, linters clean, and `skool2asm --create-labels` emitting **zero** warnings. Never leave the project red across a checkpoint. Keep increments small.
 - **Never hand-edit a generated file.** The `.skool`, `.asm`, `.bin` and `.z80` are generated; edits to them are overwritten and never reach the round-trip. The `.ctl` is annotation *over* the snapshot.
 - **The toolchain runs from `PATH`.** Install the packages in `requirements.txt` so they are on it. The build refuses to start when a tool it needs is missing, whether or not the tree is up to date.

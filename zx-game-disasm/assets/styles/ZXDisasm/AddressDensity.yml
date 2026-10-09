@@ -1,5 +1,5 @@
 extends: occurrence
-message: "At most two addresses per sentence (found %d) - split it, or move the list to a `Used by` line."
+message: "At most two addresses per sentence (found %d) - split it into sentences that each name one or two."
 level: warning
 scope: sentence
 max: 2
