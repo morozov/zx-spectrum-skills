@@ -12,7 +12,7 @@ Every item is a check. A Worker applies each one before it reports. A Challenger
 
 - One `R` row per register. `R $A I:HL destination, DE source, B byte count` is three rows. No row names two registers, and a routine's registers are never described in its prose instead of in rows.
 - A row is a lower-case noun phrase with no final full stop, and says what the register holds, with the encoding or limit that matters: "pointer to the string (bit 7 set marks the final character)", "number of bytes to copy (0 copies 256)". A bare noun such as "destination", "source" or "attribute" tells the reader nothing. Routines that do the same job at different sizes carry parallel rows.
-- A routine that takes a value in a register, or hands one back, has `R` rows for it. A prose sentence such as "advances HL" is a missing row.
+- A routine that takes a value in a register, or hands one back, has `R` rows for it. A prose sentence such as "advances HL" is a missing row. Run `scripts/register_usage.py SKOOL --ctl CTL` to list candidates, and confirm each against the code.
 - A row states a contract: the caller deliberately sets the input, or deliberately uses the output. A register that merely holds a leftover value another routine happened to read is a defect, documented where it is read, and gets no row. Before adding a row, read the call sites and confirm the caller sets or uses the value on purpose. Dataflow shows that a value flows, never that anyone meant it to.
 
 ## Callers

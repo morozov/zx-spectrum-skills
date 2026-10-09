@@ -1,0 +1,18 @@
+; Routine that doubles A into L
+c$EC00 ADD A,A       ;
+ $EC01 LD L,A        ;
+ $EC02 RET           ;
+
+; Table first, then the routine that reads IX
+c$EC03 DEFB $01,$02  ;
+ $EC05 DEFB $03,$04  ;
+ $EC07 LD A,(IX+$00) ;
+ $EC0A RET           ;
+
+; Caller
+c$EC0B LD A,$05      ;
+ $EC0D CALL $EC00    ;
+ $EC10 LD A,L        ;
+ $EC11 LD IX,$EC03   ;
+ $EC15 CALL $EC03    ;
+ $EC18 RET           ;

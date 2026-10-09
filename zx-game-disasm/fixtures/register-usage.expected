@@ -1,0 +1,3 @@
+$EC00  in: A  out: L   rows: in A / out L ok
+$EC07  in: IX  out: -   rows: in IX / out - ok
+$EC0B  in: -  out: -   rows: in - / out - ok

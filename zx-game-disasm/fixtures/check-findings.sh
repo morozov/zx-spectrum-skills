@@ -70,6 +70,11 @@ run array-elements-unindexed \
     scripts/validate_ctl_array_elements.py fixtures/wide-comment-array.ctl
 run registers-rows \
     scripts/validate_ctl_registers.py fixtures/registers.ctl
+# A row at an entry that begins in data (a table in front of the code) belongs to
+# the first code address; it must not print a DIFF for the empty data node.
+run register-usage \
+    scripts/register_usage.py fixtures/register-usage.skool \
+    --ctl fixtures/register-usage.ctl --all
 run publication-fragmented \
     scripts/validate_ctl_publication.py fixtures/fragmented-structure.ctl \
     --org 0x4000 --size 6912 --skool fixtures/no-stores.skool
