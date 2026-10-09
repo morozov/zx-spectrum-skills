@@ -199,6 +199,8 @@ lint_run publication "$SCRIPTS/validate_ctl_publication.py" "$SPLICED" \
     --baseline "$BASELINE" --ignore-stale
 lint_run array-elements "$SCRIPTS/validate_ctl_array_elements.py" "$SPLICED" \
     --baseline "$BASELINE" --ignore-stale
+lint_run registers "$SCRIPTS/validate_ctl_registers.py" "$SPLICED" \
+    --baseline "$BASELINE" --ignore-stale
 
 # The prose sweep runs over the spliced .ctl alone. The `.ref` catalogs are not
 # spliced, so their findings are the project's, not the fragment's, and a Worker
@@ -228,11 +230,11 @@ lint_run terms "$SCRIPTS/validate_glossary_terms.py" "$SPLICED" \
     --registry "$(dirname "$CTL")/glossary.ref" --baseline "$BASELINE"
 
 # The `lint_run` calls above. The count is written out rather than derived from
-# the gate's, which is larger by `lint-images` — the one gating check with no
-# counterpart here, because it reads the built site and a fragment builds none. A
-# number carried over from the makefile would keep its old count if the gate
-# gained a check this file did not, which is worse than saying so in words.
-lint_report 13
+# the gate's, which is larger by the checks that read the built site: they have
+# no counterpart here, because a fragment builds no site. A number carried over
+# from the makefile would keep its old count if the gate gained a check this
+# file did not, which is worse than saying so in words.
+lint_report 14
 
 echo "verify-frag: OK [fixed-asm flags: $FIXED_FLAGS] — every .ctl check the gate" \
      "runs, except the checks that read the built site. A fragment builds no" \

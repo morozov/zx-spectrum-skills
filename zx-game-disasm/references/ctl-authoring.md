@@ -445,11 +445,23 @@ The pair matters because a cross-reference sometimes has to live in the body rat
 Mark a routine's intentional inputs and outputs like function parameters:
 
 ```
-R $ADDRESS I:A Object type to spawn.
-R $ADDRESS O:HL Address of the allocated slot.
+R $ADDRESS I:A object type to spawn
+R $ADDRESS O:HL address of the allocated slot
 ```
 
 Document only registers that are real parameters, not every register the body touches.
+
+Every row names its register: `O:` with nothing after the colon is not a row. Say that result in the description.
+
+One register per row, always. `R $ADDRESS I:HL destination, DE source, B byte count` is three rows: one `I:HL`, one `I:DE`, one `I:B`. Never list several registers in a row's description, never put two `I:`/`O:` fields in one row, and never describe the registers of a routine in its `D` or `N` prose instead of rows. The same goes for a description that says "HL and DE ...". A reader scans the register table by the register column.
+
+The text of a row is a noun phrase in one style across the project:
+
+- It starts in lower case and ends without a full stop: `I:HL address of the message (a $FF byte ends it)`. A leading digit, `$`, `#R` or an acronym (`Z`) is not a capitalized word.
+- It says what the register holds, with the encoding or limit that matters: `I:C row count (0 draws none)`, `O:A 1 when the door is locked, 0 when open`. A bare noun (`destination`, `attribute`) fails; `unchanged` is the one one-word row, for a register the routine preserves.
+- Routines that do the same job at different sizes carry parallel rows.
+
+`make lint-registers` gates all of it: one register per row, a lower-case phrase, no final full stop, no one-word role.
 
 In comment text, reference addresses with `#R$XXXX` (SkoolKit resolves it to the label) and register names with `#REG` macros (`#REGhl`, `#REGbc`, `#REGde`, `#REGa`). The `I:`/`O:` fields in `R` directives use bare register names — that is SkoolKit syntax — but in prose always wrap them.
 

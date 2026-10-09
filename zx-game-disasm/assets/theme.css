@@ -611,7 +611,7 @@ table.output td {
 td.register {
   color: var(--cyan);
   width: auto;
-  text-align: center;
+  text-align: left;
   white-space: nowrap;
 }
 

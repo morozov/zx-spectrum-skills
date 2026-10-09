@@ -1,0 +1,22 @@
+Found 7 register row finding(s):
+
+  registers.ctl:3: REG_MULTI — the description names a second register: give it its own row
+    R $4000 I:HL destination, DE source, B byte count
+
+  registers.ctl:4: REG_STYLE — 'The' starts the description in capitals: write it as a lower-case phrase
+    R $4000 I:A The attribute byte.
+
+  registers.ctl:4: REG_STYLE — the description ends in a full stop: it is a phrase, not a sentence
+    R $4000 I:A The attribute byte.
+
+  registers.ctl:5: REG_BARE — 'attribute' names a role and says nothing about what the register holds: give its meaning, encoding or limit
+    R $4000 I:C attribute
+
+  registers.ctl:9: REG_STYLE — 'Steering' starts the description in capitals: write it as a lower-case phrase
+    R $4000 I:IX Steering object record.
+
+  registers.ctl:9: REG_STYLE — the description ends in a full stop: it is a phrase, not a sentence
+    R $4000 I:IX Steering object record.
+
+  registers.ctl:10: REG_EMPTY — the row has no register ('O:'): say it in the entry description and delete the row
+    R $4000 O: updates the heading

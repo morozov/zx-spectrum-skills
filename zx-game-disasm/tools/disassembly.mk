@@ -24,6 +24,7 @@
 #   make lint-label-namespace Gate: a label's prefix names something containing it
 #   make test-checks          Gate: each .ctl check still reports what its fixture says
 #   make lint-byte-counts     Gate: no instruction comment recites a byte count
+#   make lint-registers       Gate: one register per row, written as a lower-case phrase
 #   make lint-array-elements  Gate: every array record annotated individually
 #   make lint-images          Gate: every image macro put an image under html/
 #   make lint-prose           Advisory: Vale over the prose, carrying the Microsoft
@@ -96,7 +97,7 @@ TOOLS_lint-baseline       := $(TOOLS_html)
 # disassembler to produce one.
 TOOLS_FREE_GOALS := clean gate lint-address-order lint-instruction-order \
                     lint-lengths lint-label-length lint-identity \
-                    lint-names lint-terms lint-byte-counts lint-array-elements
+                    lint-names lint-terms lint-byte-counts lint-array-elements lint-registers
 
 # Preflight. An absent toolchain is not a state in which "every target is up to
 # date" carries any meaning: with nothing installed and nothing stale, make runs
@@ -143,7 +144,7 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-images lint-baseline lint-array-elements lint-comments lint-prose coverage html
+.PHONY: all gate tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-registers lint-images lint-baseline lint-array-elements lint-comments lint-prose coverage html
 
 # A recipe that redirects into its own target has already created that target by
 # the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
@@ -411,13 +412,13 @@ test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 # build failure. That is the one thing this must not get wrong — a check that
 # never ran must never be reported as a check with no findings.
 #
-# `lint-images` runs its own one-element sweep, because it reads what the HTML
-# build wrote and so cannot run beside the rest. Both of the gate's sweeps end in
-# one `LINT PASS:`/`LINT FAIL:` line in the same format, and the gate adds up
-# every such line it finds — so a verdict counts every check even though they ran
-# in two places.
+# `lint-images` reads what the HTML build wrote and so cannot run beside the
+# rest; it runs in a sweep of its own after `html`. Every sweep the gate runs
+# ends in one `LINT PASS:`/`LINT FAIL:` line in the same format, and the gate
+# adds up every such line it finds — so a verdict counts every check even
+# though they ran in separate sweeps.
 LINT_CHECKS = address-order instruction-order lengths label-length identity \
-              data-structure publication names byte-counts array-elements \
+              data-structure publication names byte-counts array-elements registers \
               comments label-namespace terms
 
 # Every check the gate holds a project to: the sweep's, plus the one that runs
@@ -578,6 +579,11 @@ CHECK_byte-counts = $(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) --baseline $(B
 lint-byte-counts: $(CTL)
 	$(CHECK_byte-counts)
 
+# The register rows: one register per row, and one style for what a row says.
+CHECK_registers = $(SCRIPTS)/validate_ctl_registers.py $(CTL) --baseline $(BASELINE)
+lint-registers: $(CTL)
+	$(CHECK_registers)
+
 # The outcome check: every image macro named a file, and every named file is on
 # the site. `make` proved the HTML *builds*; nothing proved it contains anything.
 # A rewrite of every `(name)` into the frame-only `(*name)` — which defines a
@@ -642,6 +648,8 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 	$(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_byte_counts.py $(CTL) \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/validate_ctl_registers.py $(CTL) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_array_elements.py $(CTL) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \

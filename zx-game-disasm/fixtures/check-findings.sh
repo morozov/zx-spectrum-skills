@@ -68,6 +68,8 @@ run instruction-order-decimal \
     scripts/validate_ctl_instruction_order.py fixtures/decimal-addresses.ctl
 run array-elements-unindexed \
     scripts/validate_ctl_array_elements.py fixtures/wide-comment-array.ctl
+run registers-rows \
+    scripts/validate_ctl_registers.py fixtures/registers.ctl
 run publication-fragmented \
     scripts/validate_ctl_publication.py fixtures/fragmented-structure.ctl \
     --org 0x4000 --size 6912 --skool fixtures/no-stores.skool
