@@ -108,4 +108,21 @@ document.addEventListener('DOMContentLoaded', function () {
     cell.innerHTML = html;
   });
 
+  /* ── Previous / next entry keys ──────────────────────────────── */
+
+  /* Left and right arrows follow the navigation row's neighbor links. A key
+     pressed with a modifier is left to the browser, where Alt+Left is Back,
+     and so is one typed into a form field. */
+  var neighbors = {
+    ArrowLeft: document.querySelector('table.asm-navigation td.prev a'),
+    ArrowRight: document.querySelector('table.asm-navigation td.next a')
+  };
+  document.addEventListener('keydown', function (event) {
+    var link = neighbors[event.key];
+    if (!link || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+    event.preventDefault();
+    window.location.href = link.href;
+  });
+
 });
