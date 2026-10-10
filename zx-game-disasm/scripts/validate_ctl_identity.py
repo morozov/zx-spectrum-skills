@@ -47,6 +47,9 @@ A sub-directive is identified when either holds:
 - its address carries an `@ label=`. The label names those exact bytes, renders
   on that row of the listing, and makes the span reachable by name from anywhere
   in the disassembly.
+- it is a `W` whose every word, read from the built `.skool` (`--skool`), points
+  at an address the .ctl labels. The listing renders that label as the operand,
+  so a comment repeating it would echo the operand.
 
 The entry's own title, `D` or `N` does **not** discharge it, however completely
 the schema is stated there. That exemption is the one this check exists to
@@ -93,6 +96,8 @@ ADDR = r'(\$?[0-9A-Fa-f]+)'
 ENTRY = re.compile(r'^([bcgistuw]) +%s(?: +(\S.*))?$' % ADDR)
 SUB = re.compile(r'^([BCSTWM]) +%s((?:,[^\s]+)*)(?: +(\S.*))?$' % ADDR)
 LABEL = re.compile(r'^@ +%s +label=' % ADDR)
+DEFW_ROW = re.compile(r'^[ *]?\$([0-9A-Fa-f]{4}) DEFW ([^;]+?)\s*(?:;|$)')
+WORD_OPERAND = re.compile(r'^\$[0-9A-Fa-f]{4}$')
 COMMENT = re.compile(r'^  %s(?:,[^\s]+)* +(\S.*)$' % ADDR)
 
 
@@ -191,7 +196,23 @@ def check_title(entry):
              f'entry')]
 
 
-def check_descriptions(entry, labeled):
+def word_targets(path):
+    """Return {address: [target addresses]} for the DEFW rows of a built .skool."""
+    targets = {}
+    if not path:
+        return targets
+    with open(path, encoding='utf-8') as f:
+        for line in f:
+            m = DEFW_ROW.match(line)
+            if not m:
+                continue
+            ops = [op.strip() for op in m.group(2).split(',')]
+            if all(WORD_OPERAND.match(op) for op in ops):
+                targets[int(m.group(1), 16)] = [int(op[1:], 16) for op in ops]
+    return targets
+
+
+def check_descriptions(entry, labeled, targets=None):
     """Report a sub-directive that neither describes nor names its bytes."""
     violations = []
     if entry['type'] == 'u':
@@ -200,6 +221,10 @@ def check_descriptions(entry, labeled):
         return violations
     for sub in entry['subs']:
         if sub['described'] or sub['address'] in labeled:
+            continue
+        if sub['type'] == 'W' and targets and all(
+                address in targets and all(target in labeled for target in targets[address])
+                for address in range(sub['address'], sub['address'] + sub['length'], 2)):
             continue
         violations.append((sub['line_number'], 'UNDESCRIBED',
                            f"{sub['type']} ${sub['address']:04X},{sub['length']} carries no "
@@ -213,6 +238,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Validate that every published .ctl block identifies itself.')
     parser.add_argument('ctl', help='the .ctl file to validate')
+    parser.add_argument('--skool', help='the built .skool, to see which words point at labels')
     ctl_baseline.add_arguments(parser)
     args = parser.parse_args()
 
@@ -224,11 +250,12 @@ def main():
         return 1
 
     entries, labeled = parse_ctl(lines)
+    targets = word_targets(args.skool)
 
     findings = []
     for entry in entries:
         for line_number, kind, message in check_title(entry) + \
-                check_descriptions(entry, labeled):
+                check_descriptions(entry, labeled, targets):
             findings.append((line_number, kind, message, entry))
     findings.sort(key=lambda f: f[0])
 

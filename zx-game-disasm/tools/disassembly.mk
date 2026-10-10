@@ -490,8 +490,8 @@ lint-label-length: $(CTL)
 # on its address leaves a run of DEFB that nothing in the listing explains and
 # nothing outside it can refer to. Both forms round-trip, tile, and count as
 # documented under `coverage`, so this is the only check that sees them.
-CHECK_identity = $(SCRIPTS)/validate_ctl_identity.py $(CTL) --baseline $(BASELINE)
-lint-identity: $(CTL)
+CHECK_identity = $(SCRIPTS)/validate_ctl_identity.py $(CTL) --skool $(SKOOL) --baseline $(BASELINE)
+lint-identity: $(CTL) $(SKOOL)
 	$(CHECK_identity)
 
 # An underscore in a label claims that these bytes are part of the thing the
@@ -654,7 +654,7 @@ sift_baseline_status = s=$$?; \
 
 lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 	@refused=0; \
-	$(SCRIPTS)/validate_ctl_identity.py $(CTL) \
+	$(SCRIPTS)/validate_ctl_identity.py $(CTL) --skool $(SKOOL) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
 	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
