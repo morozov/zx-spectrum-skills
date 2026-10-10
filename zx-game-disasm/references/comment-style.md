@@ -195,7 +195,12 @@ The code, the tile and the class were each the row's position read back; the top
 
 When rows group, the comment follows the group. A table whose codes come in runs of four frames per design is one sub-block per design, `B addr,16,4 Gold key.`, not four rows each restating the design and naming a frame.
 
-A variable's entry says what it holds and how it is encoded. An `s` buffer still names the code that fills it (see `ctl-authoring.md`).
+A definition says what the thing is, and nothing else. That holds for a variable's entry, a table's description and a glossary term alike: what it holds, how it is encoded, what the word means. An `s` buffer still names the code that fills it (see `ctl-authoring.md`). Everything else has its own home and stays there:
+
+- **Logic.** What resets, wraps, clears or sets the value is said at the routine that does it. `After the last level it wraps back to 0` is the level-clear routine's sentence, not the level index's.
+- **Usage.** What reads the value or what it selects is said by the code that reads it. `which selects the level's record in each table` defines nothing.
+- **Another entry's logic.** An entry's page describes that entry and nothing else. It may name the routine that fills it, and that is all it says about any other entry. How a routine computes the entry's address, walks it, draws from it or relies on its alignment is that routine's comment. A "why the org" note explaining which routines derive a buffer's base is their logic on the wrong page, and so is "#R$7D20 draws a frame's rows straight from it". This is not a style preference: an entry that describes other entries is a defect to remove.
+- **Progress.** A definition holds before anyone has played. `How far the player has got` is undefined at power-on; `The index of the current level, 0 for the first` is not.
 
 A variable is not a table row. A `g` row documents its encoding on the row itself, and its byte is only the value the snapshot caught, so `$FF none, $00 hit moving right` beside `DEFB $00` names an encoding, not the byte. `DATA_ECHO` gates the rule and skips `g` blocks for the byte half.
 

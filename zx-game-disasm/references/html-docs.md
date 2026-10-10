@@ -62,7 +62,7 @@ Compose prose and tables into their own pages via ref sections:
 
 - **Data tables** — level layouts, enemy stats, object records. A `[Page:...]` with `#TABLE`s, linked from the index.
 - **Notes** — implementation notes, the memory map, the boot sequence.
-- **Glossary** — the domain terms the comments use, defined once.
+- **Glossary** — the domain terms the comments use, defined once. A term goes in only when its name does not already say what it is; `missile shot` does not need one. A definition says what the term is, never the logic around it (`comment-style.md`).
 - **Conventions** — what an address on a page means, and what this project's relocatability claim is. Both are below; neither is answerable from anything else the site publishes.
 
 Group them under index headings in the main `.ref` (`[Index:Reference:Reference]`, which `assets/game.ref.template` already declares with `Notes` and `Glossary` under it) so the site has a navigable structure rather than a flat list of routine pages.
@@ -120,7 +120,7 @@ The middle two mean the same kind of thing and render differently. Both are attr
 
 What it deliberately does not carry over is `@ofix`/`@bfix`/`@rfix`. A sub directive restates an instruction; a fix directive replaces it. The pages show the bytes of the game as it shipped, so an operand on them has to be another spelling of those bytes and never a correction to them — the fixed `.asm` is where a fix belongs, and `references/build-verify.md` covers that split.
 
-A name in an operand is not relocation. A buffer whose block is pinned with `@ $F000 org` — say a routine reaches it from a map pointer with three `INC H`, so it sits exactly three pages above a map base that is itself pinned — keeps its symbolic operand and still cannot move at all. What the symbolic form buys is a name and one place to change it — not relocation, which is the section below and a separate question.
+A name in an operand is not relocation. A buffer whose block is pinned with `@ $F000 org` — say a routine reaches it from a map pointer with three `INC H`, so it sits exactly three pages above a map base that is itself pinned — keeps its symbolic operand and still cannot move at all. That derivation is the routine's, and it is commented there, not on the buffer's page. What the symbolic form buys is a name and one place to change it — not relocation, which is the section below and a separate question.
 
 The reader who is handed the site and not the terminal cannot decode what they are looking at. Give them a conventions page. It is a reference page like the others listed under *"Reference pages"* above, grouped with them under `[Index:Reference:Reference]` — add it there rather than inventing a second place for it. The questions it has to answer, none of which anything else on the site answers:
 

@@ -53,6 +53,9 @@ Every item is a check. A Worker applies each one before it reports. A Challenger
 
 - A sentence about a whole run (a layout, a slot size) belongs in the entry description. A row comment describes that row. A comment beside the first row that describes the whole run is on the wrong layer.
 - A data run uses the default row width of 8 bytes unless the structure dictates another. A stride picked to quiet a linter is a defect.
+- An entry's page describes that entry only. A data entry may name the routine that fills it; it never describes what any routine does with it, how a routine finds it, or why it sits where it does. That logic is the routine's.
+- Say what a thing is, never what it is not. "One byte is not a counter", "a wall, not a door" and "rather than by object type" each argue with a reading nobody offered; write the positive fact, "the first cell holds the $FF scan terminator".
+- A definition says what the thing is: what it holds and how it is encoded. Not the logic that changes it, not the code that uses it, not progress ("how far the player has got").
 
 ## Numbers and counts in prose
 
