@@ -31,6 +31,9 @@
 ; the register contract at $EC8E, the platform bit at $EC90, or the Z80
 ; mnemonic at $EC92 — a contract states a convention, and a port bit and an
 ; instruction are not this program's to reassign.
+; The equation at $EC96 opens lower case under a row with no full stop, and is
+; silent: a noun-phrase row takes no full stop, and an identifier and its
+; operator start a statement of their own, not the rest of the row above.
 
 @label=split_span
 c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
@@ -209,3 +212,10 @@ b$EC92 DEFB $45      ; The steel door, bright cyan ($45).
 ; value the snapshot caught, so naming $00 here is not an echo.
 @label=drift_code
 g$EC94 DEFB $00      ; $FF none, $00 hit moving right, $02 hit moving left.
+
+; Contact gap
+;
+; A noun-phrase row with no full stop, then an equation on its own identifier.
+@label=contact_gap
+c$EC95 LD A,D         ; No contact
+ $EC96 SUB E          ; dy = top.Y - base.Y

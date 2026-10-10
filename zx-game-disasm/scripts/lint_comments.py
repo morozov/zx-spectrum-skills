@@ -441,6 +441,13 @@ SPLICE_DETAIL = (
     'that names what it refers to')
 
 
+# A unit that opens on an identifier and an operator - `dx = ...`,
+# `col = ...`, `lives := ...` - states its own equation. A noun-phrase row ends
+# without a full stop, so the unit above it may end open without leaving a
+# sentence for this one to finish.
+EQUATION_OPEN_RE = re.compile(r"^[a-z_][\w.]*'?(?:\[[^\]]*\])?\s*(?:=|:=|\+=|-=|->)")
+
+
 def splice_units(units):
     """Report each unit that completes the previous unit's unfinished sentence.
 
@@ -450,6 +457,8 @@ def splice_units(units):
     for (_, _, prev), (lineno, line, text) in zip(units, units[1:]):
         prev = prev.rstrip()
         if not prev or not text or not text[0].islower():
+            continue
+        if EQUATION_OPEN_RE.match(text):
             continue
         if prev[-1] in '.!?:':
             continue

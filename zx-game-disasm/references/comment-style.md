@@ -81,7 +81,7 @@ Two ways a comment stops doing that, both of them defects that read as normal pr
 >
 > **Good:** each block says what *it* tests — and where the second genuinely refers to the first, it says so in a sentence of its own that names it.
 
-`SPLICE` gates it, on the pair of signals that make it exact: the previous unit ended without terminal punctuation and this one opens lowercase. Either signal alone also fires on correct prose.
+`SPLICE` gates it, on the pair of signals that make it exact: the previous unit ended without terminal punctuation and this one opens lowercase. A unit that opens on an identifier and its operator, `dx = …`, states its own equation and is not a continuation: a noun-phrase row above it ends without a full stop by rule. Either signal alone also fires on correct prose.
 
 **A record's layout quoted into prose about code.** The layout has one home — the block whose bytes are the record, where the stride, the fields and the sentinel are stated once (`references/ctl-authoring.md`). Anywhere else, the offset is the implementation quoted into a sentence about behavior, and it binds that sentence to a layout nothing re-derives:
 
@@ -185,11 +185,11 @@ A data row is not a second exemption, though a catalog row seems to *define* its
 >
 > **Bad:** `B $7C40,2,1 Class 3 (pickup): tile $3A.`
 >
-> **Good:** `B $7B10,16,4 KEY pickup.`, one sub-block per design.
+> **Good:** `B $7B10,16,4 KEY pickup`, one sub-block per design.
 >
 > **Good:** `B $F120,8 #HTML(#UDG$F120,71,2(tile_1c))`, the glyph the row holds.
 >
-> **Good:** `B $7C40,2,1 KEY pickup.`
+> **Good:** `B $7C40,2,1 KEY pickup`
 
 The code, the tile and the class were each the row's position read back; the top- left tile was its first byte; the ink was another table's byte. What the row holds is the design, the glyph, the pickup. The block description says once what the table is indexed by, and from where: `One row per enemy type, in type order from 0`. A row whose only content is its index has nothing else to say in words, so it says it in a render, or says nothing.
 
@@ -403,6 +403,7 @@ The disassembly stays relocatable, so a comment must never hard-code an address,
 - **Write noun phrases, not identifiers.** In descriptions and `N` lines, say "while the player is stunned or paused (#R$7F21, #R$7F24)", never "while input_lock (#R$7F25), player_stun (#R$7F21) or player_pause (#R$7F24) hold". Labels belong in operands and `R` lines; prose is for a person. The human form is one noun phrase, one link: "the jump timer at #R$7F28".
 - **Never write `label (#R$addr)` for the same symbol.** `#R` renders as the label, so this produces "ship_x (ship_x)" in the built site. Link a symbol at its first mention in a block; use the bare name after. Keep the cross-reference budget human: a description carries 0–2 `#R` links, not a link per clause.
 - **State conclusions, not derivations.** Keep arithmetic only where a porter needs it (table strides, address math), stated once at the block level. Do not chain "…, so …, so …" proofs, and do not transcribe data into prose — no inline byte lists, no walking a table's values into Hz or ms entry by entry, no `#TABLE` that mirrors the `DEFB` block below it. Render or play the artifact instead (`references/expressive-palette.md`). One derived cadence figure for the effect as a whole is a different thing and is allowed; `references/agents.md` bounds what it may be derived from.
+- **A full stop closes a sentence, and only a sentence.** A row that is a noun phrase takes none: `Wooden door`, `Jump pressed`, `Bright cyan`, `dx = target.X - enemy.X`. A row with a clause keeps it: `Store the new direction.`, `SPEED up: the player runs faster.` An imperative is a sentence. A row that is a noun phrase followed by a sentence keeps the full stop between them, as `Player state. Its final byte counts down the SPEED pickup.` does. The register rows follow the same rule.
 - **Vary the rhythm.** If ten consecutive descriptions open with the same verb, or every clause hangs on the same appositive dash, rewrite until the block reads as written, not generated. Numbered scaffolding ("Stage 1: … Stage 18:") is bureaucracy — name the phases with stage directions instead.
 - **Proofread in the reader's medium.** After editing prose, read the affected page in the built HTML, not the `.ctl`. The `.ctl` is the source; the page is the artifact — link duplication, transcribed tables, and metronome rhythm are visible only there.
 

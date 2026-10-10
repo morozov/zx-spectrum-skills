@@ -65,6 +65,8 @@ Every item is a check. A Worker applies each one before it reports. A Challenger
 - A description is sentences a person reads aloud. It does not contain formulas ("cell = BASE + (Y'>>3)*32 + (X'>>3)"), primed variables, shift or mask notation, or arithmetic written as code. Say it in words: "the column is the X position divided by eight". The instruction comments and the register rows carry the exact operations. A description that has to be decoded is not finished.
 - A description says what the routine does, not how. A conversion is "converted to the tile-map cell it falls in", not the shifts, scales and base it is built from. Those are on the instructions, one comment each, and restating them in the description makes a second copy that drifts.
 
+- A full stop closes a sentence. A row that is a noun phrase, such as a data row naming what it holds or a code row reading `Fire held`, takes none; an imperative or a clause keeps it.
+
 ## Evidence
 
 - Document a defect or a behavior from the code. A recording or a run only locates where to look. It is never required, never cited, and never what the reader has to trust.
