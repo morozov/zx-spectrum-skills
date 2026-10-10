@@ -43,6 +43,9 @@ Every item is a check. A Worker applies each one before it reports. A Challenger
 
 ## Names
 
+- **Consistency is a must.** A thing has one name, and every mention uses it: labels, titles, descriptions, row comments, `.ref` pages and the glossary. When a thing is named, renamed or reclassified, every mention changes in the same pass, and the terminology registry gets the row that keeps the old name out. A change applied to some mentions and not others is a defect.
+- A row comment says what its operand cannot. A `DEFW update_timer` row whose comment reads "timer" restates the label, so it has none.
+
 - One prefix per kind of thing, applied to every member of the family before moving on. When one family gets a prefix, check its sibling families for the same gap. (Example: sprites `spr_`, their source bitmaps `src_`, animation tables `anim_`.)
 - A family has one prefix and one naming scheme, and every member carries it. That includes the members of a page that merged several entries.
 - A pickup name is not an adjective for what it produced. Write "the enlarged ship", not "the ENLARGE ship". The name stays where it names the pickup, its container or its glyph.
