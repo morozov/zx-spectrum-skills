@@ -1,4 +1,4 @@
-Found 17 comment defect(s):
+Found 19 comment defect(s):
 
 [BASE_ECHO] 1
   group-span.skool:74: '$8A (138)' spells one value in both bases — the base is a notation, so the parenthetical is the operand read back. State the intent, or the derived fact the row cannot show
@@ -9,10 +9,16 @@ Found 17 comment defect(s):
     Drone behavior handler (object type 12)
   group-span.skool:161: cites a number the player cannot see ('Type-12'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays
     Type-12 enemy: the drone. Roams the play area until a shot destroys it.
-  group-span.skool:173: cites a number the player cannot see ('state 2'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays
+  group-span.skool:174: cites a number the player cannot see ('state 2'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays
     On a hit the object enters state 2 and stops moving. A solid tile is a
-  group-span.skool:174: cites a number the player cannot see ('codes $21'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays
+  group-span.skool:175: cites a number the player cannot see ('codes $21'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays
     wall/border (tile codes $21-$44).
+
+[DATA_ECHO] 2
+  group-span.skool:170: a data row's comment repeats its index ("Type 12") - the row shows its bytes and its address is its position. Say what the row holds; state the index once, in the block description
+    b$EC86 DEFW $EC82     ; Type 12, the drone.
+  group-span.skool:203: a data row's comment repeats its own bytes ($45) - the row shows its bytes and its address is its position. Say what the row holds; state the index once, in the block description
+    b$EC92 DEFB $45      ; The steel door, bright cyan ($45).
 
 [ELLIPSIS] 2
   group-span.skool:109: a '...'-spliced continuation — one thought spanning instructions is a '{ }' comment group, not chained fragments

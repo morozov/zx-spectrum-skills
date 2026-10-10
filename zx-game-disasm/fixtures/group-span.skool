@@ -164,7 +164,8 @@ c$EC82 LD A,(HL)      ; Read its state.
 
 ; Object dispatch table, one handler per type
 ;
-; The entry that defines the mapping, where the number is the content.
+; Indexed by object type. A row that opens on its type repeats its position,
+; so DATA_ECHO reports it.
 @label=dispatch_table
 b$EC86 DEFW $EC82     ; Type 12, the drone.
 
@@ -193,3 +194,18 @@ c$EC8E LD A,(DE)      ; Read a character.
 ; Flips ULA bit 4 and returns. The BIT 7 test above it reads the mute flag.
 @label=speaker
 c$EC90 XOR $10        ; Toggle it.
+
+; Door attribute table
+;
+; Indexed by door code. The first row quotes its own byte and is reported;
+; the second says what it holds and is not.
+@label=door_attr
+b$EC92 DEFB $45      ; The steel door, bright cyan ($45).
+ $EC93 DEFB $41      ; The KEY pickup door.
+
+; Drift code
+;
+; A variable documents its encoding on its own row, and the byte is only the
+; value the snapshot caught, so naming $00 here is not an echo.
+@label=drift_code
+g$EC94 DEFB $00      ; $FF none, $00 hit moving right, $02 hit moving left.

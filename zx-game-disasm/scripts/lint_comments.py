@@ -51,6 +51,11 @@ ones a reviewer would otherwise flag by hand:
                    The routine is named by what it does; the number is the
                    byte this build spells it with, and it belongs to the table
                    that defines the mapping
+  - DATA_ECHO      a data row whose comment repeats the row: an index key at
+                   its head ("Code $12:", "Tile $21") or one of its own bytes.
+                   The address is the row's position and the bytes are on the
+                   line; the comment says what the row holds, and the block
+                   description says once what the table is indexed by
   - UNRENDERED     a data block whose title names a sprite, glyph, font or tune,
                    carrying no render macro. The catalog page is an index; a
                    block that encodes one element shows that element
@@ -138,7 +143,7 @@ GATING_KINDS = frozenset((
     'RET_GROUP', 'SELFLINK', 'DIARY', 'OPERAND_ECHO', 'ELLIPSIS',
     'GROUP_SPLIT', 'GROUP_ENTRY', 'GROUP_SKIP', 'BASE_ECHO', 'SPLICE',
     'LAYOUT_ECHO', 'PITCH', 'SYNTH_ECHO', 'EULOGY', 'UNRENDERED',
-    'CODE_ECHO', 'OPEN',
+    'CODE_ECHO', 'OPEN', 'DATA_ECHO',
 ))
 
 # The finding's own row carries its address, so the baseline key is that address
@@ -789,6 +794,80 @@ def diary_detail(hit):
             "TODO:) or file a dig-task")
 
 
+# A data row is already clear about itself in two ways: its bytes are on the
+# line, and its position in the table is its address. A comment that quotes one
+# of its own bytes, or opens by naming the index the row sits at ("Code $12:",
+# "Tile $21", "Class 7 (enemy):"), hands one of those back. The index belongs
+# once in the block's own description, where the table says what it is indexed
+# by; each row says what it holds. Read over whole '{ }' groups, because a
+# sub-block comment spans every row of the sub-block.
+DATA_DIRECTIVE_RE = re.compile(r'^(DEFB|DEFW|DEFM|DEFS)\b', re.I)
+DATA_VALUE_RE = re.compile(r'\$([0-9A-Fa-f]{4}|[0-9A-Fa-f]{2})(?![0-9A-Fa-f])')
+DATA_INDEX_RE = re.compile(
+    r'^(?:Codes?|Tiles?|Entry|Entries|Index|Indices|Slots?|Class(?:es)?|Rows?'
+    r'|Offsets?|Types?|Bytes?|Records?|Sub-frames?|Elements?|Items?|Cells?)'
+    r' (?:\$[0-9A-Fa-f]+|\d+)(?:\s*-\s*(?:\$[0-9A-Fa-f]+|\d+))?\b')
+DATA_ECHO_DETAIL = ("a data row's comment repeats {} - the row shows its bytes "
+                    "and its address is its position. Say what the row holds; "
+                    "state the index once, in the block description")
+
+
+def data_echoes(lines):
+    """Yield (lineno, line, what) for a data row whose comment echoes the row.
+
+    `what` names the echoed index key or the quoted byte values. Only groups
+    made entirely of data directives are read; an instruction's operand belongs
+    to OPERAND_ECHO.
+    """
+    group, depth, block = None, 0, ''
+
+    def finish(g):
+        if not g or not g['data'] or not g['text'].strip():
+            return None
+        text = MACRO_RE.sub(' ', MACRO_SPAN_RE.sub(' ', g['text'])).strip()
+        hits = []
+        km = DATA_INDEX_RE.match(text)
+        if km:
+            hits.append(f'its index ("{km.group(0)}")')
+        # A variable's row documents its encoding, and its byte is only the
+        # value the snapshot caught, so a `g` row may name any of its values.
+        quoted = [] if g['block'] == 'g' else sorted(
+            {m.group(0).upper() for m in DATA_VALUE_RE.finditer(text)} & g['values'])
+        if quoted:
+            hits.append('its own bytes (' + ', '.join(quoted) + ')')
+        return (g['lineno'], g['line'], ' and '.join(hits)) if hits else None
+
+    for lineno, raw in enumerate(lines, 1):
+        line = raw.rstrip('\n')
+        im = INSTR_RE.match(line)
+        if im:
+            instr, comment = split_comment(im.group('body'))
+            if im.group('ctrl') in 'bcgstuwi':
+                block = im.group('ctrl')
+            if depth == 0:
+                hit = finish(group)
+                if hit:
+                    yield hit
+                group = {'lineno': lineno, 'line': line.strip()[:120], 'text': '',
+                         'values': set(), 'data': True, 'block': block}
+            group['data'] = group['data'] and bool(DATA_DIRECTIVE_RE.match(instr.strip()))
+            group['values'] |= {'$' + v.upper() for v in DATA_VALUE_RE.findall(instr)}
+            group['text'] += ' ' + comment_body(comment)
+            depth = max(0, depth + comment.count('{') - comment.count('}'))
+        elif re.match(r'^\s+;', line) and group is not None:
+            cont = line.split(';', 1)[1].strip()
+            group['text'] += ' ' + comment_body(cont)
+            depth = max(0, depth + cont.count('{') - cont.count('}'))
+        else:
+            hit = finish(group)
+            if hit:
+                yield hit
+            group, depth = None, 0
+    hit = finish(group)
+    if hit:
+        yield hit
+
+
 def code_echoes(lines):
     """Yield (lineno, line, token) for an unobservable number cited in prose.
 
@@ -964,6 +1043,10 @@ def scan(path):
     for lineno, text, token in code_echoes(lines):
         violations_pending.append((lineno, 'CODE_ECHO', text,
                                    CODE_ECHO_DETAIL.format(token)))
+
+    for lineno, text, what in data_echoes(lines):
+        violations_pending.append((lineno, 'DATA_ECHO', text,
+                                   DATA_ECHO_DETAIL.format(what)))
 
     for lineno, title in unrendered_elements(lines):
         violations_pending.append((lineno, 'UNRENDERED', title, UNRENDERED_DETAIL))

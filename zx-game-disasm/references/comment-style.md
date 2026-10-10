@@ -175,7 +175,27 @@ A literal echoes the same way. The color is the fact the row owes the reader; th
 >
 > **Good:** `LD A,$38  ; Clear the play area to black ink on white paper.`
 
-The exemptions are two, and both are rows that *define* an encoding rather than use one: a catalog row, and a record's field offset at the block that defines the record. Crossing the byte out of either leaves the comment saying nothing.
+The one exemption is a record's field offset at the block that defines the record: crossing the offset out leaves the comment saying nothing.
+
+A data row is not a second exemption, though a catalog row seems to *define* its encoding. The principle holds there too. A data row is clear about itself twice over: its bytes are on the line, and its address is its position in the table. So its comment neither quotes one of its own bytes nor opens on the index it sits at.
+
+> **Bad:** `B $7B10,4 Code $0C: KEY pickup (top-left tile $3A), bright yellow.`
+>
+> **Bad:** `B $F120,8 Tile $1C`
+>
+> **Bad:** `B $7C40,2,1 Class 3 (pickup): tile $3A.`
+>
+> **Good:** `B $7B10,16,4 KEY pickup.`, one sub-block per design.
+>
+> **Good:** `B $F120,8 #HTML(#UDG$F120,71,2(tile_1c))`, the glyph the row holds.
+>
+> **Good:** `B $7C40,2,1 KEY pickup.`
+
+The code, the tile and the class were each the row's position read back; the top- left tile was its first byte; the ink was another table's byte. What the row holds is the design, the glyph, the pickup. The block description says once what the table is indexed by, and from where: `One row per enemy type, in type order from 0`. A row whose only content is its index has nothing else to say in words, so it says it in a render, or says nothing.
+
+When rows group, the comment follows the group. A table whose codes come in runs of four frames per design is one sub-block per design, `B addr,16,4 Gold key.`, not four rows each restating the design and naming a frame.
+
+A variable is not a table row. A `g` row documents its encoding on the row itself, and its byte is only the value the snapshot caught, so `$FF none, $00 hit moving right` beside `DEFB $00` names an encoding, not the byte. `DATA_ECHO` gates the rule and skips `g` blocks for the byte half.
 
 The dispatcher's per-case comment and the range a classifier tests are not a third, though the number names a case rather than counting anything. The principle holds there too: `face left (direction 3)` is `face left toward the player`, and `If spider (type 5)` is `If spider`. The checker reports `CP`/`AND`/`BIT` rows as well, so the doctrine and the check say one thing. Where the value really is part of the game's own name — `is the current player Player 2` — the deletion test keeps it and the check still reports it; dismiss those by reading, and do not rebuild the exclusion.
 
@@ -191,7 +211,7 @@ A group is not an exemption. Its text starts on the row that opens it, which is 
 
 `OPERAND_ECHO` and `ELLIPSIS` gate the coverage verdict, and the check reads both halves of this rule: a `#R` reference against the addresses in the operand field, and a bare `$XX` against its immediates. One is no less decidable than the other — both compare a string on the row with a string in the comment, and neither reads the prose.
 
-What it does not report is the row whose subject *is* the byte, and those are separated by the row's shape rather than its wording: a data directive, a walk through `(IX+d)`/`(IY+d)`, an arithmetic or logic mnemonic against an immediate. Catalog, record and dispatcher, in that order. What survives is the residue no structural signal reaches — self-modifying code writing `$C9` and calling it the RET opcode — and that is the Challenger's, because excluding it would mean keying on the prose.
+What it does not report is a data directive, whose echo `DATA_ECHO` reads instead, and a walk through `(IX+d)`/`(IY+d)`, where the offset names a record's field. Both are separated by the row's shape rather than its wording. What survives is the residue no structural signal reaches — self-modifying code writing `$C9` and calling it the RET opcode — and that is the Challenger's, because excluding it would mean keying on the prose.
 
 ## The comment never recites a length the listing carries
 
