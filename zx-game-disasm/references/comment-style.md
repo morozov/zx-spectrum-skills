@@ -195,6 +195,8 @@ The code, the tile and the class were each the row's position read back; the top
 
 When rows group, the comment follows the group. A table whose codes come in runs of four frames per design is one sub-block per design, `B addr,16,4 Gold key.`, not four rows each restating the design and naming a frame.
 
+A variable's entry says what it holds and how it is encoded. An `s` buffer still names the code that fills it (see `ctl-authoring.md`).
+
 A variable is not a table row. A `g` row documents its encoding on the row itself, and its byte is only the value the snapshot caught, so `$FF none, $00 hit moving right` beside `DEFB $00` names an encoding, not the byte. `DATA_ECHO` gates the rule and skips `g` blocks for the byte half.
 
 The dispatcher's per-case comment and the range a classifier tests are not a third, though the number names a case rather than counting anything. The principle holds there too: `face left (direction 3)` is `face left toward the player`, and `If spider (type 5)` is `If spider`. The checker reports `CP`/`AND`/`BIT` rows as well, so the doctrine and the check say one thing. Where the value really is part of the game's own name — `is the current player Player 2` — the deletion test keeps it and the check still reports it; dismiss those by reading, and do not rebuild the exclusion.

@@ -339,7 +339,7 @@ A block claims exactly one category per byte, and each is *proven* by something 
 
 **The buffer category: never enumerate a run you have nothing to say about.** An uninitialized region or a work buffer is an `s` block with an `S addr,len` — one line stating its size — not a `b` block enumerated byte by byte into a wall of `DEFB $00,$00,…`. Thirty-two zero bytes enumerate to four `DEFB` listing lines; the same span as `s` + `S` is one. Every listing line is a row on the HTML page, so an undeclared run reads as a stray blob and crowds out the one-byte variables around it.
 
-**But `s` is a claim, and its proof is a writer.** Every other category is proven by something exercised — the render is drawn, the code round-trips, the stride divides — and "buffer" must cost the same. `s` says *the game fills this at runtime*, so **name the code that fills it**, with `#R`, exactly as a load-bearing variable lists its readers and writers. Without a named writer the claim is free, and a claim that costs nothing is how an unparsed span gets waved through: `s` + `S addr,len` will silence *any* block, including executable code, and every check still reads green.
+**But `s` is a claim, and its proof is a writer.** Every other category is proven by something exercised — the render is drawn, the code round-trips, the stride divides — and "buffer" must cost the same. `s` says *the game fills this at runtime*, so **name the code that fills it**, with `#R`. Without a named writer the claim is free, and a claim that costs nothing is how an unparsed span gets waved through: `s` + `S addr,len` will silence *any* block, including executable code, and every check still reads green.
 
 So when nothing writes a region, it is not a buffer:
 

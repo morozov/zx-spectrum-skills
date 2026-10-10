@@ -65,9 +65,7 @@ A ceiling on one description is the wrong instrument: a well-written disassembly
 
 **S4 — no semicolon joining two clauses, and asides do not stack.** Never two asides in one sentence: no parenthetical inside a parenthetical, no colon and semicolon together.
 
-**S5 — two addresses per sentence at most.** The exception is the stock form `Written by …`, which is a list and reads as one.
-
-Nothing in a project states its callers: no `Used by #FOREACH(EREF…)` note, no "called by" or "dispatched by" clause in a description, and no generated line. `skoolkit.ini` sets `ListRefs=0`, so `sna2skool` writes neither the entry-level "Used by" nor the "This entry point is used by …" line at an entry point. A routine can have any number of callers, the list is not what the page is about, and the toolchain tracks the references anyway. What a routine does at its callers' request is its own description. Writers are not tracked by the toolchain, so a `Written by …` line about state is still authored.
+**S5 — two addresses per sentence at most.** A sentence that names a third reads as a list. Split it.
 
 **S6 — a bare `$XXXX` needs a name in the same sentence.** A label, a constant, or what the thing is. The reader came for the name; the address is the citation.
 
@@ -149,6 +147,8 @@ A *description that restates its own title* and adds nothing else. If the title 
 > **Good:** The player while the trap holds it, drawn through its hold state (#R$B7E2).
 
 The good form names the object and the frame: "Trap release frame 1 (state 4); stepped by #R$B7E2."
+
+Nothing in a project states its callers: no `Used by #FOREACH(EREF…)` note, no "called by" or "dispatched by" clause in a description, and no generated line. `skoolkit.ini` sets `ListRefs=0`, so `sna2skool` writes neither the entry-level "Used by" nor the "This entry point is used by …" line at an entry point. A routine can have any number of callers, the list is not what the page is about, and the toolchain tracks the references anyway. What a routine does at its callers' request is its own description. A variable's entry does not list its writers or readers either: what a routine does to the variable is said at the routine.
 
 **Why no check.** Both shapes fail the bar. The back-reference — a sentence opening on "then", "also", "the same" — is almost always a routine referring to its own previous sentence, which is correct. The plumbing shape, scoped to catalog entries that render, is rare, and its hits include legitimate ones. A pattern narrowed until it catches the known instance is the keyed match this skill rejects elsewhere; the precision is what decides, and here it decides against.
 
