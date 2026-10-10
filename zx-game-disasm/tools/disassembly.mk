@@ -7,12 +7,19 @@
 # disassembly.mk`. Do NOT copy this into a project — reference it in place.
 #
 # Targets:
-#   make          The gate: round-trip cmp + .ctl linters + HTML build (validates
-#                 the .ref catalogs). Build the asm, snapshot, and site.
-#   make gate     The same gate, logged, ending in one verdict line that names
-#                 the SkoolKit and the gate it ran under, says whether anything
-#                 rebuilt, and on a red run says how many checks failed and with
-#                 how many findings each
+#   make          The mechanical gate: round-trip cmp + .ctl linters + HTML build
+#                 (validates the .ref catalogs). Build the asm, snapshot, and site.
+#   make gate     The same mechanical gate, logged, ending in one CHECKS PASS or
+#                 CHECKS FAIL verdict line that names the SkoolKit and the gate it
+#                 ran under, says whether anything rebuilt, and on a red run says
+#                 how many checks failed and with how many findings each. Under it,
+#                 the REVIEW clause (approved, none, stale or rejected) for the
+#                 current diff, READY TO COMMIT only when both hold, and the
+#                 review-only rule IDs for the changed file types
+#   make gate-index  The gate over the staged index, in a worktree under build/
+#   make hooks    Point git's core.hooksPath at the skill's tools/hooks, whose
+#                 pre-commit refuses a commit without a review record
+#   make visual-review  One screenshot of each page kind into build/review/screenshots/
 #   make coverage The "is it done?" gauge (documentation/naming/relocatability)
 #   make lint-identity        Gate: every entry titled, every sub-block named
 #   make lint-data-structure  Gate: every data entry tiles and declares its stride
@@ -27,6 +34,8 @@
 #   make lint-registers       Gate: one register per row, written as a lower-case phrase
 #   make lint-array-elements  Gate: every array record annotated individually
 #   make lint-images          Gate: every image macro put an image under html/
+#   make lint-html-layout     Gate: no heading wraps past 1.5 lines at 1280 px and
+#                             no image sits in running text, measured in Chrome
 #   make lint-comment-fit     Report: every listing comment longer than its code
 #                             rows, measured in headless Chrome; never fails
 #   make lint-prose           Advisory: Vale over the prose, carrying the Microsoft
@@ -88,6 +97,9 @@ TOOLS_lint-data-structure := $(TOOLS_SNAPSHOT)
 TOOLS_lint-publication    := $(TOOLS_SKOOL)
 TOOLS_lint-label-namespace := $(TOOLS_SKOOL)
 TOOLS_lint-images         := $(TOOLS_html)
+TOOLS_lint-html           := $(TOOLS_html)
+TOOLS_lint-html-layout    := $(TOOLS_html)
+TOOLS_visual-review       := $(TOOLS_html)
 TOOLS_lint-comment-fit    := $(TOOLS_html)
 TOOLS_lint-baseline       := $(TOOLS_html)
 
@@ -98,7 +110,7 @@ TOOLS_lint-baseline       := $(TOOLS_html)
 # default build's set. `lint-publication` is not among them: it reads the
 # generated .skool for the addresses the code stores to, so it can need the
 # disassembler to produce one.
-TOOLS_FREE_GOALS := clean gate lint-address-order lint-instruction-order \
+TOOLS_FREE_GOALS := clean gate gate-index hooks lint-address-order lint-instruction-order \
                     lint-lengths lint-label-length lint-identity \
                     lint-names lint-terms lint-byte-counts lint-array-elements lint-registers
 
@@ -147,7 +159,7 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-registers lint-images lint-comment-fit lint-baseline lint-array-elements lint-comments lint-prose coverage html
+.PHONY: lint-label-family lint-renames lint-deletion-scope diff-entries all gate gate-index hooks visual-review lint-html lint-html-layout tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-registers lint-images lint-comment-fit lint-baseline lint-array-elements lint-comments lint-prose coverage html
 
 # A recipe that redirects into its own target has already created that target by
 # the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
@@ -167,13 +179,21 @@ BASELINE ?= lint-baseline.txt
 # `make` (the default) is the one verification gate: it drives the round-trip cmp,
 # the .ctl linters, and the HTML build (the only step that validates the .ref
 # catalogs). It is not slow, so there is no separate "verify" — use `make`.
-# `lint-images` is listed after `html` because it reads what the build produced:
-# it is the one check whose subject is a directory of files rather than a text
-# file. Its own prerequisite is html/.stamp, so the order holds under `-j` too.
+# `lint-html` is listed after `html` because its checks read what the build
+# produced: their subject is a directory of files rather than a text file. Its
+# own prerequisite is html/.stamp, so the order holds under `-j` too.
 # `lint-comment-fit` reads the built site for the same reason.
-all: $(ASM_FIXED) $(Z80_FIXED) test test-checks lint html lint-images lint-comment-fit
+all: $(ASM_FIXED) $(Z80_FIXED) test test-checks lint html lint-html lint-comment-fit
 
-# The same gate, with a result that cannot be misread. Under `-j` the HTML branch
+# The same gate, with a result that cannot be misread.
+#
+# The verdict says CHECKS, never GATE: it covers what a pattern can decide and
+# nothing else. Committing also needs a Challenger's review of the exact diff,
+# recorded at build/review/<diffhash>.json by `scripts/review_record.py`.
+# The REVIEW clause under the verdict reports that record, and READY TO COMMIT
+# prints only when the checks pass and the review is approved. The exit status
+# stays the checks' own, so a build is never red for want of a review; the
+# pre-commit hook in tools/hooks is what refuses the commit. Under `-j` the HTML branch
 # can print `touch html/.stamp` while the asm branch is failing, so the tail of a
 # parallel build shows a success line for a red build; and a piped `make | tail`
 # hands the reader the pipeline's status, not make's. This runs the gate into a
@@ -296,7 +316,7 @@ gate:
 	  lintran=$$(grep -c '^LINT ' $(GATE_LOG)); \
 	  lintseen=$$(awk '/^LINT (PASS|FAIL): /{t+=$$5} END{print t+0}' $(GATE_LOG)); \
 	  buildfail=$$(awk '/: \*\*\* \[/{t=$$0; sub(/^.*\*\*\* \[/,"",t); sub(/\].*$$/,"",t); \
-	      sub(/^.*: /,"",t); if (t!="lint" && t!="lint-images" && t!="lint-comment-fit" && !seen[t]++) \
+	      sub(/^.*: /,"",t); if (t!="lint" && t!="lint-html" && t!="lint-images" && t!="lint-html-layout" && t!="lint-comment-fit" && !seen[t]++) \
 	      l=(l?l ", " t:t)} END{print l}' $(GATE_LOG)); \
 	  named=$$(grep -c ': \*\*\* \[' $(GATE_LOG)); \
 	  if [ $$s -ne 0 ] && [ -n "$$lintfail" ] && [ $$named -eq 0 ]; then \
@@ -322,21 +342,24 @@ gate:
 	  if [ $$s -ne 0 ] && [ -n "$$buildfail" ] && [ -n "$$lintfail" ]; then \
 	    awk '/^--- lint-/{b=1} !b{print} /^LINT /{b=0}' $(GATE_LOG) | tail -40; \
 	    sed -n '/^--- lint-/,/^LINT /p' $(GATE_LOG); \
-	    echo; echo "GATE FAIL (make exit $$s) $$stamp — the build itself failed ($$buildfail), which is what to fix first: a finding count is a distance to green only over a tree that builds. $$lintfail The build's last 40 log lines are above, then every finding in full. Full log: $(GATE_LOG).$$drift$$absent"; \
+	    echo; echo "CHECKS FAIL (make exit $$s) $$stamp – the build itself failed ($$buildfail), which is what to fix first: a finding count is a distance to green only over a tree that builds. $$lintfail The build's last 40 log lines are above, then every finding in full. Full log: $(GATE_LOG).$$drift$$absent"; \
 	  elif [ $$s -ne 0 ] && [ -n "$$lintfail" ]; then \
 	    sed -n '/^--- lint-/,/^LINT /p' $(GATE_LOG); \
-	    echo; echo "GATE FAIL (make exit $$s) $$stamp — $$lintfail Every finding is above in full, not tailed. Full log: $(GATE_LOG).$$drift$$absent"; \
+	    echo; echo "CHECKS FAIL (make exit $$s) $$stamp – $$lintfail Every finding is above in full, not tailed. Full log: $(GATE_LOG).$$drift$$absent"; \
 	  elif [ $$s -ne 0 ] && [ $$lintran -gt 0 ]; then \
 	    tail -40 $(GATE_LOG); \
-	    echo; echo "GATE FAIL (make exit $$s) $$stamp — every check that ran was clean, so this is the build failing rather than a finding; its last 40 log lines are above. Full log: $(GATE_LOG).$$drift$$absent"; \
+	    echo; echo "CHECKS FAIL (make exit $$s) $$stamp – every check that ran was clean, so this is the build failing rather than a finding; its last 40 log lines are above. Full log: $(GATE_LOG).$$drift$$absent"; \
 	  elif [ $$s -ne 0 ]; then \
 	    tail -40 $(GATE_LOG); \
-	    echo; echo "GATE FAIL (make exit $$s) $$stamp — the build failed before any check ran, so no check has a finding count and none of them is what failed; the build's last 40 log lines are above. Full log: $(GATE_LOG).$$drift$$absent"; \
+	    echo; echo "CHECKS FAIL (make exit $$s) $$stamp – the build failed before any check ran, so no check has a finding count and none of them is what failed; the build's last 40 log lines are above. Full log: $(GATE_LOG).$$drift$$absent"; \
 	  elif [ $$q -eq 0 ]; then \
-	    echo "GATE PASS, NOTHING REBUILT $$stamp — every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: $(GATE_LOG)).$$drift"; \
+	    echo "CHECKS PASS, NOTHING REBUILT $$stamp – every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: $(GATE_LOG)).$$drift"; \
 	  else \
-	    echo "GATE PASS, REBUILT $$stamp — at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: $(GATE_LOG).$$drift"; \
-	  fi; exit $$s
+	    echo "CHECKS PASS, REBUILT $$stamp – at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: $(GATE_LOG).$$drift"; \
+	  fi; \
+	  [ $$s -eq 0 ] && c=PASS || c=FAIL; \
+	  $(REVIEW_RECORD) verdict --checks $$c || echo "REVIEW: unknown – $(REVIEW_RECORD) could not run, so nothing here is ready to commit."; \
+	  exit $$s
 
 # Round-trip a parallel Worker's range-fragment in isolation (splice into a
 # throwaway .ctl, reassemble, lint — all under a temp dir, touching no shared file)
@@ -425,11 +448,35 @@ LINT_CHECKS = address-order instruction-order lengths label-length identity \
               data-structure publication names byte-counts array-elements registers \
               comments label-namespace terms
 
-# Every check the gate runs: the sweep's, plus the two that run after the site is
-# built. The gate compares this against the number of checks the log accounts
+# >>> LINT_CHECKS slot: a new text check is one line here and one CHECK_<name>
+# definition below it, e.g. `LINT_CHECKS += foil` and `CHECK_foil = …`. A check
+# that reads the built site goes in LINT_HTML_CHECKS instead.
+LINT_CHECKS += label-family renames
+AGENTS_FILE := $(wildcard AGENTS.md)
+CHECK_label-family = $(SCRIPTS)/validate_label_family.py $(CTL) --agents AGENTS.md --baseline $(BASELINE)
+lint-label-family: $(CTL)
+	$(CHECK_label-family)
+CHECK_renames = $(SCRIPTS)/validate_renames.py $(CTL) --registry glossary.ref $(if $(AGENTS_FILE),--agents AGENTS.md)
+lint-renames: $(CTL)
+	$(CHECK_renames)
+lint-deletion-scope:
+	$(SCRIPTS)/validate_deletion_scope.py
+diff-entries:
+	@$(SCRIPTS)/diff_entries.py
+# <<< LINT_CHECKS slot
+
+# The checks whose subject is the built site. They run in their own sweep, after
+# `html`, under `lint-html`.
+LINT_HTML_CHECKS = images html-layout
+
+# >>> LINT_HTML_CHECKS slot: `LINT_HTML_CHECKS += <name>` and `CHECK_<name> = …`.
+# <<< LINT_HTML_CHECKS slot
+
+# Every check the gate runs: the sweep's, plus the three that run after the site
+# is built. The gate compares this against the number of checks the log accounts
 # for, so a run that could not reach one of them says so instead of letting its
 # count read as the whole of the distance to green.
-LINT_TOTAL := $(words $(LINT_CHECKS) images comment-fit)
+LINT_TOTAL = $(words $(LINT_CHECKS) $(LINT_HTML_CHECKS) comment-fit)
 
 # The sweep the gate runs its checks under: `lint_begin`, `lint_run <name>
 # <command…>`, `lint_report <checks swept>`, all in one shell. See
@@ -464,6 +511,8 @@ lint: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL)
 # `fixtures/check-findings.sh` for why the whole output is the assertion.
 test-checks:
 	@$(FIXTURES)/check-findings.sh
+	@$(FIXTURES)/review-checks.sh
+	@$(SCRIPTS)/validate_rules.py
 
 CHECK_address-order = $(SCRIPTS)/validate_ctl_address_order.py $(CTL)
 lint-address-order: $(CTL)
@@ -528,7 +577,7 @@ lint-label-namespace: $(CTL) $(SKOOL)
 # that is not wired up at all.
 CHECK_data-structure = $(SCRIPTS)/validate_ctl_data_structure.py $(CTL) \
     --bin $(BIN_PRISTINE) --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
-    --baseline $(BASELINE)
+    --baseline $(BASELINE) $(if $(AGENTS_FILE),--families AGENTS.md)
 lint-data-structure: $(CTL) $(BIN_PRISTINE)
 	$(CHECK_data-structure)
 
@@ -584,7 +633,7 @@ lint-byte-counts: $(CTL)
 	$(CHECK_byte-counts)
 
 # The register rows: one register per row, and one style for what a row says. See
-# `references/standing-rules.md`.
+# `references/rules.md`, REG-1 and REG-2.
 CHECK_registers = $(SCRIPTS)/validate_ctl_registers.py $(CTL) --baseline $(BASELINE)
 lint-registers: $(CTL)
 	$(CHECK_registers)
@@ -607,6 +656,20 @@ CHECK_images = $(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html
     --baseline $(BASELINE)
 lint-images: html/.stamp
 	@$(LINT_SWEEP); lint_begin; lint_run images $(CHECK_images); lint_report 1
+
+# Two layout defects only a browser sees, gated over every built page: a heading
+# that wraps past 1.5 lines at 1280 px, and an image set into a block that holds
+# more than three words of running text outside the image's own table cell. With
+# no Chrome the check exits as one that could not run, never as clean.
+CHECK_html-layout = $(SCRIPTS)/check_html_layout.py html --baseline $(BASELINE)
+lint-html-layout: html/.stamp
+	@$(LINT_SWEEP); lint_begin; lint_run html-layout $(CHECK_html-layout); lint_report 1
+
+# Every check over the built site, in one sweep.
+lint-html: html/.stamp
+	@$(LINT_SWEEP); lint_begin; \
+	$(foreach c,$(LINT_HTML_CHECKS),lint_run $(c) $(CHECK_$(c));) \
+	lint_report $(words $(LINT_HTML_CHECKS))
 
 # A listing comment longer than the code rows beside it opens space under its
 # group's last instruction. Only a browser knows where a comment wraps, so this
@@ -657,7 +720,9 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 	$(SCRIPTS)/validate_ctl_identity.py $(CTL) --skool $(SKOOL) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
-	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
+	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) $(if $(AGENTS_FILE),--families AGENTS.md) \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/validate_label_family.py $(CTL) --agents AGENTS.md \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
 	    --org $(ORG) --size $(SIZE) --skool $(SKOOL) \
@@ -672,9 +737,11 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
-	$(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) \
+	$(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) $(if $(AGENTS_FILE),--families AGENTS.md) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_label_namespace.py $(CTL) --skool $(SKOOL) \
+	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(SCRIPTS)/check_html_layout.py html \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	[ $$refused -eq 0 ] || { echo "make lint-baseline: a check refused to record a key $(BASELINE) does not list, so it keeps what it said — the gate still fails on the finding."; exit $(BASELINE_REFUSED); }
 	@$(stamp_baseline_gate)
@@ -719,7 +786,7 @@ REFS  = $(wildcard *.ref)
 PROSE = $(REFS) $(wildcard spec/*.md)
 
 CHECK_comments = $(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) \
-    --baseline $(BASELINE)
+    $(if $(AGENTS_FILE),--families AGENTS.md) --baseline $(BASELINE)
 lint-comments: $(SKOOL)
 	$(CHECK_comments) --advisory
 
@@ -895,3 +962,36 @@ html/.stamp: $(SKOOL) $(wildcard *.ref) $(wildcard *.js) $(THEME)/theme.ref $(TH
 
 clean:
 	rm -rf html .prose *.asm *.bin *.skool *.z80
+
+# --- Review: the record, the hooks, the screenshots ---------------------------
+#
+# The review record binds a Challenger's verdict to one diff hash. See
+# `scripts/review_record.py`; `gate` reports it, and the pre-commit hook in
+# tools/hooks refuses a commit whose staged diff has no COMMIT record.
+REVIEW_RECORD := $(SCRIPTS)/review_record.py
+
+# Point this repository's hooks at the skill's. Run once per clone.
+hooks:
+	git config core.hooksPath '$(SKILL_HOME)/tools/hooks'
+	@echo "core.hooksPath -> $(SKILL_HOME)/tools/hooks"
+
+# The gate over what is staged, never over the working files: the index is
+# applied to a fresh worktree of HEAD under build/, and the gate runs there.
+# The REVIEW clause reads this repository's records, so it reports the review of
+# the staged diff.
+GATE_INDEX_DIR = build/gate-index
+gate-index:
+	@top=$$(git rev-parse --show-toplevel) && wt="$$top/$(GATE_INDEX_DIR)" && \
+	  git worktree remove --force "$$wt" >/dev/null 2>&1; rm -rf "$$wt"; git worktree prune; \
+	  git worktree add --detach -q "$$wt" HEAD && \
+	  { git diff --cached --binary | (cd "$$wt" && git apply --index --allow-empty) ; } && \
+	  echo "gate-index: the staged index applied to HEAD in $$wt; paths below are relative to it." && \
+	  REVIEW_RECORD_DIR="$$top/build/review" \
+	  $(MAKE) --no-print-directory -C "$$wt/$$(git rev-parse --show-prefix)" gate \
+	      SKILL='$(SKILL_HOME)'
+
+# One screenshot of each page kind at 1280 px, for the review record's
+# `screenshots` field. A COMMIT record for a stylesheet or theme change needs one.
+SCREENSHOTS_DIR = build/review/screenshots
+visual-review: html/.stamp
+	@$(SCRIPTS)/check_html_layout.py html --screenshot $(SCREENSHOTS_DIR)

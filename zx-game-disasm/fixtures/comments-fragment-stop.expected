@@ -1,0 +1,73 @@
+Found 35 comment defect(s):
+
+[FRAGMENT_STOP] 35
+  fragment-stop.skool:23: ends a noun phrase with a full stop ('Fading lamp palette.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    b$EC00 DEFB $00      ; Fading lamp palette.
+  fragment-stop.skool:24: ends a noun phrase with a full stop ('Guards per floor.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC01 DEFB $00      ; Guards per floor.
+  fragment-stop.skool:25: ends a noun phrase with a full stop ('pose, for the whole current shift.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC02 DEFB $00      ; Floor and room of the first guard, then its pace and pose, for the whole current shift.
+  fragment-stop.skool:26: ends a noun phrase with a full stop ('Player pace; guard pace.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC03 DEFB $00      ; Player pace; guard pace.
+  fragment-stop.skool:27: ends a noun phrase with a full stop ('lift the guard stepped out of.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC04 DEFB $00      ; Which end of the lift the guard stepped out of.
+  fragment-stop.skool:28: ends a noun phrase with a full stop ('Key, copied from #R$F110.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC05 DEFB $00      ; Key, copied from #R$F110.
+  fragment-stop.skool:29: ends a noun phrase with a full stop ('Guard sprite, copied from #R$F130.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC06 DEFB $00      ; Guard sprite, copied from #R$F130.
+  fragment-stop.skool:30: ends a noun phrase with a full stop ('TORCH beam, copied from #R$F150.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC07 DEFB $00      ; TORCH beam, copied from #R$F150.
+  fragment-stop.skool:31: ends a noun phrase with a full stop ('lever then dropped, copied from #R$F170.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC08 DEFB $00      ; Gate, lifted with a lever then dropped, copied from #R$F170.
+  fragment-stop.skool:32: ends a noun phrase with a full stop ('A descent in progress.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC09 DEFB $00      ; A descent in progress.
+  fragment-stop.skool:33: ends a noun phrase with a full stop ('The sound of a guard waking.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC0A DEFB $00      ; The sound of a guard waking.
+  fragment-stop.skool:34: ends a noun phrase with a full stop ('a lift starting, a 9-step sequence.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC0B DEFB $00      ; The sound of a lift starting, a 9-step sequence.
+  fragment-stop.skool:35: ends a noun phrase with a full stop ('the player slipping, a 40-step sequence.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC0C DEFB $00      ; The sound of the player slipping, a 40-step sequence.
+  fragment-stop.skool:36: ends a noun phrase with a full stop ('guard losing the lamp it carried.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC0D DEFB $00      ; The sound of the guard losing the lamp it carried.
+  fragment-stop.skool:37: ends a noun phrase with a full stop ('of a key striking the floor.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC0E DEFB $00      ; The sound of a key striking the floor.
+  fragment-stop.skool:38: ends a noun phrase with a full stop ('of a coin hitting the floor.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC0F DEFB $00      ; The chirp of a coin hitting the floor.
+  fragment-stop.skool:39: ends a noun phrase with a full stop ('alarm that empties the oxygen meter.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC10 DEFB $00      ; The sound of a last alarm that empties the oxygen meter.
+  fragment-stop.skool:40: ends a noun phrase with a full stop ('a vase shattering, a 5-step sequence.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC11 DEFB $00      ; The sound of a vase shattering, a 5-step sequence.
+  fragment-stop.skool:41: ends a noun phrase with a full stop ('One tone-queue slot per channel.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC12 DEFB $00      ; One tone-queue slot per channel.
+  fragment-stop.skool:42: ends a noun phrase with a full stop ('LAMP item glyph: letter L.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC13 DEFB $00      ; LAMP item glyph: letter L.
+  fragment-stop.skool:43: ends a noun phrase with a full stop ('a tile set of its own.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC14 DEFB $00      ; ROPE item glyph: letter R, in a tile set of its own.
+  fragment-stop.skool:44: ends a noun phrase with a full stop ('a tile set of its own.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC15 DEFB $00      ; DOUBLE-JUMP item glyph: a small 2 over a chevron, in a tile set of its own.
+  fragment-stop.skool:45: ends a noun phrase with a full stop ('a tile set of its own.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC16 DEFB $00      ; BONUS-COIN item glyph: letter C, in a tile set of its own.
+  fragment-stop.skool:46: ends a noun phrase with a full stop ('Lamp.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC17 DEFB $00      ; Lamp.
+  fragment-stop.skool:47: ends a noun phrase with a full stop ('Plain guard.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC18 DEFB $00      ; Plain guard.
+  fragment-stop.skool:48: ends a noun phrase with a full stop ('guard, top half then bottom half.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC19 DEFB $00      ; Tall guard, top half then bottom half.
+  fragment-stop.skool:49: ends a noun phrase with a full stop ('player: the player with a cloak.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC1A DEFB $00      ; Hooded player: the player with a cloak.
+  fragment-stop.skool:50: ends a noun phrase with a full stop ('with the player on the left.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC1B DEFB $00      ; TORCH beam, with the player on the left.
+  fragment-stop.skool:51: ends a noun phrase with a full stop ('TORCH beam, mirrored.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC1C DEFB $00      ; TORCH beam, mirrored.
+  fragment-stop.skool:52: ends a noun phrase with a full stop ('Gate, raised.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC1D DEFB $00      ; Gate, raised.
+  fragment-stop.skool:53: ends a noun phrase with a full stop ('and the room map at #R$F190.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC1E DEFB $00      ; The stretch of the work buffer between the guard frames and the room map at #R$F190.
+  fragment-stop.skool:54: ends a noun phrase with a full stop ('One dirty bit per room-map cell.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC1F DEFB $00      ; One dirty bit per room-map cell.
+  fragment-stop.skool:55: ends a noun phrase with a full stop ('of the frame table's six records.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC20 DEFB $00      ; One of the frame table's six records.
+  fragment-stop.skool:56: ends a noun phrase with a full stop ('– up, down, left and right.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC21 DEFB $00      ; One of the four facings 90° apart – up, down, left and right.
+  fragment-stop.skool:57: ends a noun phrase with a full stop ('circle, shaded at the upper left.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $EC22 DEFB $00      ; The key (#R$F110): a hollow circle, shaded at the upper left.

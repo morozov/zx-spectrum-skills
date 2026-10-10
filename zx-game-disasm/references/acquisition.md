@@ -1,5 +1,7 @@
 # Stage 1 — Acquire a clean snapshot
 
+Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` holds.
+
 SkoolKit disassembles a *snapshot*: RAM frozen with the game already loaded. The job of this stage is to produce that snapshot and the three numbers the pipeline needs.
 
 - **`ORG`** — the first address of the program in memory (often `$4000`/16384 if the game lives from screen memory up, or higher).

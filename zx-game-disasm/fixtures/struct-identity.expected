@@ -1,0 +1,13 @@
+Found 4 anonymous block(s):
+
+  Line 6: UNUSED_LABEL — test_state names S $F002,6, which its own description calls unused. Type the bytes `u` under a generated unused_ label, or say what the label's bytes hold
+    in b $F000 Player record
+
+  Line 7: UNDESCRIBED — B $F008,8 carries no description and no `@ $F008 label=`. Describe it on the directive or label it: say what the bytes hold, never their value or the label's words. The entry's own schema does not name these bytes
+    in b $F000 Player record
+
+  Line 12: UNDESCRIBED — B $F018,8 carries no description and no `@ $F018 label=`. Describe it on the directive or label it: say what the bytes hold, never their value or the label's words. The entry's own schema does not name these bytes
+    in b $F010 Letter A glyph
+
+  Line 13: UNUSED_LABEL — test_buffer labels $F020 inside an unused entry. Bytes nothing uses carry no name for a used thing: drop the label, or let the generated unused_ label stand
+    in u $F020 Unused bytes

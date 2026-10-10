@@ -1,0 +1,12 @@
+$ diff_entries.py
+game.ctl: b $F001 Player Y  [modified]
+game.ctl: b $F002 Enemy X  [deleted]
+game.ctl: g $F004 Lives  [added]
+glossary.ref: [Page:Glossary]  [modified]
+glossary.ref: [Term:workbuf:Work buffer]  [deleted]
+notes.txt: (whole file)  [modified]
+diff_entries: 6 entry(ies) touched, 2 deleted
+
+$ diff_entries.py --cached
+notes.txt: (whole file)  [modified]
+diff_entries: 1 entry(ies) touched, 0 deleted

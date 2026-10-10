@@ -1,5 +1,7 @@
 # Comment style — the heart of the skill
 
+Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` holds.
+
 The reassembly is mechanical. The documentation is the craft. This file is about what makes a disassembly worth reading: comments that let someone reimplement the game without ever seeing the Z80.
 
 ## The one principle
@@ -40,7 +42,7 @@ That division *is* the deliverable. The contract tells a porter or an agent-trai
 Comment the mechanism at the altitude that carries meaning, not below it. State a calculation's formula **once**, at the block level, and leave the arithmetic uncommented — the formula is the line-level explanation, and per-instruction comments on the multiply and add would only restate it in pieces:
 
 ```
-N $6E00 Screen attribute offset = (7 - row) * 8 + column.
+N $6E00 Screen attribute offset = (7 − row) × 8 + column.
 ```
 
 A single-instruction comment earns its place only when that one instruction carries a non-obvious reason a constant or label cannot already convey.
@@ -69,7 +71,7 @@ A comment covers **one act**, and the act's boundaries are not a matter of taste
 
 The laws are a floor, not a target. A disassembly that clears them can still fall short of a principle, and that is its defect, not a license (see "These principles are the bar"). A block can carry more than one comment unit. A run of alternating `LD A,n` / `RST $10` rows is one block, so one comment would be legal; cut it into one comment per control code, because repetition of *shape* is not repetition of *meaning*. Write for the acts, then check the laws.
 
-`lint_comments.py` enforces the first two as `GROUP_SPLIT`, `GROUP_ENTRY` and `GROUP_SKIP`, and `make coverage` enforces the third — a routine is *explained* when no block in it is bare. A line-density figure can read the same for a disassembly averaging two comments per block and one averaging less than one. What no check reaches is a long single-entry, single-exit run whose one sentence is too thin for it: nothing structural separates it from a legitimate unrolled span, so it stays the Challenger's read.
+These are ENT-7 and ENT-8 in `rules.md`. A long single-entry, single-exit run whose one sentence is too thin for it looks structurally like a legitimate unrolled span, so it is judged by reading the code.
 
 ## A comment describes its own rows
 
@@ -81,7 +83,7 @@ Two ways a comment stops doing that, both of them defects that read as normal pr
 >
 > **Good:** each block says what *it* tests — and where the second genuinely refers to the first, it says so in a sentence of its own that names it.
 
-`SPLICE` gates it, on the pair of signals that make it exact: the previous unit ended without terminal punctuation and this one opens lowercase. A unit that opens on an identifier and its operator, `dx = …`, states its own equation and is not a continuation: a noun-phrase row above it ends without a full stop by rule. Either signal alone also fires on correct prose.
+This is PROSE-8. A noun-phrase row ends without a full stop by rule (TYPO-1), so a unit that ends on a noun and a unit that opens on an equation, `dx = …`, are complete on their own. A cut sentence ends on a comma, a conjunction, a preposition, an article or a relative pronoun.
 
 **A record's layout quoted into prose about code.** The layout has one home — the block whose bytes are the record, where the stride, the fields and the sentinel are stated once (`references/ctl-authoring.md`). Anywhere else, the offset is the implementation quoted into a sentence about behavior, and it binds that sentence to a layout nothing re-derives:
 
@@ -89,7 +91,7 @@ Two ways a comment stops doing that, both of them defects that read as normal pr
 >
 > **Good:** `Tracks the player's position.`
 
-`LAYOUT_ECHO` gates it, and tells the two apart by location, which is decidable: an offset in a `c` block's prose is a citation, an offset in a data block's `D` or `N` is the definition. A disassembly held to this bar cites none. A geometric offset is not a record field, so "vertical bounds of +12 and +2 pixels" is not a hit.
+This is AUD-4 reaching record offsets. Location tells the two apart: an offset in a `c` block's prose is a citation, and an offset in a data block's `D` or `N` is the definition. A geometric offset such as "vertical bounds of +12 and +2 pixels" is a distance, and stays.
 
 ## One home per fact
 
@@ -110,8 +112,7 @@ Worked example. Bad — a header longer than the routine it describes, stamped n
 
 Good — the polled-counter/mute mechanism documented once at the dispatcher and the tone primitive; then, per effect, only what makes it itself, plus the sound:
 
-> The 8-step creak of a door opening; armed by
-> #R$6DA0 and #R$6DB0. #AUDIO(…)
+> The sound of a door opening. #AUDIO(…)
 
 ## The register contract is `R` lines, not prose
 
@@ -146,7 +147,7 @@ What is left after the cut is short, and that is the point. An entry that goes n
 
 This governs **every artifact the reader opens**, exactly as the no-narration rule does: the `.ctl` comments, the `.ref` catalogs, the behavior spec, the built pages. A sound catalog and a line comment beside a sprite blit are the same document to the person reading them.
 
-One part of it is exact and gates: `PITCH` reports a pitch stated in Hz, over the `.skool` and the prose files alike. The machine's own constants are not pitches — the clock is written in MHz and never matches, and the 50 Hz frame interrupt is a sanctioned assumption. The rest — a pose, a color narrated off a render, a melody walked step by step — is ordinary prose, so it stays the Challenger's, gated by reading (`references/roles/challenger.md`).
+This is HOME-7. The machine's own constants are not pitches: the clock is written in MHz, and the 50 Hz frame interrupt is a sanctioned assumption.
 
 ## What not to comment
 
@@ -167,7 +168,7 @@ An instruction already shows its operand. Where that operand is a label — `.sk
 
 > **Bad:** `LD (door_anim_phase),A  ; clear the phase (#R$7F30)...` `CALL erase_door  ; ...and erase the door via #R$8D40.`
 >
-> **Good:** `LD (door_anim_phase),A  ; clear the phase` `CALL erase_door  ; erase the door`
+> **Good:** `LD (door_anim_phase),A  ; Clear the phase.` `CALL erase_door  ; Erase the door.`
 
 A literal echoes the same way. The color is the fact the row owes the reader; the byte in the parentheses is the operand read back off the same line:
 
@@ -177,7 +178,7 @@ A literal echoes the same way. The color is the fact the row owes the reader; th
 
 The one exemption is a record's field offset at the block that defines the record: crossing the offset out leaves the comment saying nothing.
 
-A data row is not a second exemption, though a catalog row seems to *define* its encoding. The principle holds there too. A data row is clear about itself twice over: its bytes are on the line, and its address is its position in the table. So its comment neither quotes one of its own bytes nor opens on the index it sits at.
+A data row is clear about itself twice over: its bytes are on the line, and its address is its position in the table. So its comment quotes none of its own bytes and opens on no index (ROW-1).
 
 > **Bad:** `B $7B10,4 Code $0C: KEY pickup (top-left tile $3A), bright yellow.`
 >
@@ -187,13 +188,15 @@ A data row is not a second exemption, though a catalog row seems to *define* its
 >
 > **Good:** `B $7B10,16,4 KEY pickup`, one sub-block per design.
 >
-> **Good:** `B $F120,8 #HTML(#UDG$F120,71,2(tile_1c))`, the glyph the row holds.
+> **Good:** `B $F120,8`, with no row comment, and the glyph rendered once for the block in an `N` note: `N $F120 #UDGTABLE { #UDG$F120,71,2(tile_1c) } TABLE#`.
 >
 > **Good:** `B $7C40,2,1 KEY pickup`
 
-The code, the tile and the class were each the row's position read back; the top- left tile was its first byte; the ink was another table's byte. What the row holds is the design, the glyph, the pickup. The block description says once what the table is indexed by, and from where: `One row per enemy type, in type order from 0`. A row whose only content is its index has nothing else to say in words, so it says it in a render, or says nothing.
+A render in a row comment draws inside the listing table, beside the bytes, and breaks the row's layout. Renders go in a block-level `N` note (VIS-1).
 
-When rows group, the comment follows the group. A table whose codes come in runs of four frames per design is one sub-block per design, `B addr,16,4 Gold key.`, not four rows each restating the design and naming a frame.
+The code, the tile and the class were each the row's position read back; the top- left tile was its first byte; the ink was another table's byte. What the row holds is the design, the glyph, the pickup. The block description says once what the table is indexed by, and from where: `One row per enemy type, in type order from 0.` A row whose only content is its index has nothing else to say in words, so the block's `N` note renders it, or the row says nothing (ROW-6).
+
+When rows group, the comment follows the group. A table whose codes come in runs of four frames per design is one sub-block per design, `B addr,16,4 Gold key`, with no row per frame (ROW-4).
 
 A definition says what the thing is, and nothing else. That holds for a variable's entry, a table's description and a glossary term alike: what it holds, how it is encoded, what the word means. An `s` buffer still names the code that fills it (see `ctl-authoring.md`). Everything else has its own home and stays there:
 
@@ -202,9 +205,9 @@ A definition says what the thing is, and nothing else. That holds for a variable
 - **Another entry's logic.** An entry's page describes that entry and nothing else. It may name the routine that fills it, and that is all it says about any other entry. How a routine computes the entry's address, walks it, draws from it or relies on its alignment is that routine's comment. A "why the org" note explaining which routines derive a buffer's base is their logic on the wrong page, and so is "#R$7D20 draws a frame's rows straight from it". This is not a style preference: an entry that describes other entries is a defect to remove.
 - **Progress.** A definition holds before anyone has played. `How far the player has got` is undefined at power-on; `The index of the current level, 0 for the first` is not.
 
-A variable is not a table row. A `g` row documents its encoding on the row itself, and its byte is only the value the snapshot caught, so `$FF none, $00 hit moving right` beside `DEFB $00` names an encoding, not the byte. `DATA_ECHO` gates the rule and skips `g` blocks for the byte half.
+A `g` row documents its variable's encoding on the row itself. Its byte is only the value the snapshot caught, so `$FF none, $00 hit moving right` beside `DEFB $00` names an encoding.
 
-The dispatcher's per-case comment and the range a classifier tests are not a third, though the number names a case rather than counting anything. The principle holds there too: `face left (direction 3)` is `face left toward the player`, and `If spider (type 5)` is `If spider`. The checker reports `CP`/`AND`/`BIT` rows as well, so the doctrine and the check say one thing. Where the value really is part of the game's own name — `is the current player Player 2` — the deletion test keeps it and the check still reports it; dismiss those by reading, and do not rebuild the exclusion.
+A dispatcher's per-case comment names the case: `face left toward the player`, `If spider`. Where the value is part of the game's own name – `is the current player Player 2` – it stays.
 
 When one thought genuinely spans several instructions, use a `{ }` comment group over exactly those rows — never `...` fragments stitched line to line.
 
@@ -214,11 +217,7 @@ A group is not an exemption. Its text starts on the row that opens it, which is 
 >
 > **Good:** `LD HL,door_map  ; {Clear the door state map: every door starts the level shut.`
 
-`OPERAND_ECHO` reads every row of a group against that row's own operand. What it does *not* forbid is a group naming a routine its span calls a few rows down — that is a paragraph doing its job.
-
-`OPERAND_ECHO` and `ELLIPSIS` gate the coverage verdict, and the check reads both halves of this rule: a `#R` reference against the addresses in the operand field, and a bare `$XX` against its immediates. One is no less decidable than the other — both compare a string on the row with a string in the comment, and neither reads the prose.
-
-What it does not report is a data directive, whose echo `DATA_ECHO` reads instead, and a walk through `(IX+d)`/`(IY+d)`, where the offset names a record's field. Both are separated by the row's shape rather than its wording. What survives is the residue no structural signal reaches — self-modifying code writing `$C9` and calling it the RET opcode — and that is the Challenger's, because excluding it would mean keying on the prose.
+Each row of a group is read against that row's own operand (HOME-5). A group naming a routine its span calls a few rows down is a paragraph doing its job. A walk through `(IX+d)`/`(IY+d)` names a record's field, and the offset stays.
 
 ## The comment never recites a length the listing carries
 
@@ -252,29 +251,16 @@ The reported line, and what it owed instead:
 
 Nothing is lost. A reader who wants the byte reads the pickup dispatcher or the glyph catalog, where the byte is what the entry is about.
 
-**Where the line is drawn: does the text define the encoding, or cite it?** A code stays wherever the mapping *is* the content — the catalog row whose job is to say that `$1C` means SPEED, a `D` note stating a record's field values. Strike the code out of one of those and the entry stops saying anything:
+**Where a code stays.** The mapping from codes to things has one home: the block description that states what a table is indexed by (ROW-2), and, on a `.ref` catalog page, a `#TABLE` column that holds only the code (ROW-7). A listing row never carries its own code (ROW-1), and every other mention names the thing or links to the table.
 
-> `{ S | $1C | #UDGARRAY… | SPEED - the player runs faster … }`
+The test is the deletion. Cross the code out and read what is left:
 
-So the test is the deletion, not the punctuation. Cross the code out and read what is left. There are three outcomes, and only one of them keeps the byte:
-
-- **What is left still names the thing.** "Set by the SPEED pickup." The code was a citation — leave it crossed out.
-- **What is left names nothing, and nothing could.** `{ S | $1C | #UDGARRAY… | SPEED … }` without the code is a catalog row about no code; the mapping is the entry's whole job. The code was the subject — put it back.
-- **What is left names nothing because the code was standing in for the name.** "frozen by the `$24` pickup" becomes "frozen by the pickup", and the reader is not told which pickup; "the `$28` pickup" becomes "the pickup". This is the defect at its worst — the sentence never carried the fact, only the byte that stands for it. Neither keep the code nor ship the gap: read the name off the table that defines the code and write it. Those two become "frozen by the TIME-STOP pickup" and "the SMART-BOMB pickup".
-
-The second outcome and the third look identical at the moment of deletion, so tell them apart by asking where the name lives: if the entry in front of you *is* where the encoding is defined, the code stays; if the name is defined somewhere else, go get it. This is "one home per fact" reaching an encoding: the mapping lives in the table that defines it, and every other mention names the thing or links there.
+- **What is left still names the thing.** "Set by the SPEED pickup." The code was a citation, and it stays crossed out.
+- **What is left names nothing because the code was standing in for the name.** "frozen by the `$24` pickup" becomes "frozen by the pickup", and the reader is not told which pickup. This is the defect at its worst: the sentence never carried the fact, only the byte that stands for it. Read the name off the table that defines the code and write it: "frozen by the TIME-STOP pickup".
 
 Two things the rule does not reach. **A platform encoding** — port `$FE`, opcode `$C9`, the attribute byte's bit layout — is not the program's to reassign, so no edit to it can falsify the sentence; whether to spell one out at all is the separate question under "Spectrum architecture basics". An attribute *value* is not one of these. `$38` is a color this program picked and can repick, so a sentence citing it is a citation like any other; what belongs to the platform is the layout that gives `$38` its meaning, not the decision to write it. **A value the reader needs to use the code** stays too: a record's field offsets where the record is defined, and a state byte's value domain in the behavior spec. Those are the interface, not an internal name for something the sentence already said.
 
-**One shape of this ships as a check, and the rest stays the Challenger's.** `CODE_ECHO` reports a dispatch code *named as a code* in a **`c` block's** prose — "the walker (type 12)", "Sentry behavior handler (enemy type 4)". The block type is what makes it decidable: the type-to-handler mapping lives in a data block, where the number is the entry's whole content, so a routine carrying it is being named by its slot in someone else's table. Nearly every hit is right, unlike the shape below — a different pattern, not a re-tuning of it.
-
-**For every other shape, no check ships; the Challenger asks the deletion question.** The measurement behind this exempted a comment on a `CP`/`AND`/`BIT` row and the range a classifier tests. The current rule exempts neither, so some hits it scored as misses are defects. Whether a check ships here takes a measurement under the current rule.
-
-A pattern for the shape — a standalone `($XX)` in a `D` or `N` note — reports mostly misses, among them `OUT ($FE),A` quoted in a note. Widening it to catch more citations adds misses faster than right hits, and a widening keyed on one word of the game's vocabulary finds only the citations that use that word.
-
-**The reason not to ship is the ratio, not an inability to read the difference.** Many of the misses are the glyph catalog's own entries — `SPEED pickup, glyph letter S (tile codes $1C-$1F)` — and those are separable: a definition carries its `#UDGTABLE`/`#UDGARRAY` render and writes the code as a range, and a pattern reads both. A defect and a definition can be the same directive type in the same file, and what tells them apart is on the line. With the definitions filtered out, the findings worth acting on are still outnumbered by the ones an author reads and dismisses. That is what decides it. `scripts/lint_comments.py` is advisory, but its kinds feed the coverage verdict, so a kind at that precision costs more attention than it returns.
-
-The same shape in `graphics.ref`: 19 of the 40 lines carrying a `$XX` are `#TABLE` rows. A check firing there deletes nothing — it reports — but what it reports is the entries that define the encoding, in both of the forms blessed a dozen lines above: the catalog row and the `N` note that states a record's fields. Each comes back as a finding to dismiss by hand.
+The decidable shapes are `CODE_PAREN` and `CODE_ECHO` (AUD-4), and a reviewer judges the rest. The reasons behind that split, and those behind `SPLICE`, `LAYOUT_ECHO` and the bare-block count, are in `rationale.md`.
 
 ## A comment never echoes the implementation
 
@@ -308,11 +294,11 @@ So the repair for a flagged number is never the other base. It is the intent, or
 >
 > **Still bad:** `LD D,$64  ; Tone 1: start period 100, 10 cycles.`
 >
-> **Good:** `LD D,$64  ; Tone 1: the higher, shorter of the blip's two rising sweeps.`
+> **Good:** `LD D,$64  ; Start the blip's first sweep.`
 
 A memory address never takes a decimal equivalent at all: `$7A26` as an address stays hex.
 
-**The two bases never appear together.** `Cap the speed at a maximum of $0C (12)` states one value twice: the parenthetical converts the operand rather than adding to it, and the reader who wanted decimal is not the one this disassembly is written for. `BASE_ECHO` gates it, comparing the two spellings as values, so the finding is exact. The repair is the intent or the derived fact — here, what the cap is *for*, which is the fastest the player is allowed to run.
+**The two bases never appear together** (HOME-5). `Cap the speed at a maximum of $0C (12)` states one value twice: the parenthetical converts the operand and adds nothing. The repair is the intent or the derived fact – here, what the cap is *for*, which is the fastest the player is allowed to run.
 
 ## Documenting the non-obvious
 
@@ -321,8 +307,8 @@ The comments that matter most capture what a reader could never reconstruct:
 - **Bugs and quirks.** Flag them explicitly. They are facts about the artifact and often the most valuable thing in the disassembly.
 
   ```
-  N $6E50 BUG: the boundary check uses < instead of <=, so the sprite can
-  N $6E50 appear one pixel outside the play area for a single frame.
+  N $6E50 BUG: the boundary check uses < where the bound needs ≤, so the sprite
+  N $6E50 can appear one pixel outside the play area for a single frame.
   ```
 
 - **Fall-through.** When a routine runs into the next one rather than returning, say so: `This routine continues into #R$6B00.`
@@ -333,7 +319,7 @@ The comments that matter most capture what a reader could never reconstruct:
 
 ## How well it has to be written
 
-This file says what a comment is *for*. `references/prose-bar.md` says how well it has to be written: the terminology registry, the description budget, the sentence rules, and the measured bar each is held to. Those are gated — `make lint-prose` and `make coverage` read them — so they are not advice. Read that file before the first comment, not while polishing the last one.
+This file says what a comment is *for*. `references/prose-bar.md` gives the audience, the terminology registry and the measured description and sentence budgets, and `references/rules.md` states the rules. Read both before the first comment.
 
 ## The depth standard
 
@@ -367,7 +353,7 @@ The disassembly is written in timeless present about the game, as if the author 
 
 Uncertainty is still first-class — but **typed, not smeared**:
 
-- **An unknown purpose**: leave the block an honest name (an auto-label, or a `data_<addr>`) and either silence or observed usage — "Written by #R$6F20; nothing reads it." A dead byte is "Unused." — no eulogy.
+- **An unknown purpose**: leave the block an honest name (an auto-label, or a `data_<addr>`) and say nothing it has not derived (AUD-7). Bytes nothing uses are `u`, titled "Unused bytes", with no description (UNU-1).
 - **A specific open question**: one greppable marker at the exact claim — a trailing `?` on the doubted clause, a `TODO:` line, or a parenthesized `(unverified)` on the one field that is not derived — never a prose hedge ("apparently", "likely", "whether this ever happens is unverified") spread across the sentence, and never a confidence label in reader-facing text. The confident parts of the sentence stay flat. A marker is legitimate *and* it is the project saying the work is unfinished: it owes an open dig-task, it holds the project short of done (`make coverage` counts them as OPEN), and it is retired by deriving the claim — never by deleting the marker.
 - **A stated assumption** is fine when the reader needs it: "~5 s, assuming the 50 Hz frame interrupt."
 
@@ -377,7 +363,7 @@ Before/after. Bad:
 
 Good — the mirror stated once at the record's head, the doubt typed and pointed:
 
-> D $7C10 Player 2's record mirrors player 1's (#R$7C00); only the two bytes below differ. … ; Jump cooldown — counts down player 1's timer, not player 2's. Deliberate?
+> D $7C10 Player 2's record mirrors player 1's (#R$7C00). Only the two bytes below differ. … ; Jump cooldown: counts down player 1's timer where player 2's is expected. Deliberate?
 
 The rule governs **every artifact the reader opens** — the `.ctl` comments, the `.ref` catalogs, the behavior spec, the built pages — because they are one document to the person reading them. Scope it to comments and the vocabulary simply moves: lint the `.skool` alone, and the violations settle in the catalogs and the spec. `make lint-comments` takes the `.ref` files and `spec/*.md` for that reason.
 
@@ -389,7 +375,7 @@ Two repairs, both real. **Re-derive the observation as a code fact** — the obs
 
 > Bad: it does not follow the platform: verified in emulation, it stayed at (96, 120) across 300 frames while the platform moved over its full x 16–200 range.
 >
-> Good: it does not follow the platform: the update writes a fixed X and a fixed Y each frame — the platform's position is never read.
+> Good: it does not follow the platform: the update writes a fixed X and a fixed Y each frame – the platform's position is never read.
 
 **Or drop the measurement to what the code fixes.** A frame rate measured under emulation is a property of the run, not of the game; the code fixes only the ratio, so state the ratio and anchor the seconds to a nominal frame rate the reader can see you assuming.
 
@@ -408,7 +394,7 @@ The disassembly stays relocatable, so a comment must never hard-code an address,
 - **Write noun phrases, not identifiers.** In descriptions and `N` lines, say "while the player is stunned or paused (#R$7F21, #R$7F24)", never "while input_lock (#R$7F25), player_stun (#R$7F21) or player_pause (#R$7F24) hold". Labels belong in operands and `R` lines; prose is for a person. The human form is one noun phrase, one link: "the jump timer at #R$7F28".
 - **Never write `label (#R$addr)` for the same symbol.** `#R` renders as the label, so this produces "ship_x (ship_x)" in the built site. Link a symbol at its first mention in a block; use the bare name after. Keep the cross-reference budget human: a description carries 0–2 `#R` links, not a link per clause.
 - **State conclusions, not derivations.** Keep arithmetic only where a porter needs it (table strides, address math), stated once at the block level. Do not chain "…, so …, so …" proofs, and do not transcribe data into prose — no inline byte lists, no walking a table's values into Hz or ms entry by entry, no `#TABLE` that mirrors the `DEFB` block below it. Render or play the artifact instead (`references/expressive-palette.md`). One derived cadence figure for the effect as a whole is a different thing and is allowed; `references/agents.md` bounds what it may be derived from.
-- **A full stop closes a sentence, and only a sentence.** A row that is a noun phrase takes none: `Wooden door`, `Jump pressed`, `Bright cyan`, `dx = target.X - enemy.X`. A row with a clause keeps it: `Store the new direction.`, `SPEED up: the player runs faster.` An imperative is a sentence. A row that is a noun phrase followed by a sentence keeps the full stop between them, as `Player state. Its final byte counts down the SPEED pickup.` does. The register rows follow the same rule.
+- **A full stop closes a sentence, and only a sentence.** A row that is a noun phrase takes none: `Wooden door`, `Jump pressed`, `Bright cyan`, `dx = target.X − enemy.X`. A row with a clause keeps it: `Store the new direction.`, `SPEED up: the player runs faster.` An imperative is a sentence. A row that is a noun phrase followed by a sentence keeps the full stop between them, as `Player state. Its final byte counts down the SPEED pickup.` does. The register rows follow the same rule.
 - **Vary the rhythm.** If ten consecutive descriptions open with the same verb, or every clause hangs on the same appositive dash, rewrite until the block reads as written, not generated. Numbered scaffolding ("Stage 1: … Stage 18:") is bureaucracy — name the phases with stage directions instead.
 - **Proofread in the reader's medium.** After editing prose, read the affected page in the built HTML, not the `.ctl`. The `.ctl` is the source; the page is the artifact — link duplication, transcribed tables, and metronome rhythm are visible only there.
 
@@ -424,6 +410,5 @@ The target register, in examples — economical, concrete, alive:
 - "Has the player reached the water?" / "If not, move the player" — question on the test, answer on the branch.
 - "The player has just started falling." / "Out of time." — stage directions asserting game state, not code topology.
 - "A quick and dirty way to pick a random lane." — opinion in two adjectives.
-- "Perhaps this unused table was once meant for a second player." — a hedge that is a falsifiable hypothesis, not insurance.
 
 Never in the register: "This routine is responsible for…", "Takes no register inputs and returns nothing", "identified via tracing", a paragraph where a rendered image or an `#AUDIO` would do, or the same sentence in two blocks.

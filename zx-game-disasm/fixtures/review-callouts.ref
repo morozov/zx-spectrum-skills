@@ -1,0 +1,8 @@
+[Glossary:Level index]
+How far the player has got.
+
+[Glossary:Shot speed]
+One byte is not a counter. The shot's speed in pixels per frame.
+
+[Glossary:Enemy speed]
+The enemy's speed in pixels per frame.

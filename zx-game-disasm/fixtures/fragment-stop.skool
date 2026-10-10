@@ -1,0 +1,298 @@
+; FRAGMENT_STOP: a full stop on a unit with no verb. Each row below is a data
+; row comment, the surface the check reads.
+;
+; Bad, each reported: noun phrases ending in a full stop, among them every such
+; single-sentence unit of the kinds a listing holds. Two
+; are padded: one runs past twelve words, and one joins two phrases with a
+; semicolon. Neither length nor punctuation makes a noun phrase a sentence.
+;
+; Good, none reported: two sentences whose verbs no fixed list held, then every
+; kind of single-sentence unit in descriptions, data rows,
+; table cells, glossary bodies and page paragraphs that ends in a full stop and
+; is a sentence.
+;
+; Missed, none reported: noun phrases of the same kinds that the broad verb
+; test passes, because a participle, a plural or a relative clause in them
+; reads as a verb. They are what the check gives up to report no sentence.
+;
+; A unit another check reports as a data row is left out, so this file reports
+; nothing but FRAGMENT_STOP.
+
+; Bad rows
+@label=bad_rows
+b$EC00 DEFB $00      ; Fading lamp palette.
+ $EC01 DEFB $00      ; Guards per floor.
+ $EC02 DEFB $00      ; Floor and room of the first guard, then its pace and pose, for the whole current shift.
+ $EC03 DEFB $00      ; Player pace; guard pace.
+ $EC04 DEFB $00      ; Which end of the lift the guard stepped out of.
+ $EC05 DEFB $00      ; Key, copied from #R$F110.
+ $EC06 DEFB $00      ; Guard sprite, copied from #R$F130.
+ $EC07 DEFB $00      ; TORCH beam, copied from #R$F150.
+ $EC08 DEFB $00      ; Gate, lifted with a lever then dropped, copied from #R$F170.
+ $EC09 DEFB $00      ; A descent in progress.
+ $EC0A DEFB $00      ; The sound of a guard waking.
+ $EC0B DEFB $00      ; The sound of a lift starting, a 9-step sequence.
+ $EC0C DEFB $00      ; The sound of the player slipping, a 40-step sequence.
+ $EC0D DEFB $00      ; The sound of the guard losing the lamp it carried.
+ $EC0E DEFB $00      ; The sound of a key striking the floor.
+ $EC0F DEFB $00      ; The chirp of a coin hitting the floor.
+ $EC10 DEFB $00      ; The sound of a last alarm that empties the oxygen meter.
+ $EC11 DEFB $00      ; The sound of a vase shattering, a 5-step sequence.
+ $EC12 DEFB $00      ; One tone-queue slot per channel.
+ $EC13 DEFB $00      ; LAMP item glyph: letter L.
+ $EC14 DEFB $00      ; ROPE item glyph: letter R, in a tile set of its own.
+ $EC15 DEFB $00      ; DOUBLE-JUMP item glyph: a small 2 over a chevron, in a tile set of its own.
+ $EC16 DEFB $00      ; BONUS-COIN item glyph: letter C, in a tile set of its own.
+ $EC17 DEFB $00      ; Lamp.
+ $EC18 DEFB $00      ; Plain guard.
+ $EC19 DEFB $00      ; Tall guard, top half then bottom half.
+ $EC1A DEFB $00      ; Hooded player: the player with a cloak.
+ $EC1B DEFB $00      ; TORCH beam, with the player on the left.
+ $EC1C DEFB $00      ; TORCH beam, mirrored.
+ $EC1D DEFB $00      ; Gate, raised.
+ $EC1E DEFB $00      ; The stretch of the work buffer between the guard frames and the room map at #R$F190.
+ $EC1F DEFB $00      ; One dirty bit per room-map cell.
+ $EC20 DEFB $00      ; One of the frame table's six records.
+ $EC21 DEFB $00      ; One of the four facings 90° apart – up, down, left and right.
+ $EC22 DEFB $00      ; The key (#R$F110): a hollow circle, shaded at the upper left.
+
+; Good rows
+@label=good_rows
+b$ED00 DEFB $00      ; The lamp dims.
+ $ED01 DEFB $00      ; The guard tires.
+ $ED02 DEFB $00      ; A coin rests on the ledge.
+ $ED03 DEFB $00      ; A frame is one 8×16 image at 1 byte per pixel row.
+ $ED04 DEFB $00      ; The first room begins in the main block at #R$F1B0 and carries on here, since the clock table #R$F1D0 lies inside it.
+ $ED05 DEFB $00      ; The snapshot already holds these values, equal to the original frames.
+ $ED06 DEFB $00      ; Records run in floor order, as in #R$F1F0.
+ $ED07 DEFB $00      ; A cleared floor or the loss of the final life sends the player back to the menu.
+ $ED08 DEFB $00      ; Freezes the clock on the H key and shows a HOLD banner.
+ $ED09 DEFB $00      ; Key H both freezes and frees the clock: one press freezes it, the next press frees it.
+ $ED0A DEFB $00      ; The banner is wiped by printing blanks (#R$F210) over the same cells.
+ $ED0B DEFB $00      ; Polls the H key, the sole input the hold routine #R$F230 needs.
+ $ED0C DEFB $00      ; Clears the room map and the work buffers before each new floor.
+ $ED0D DEFB $00      ; Resets the clock and the counters, then places the player by the entry door.
+ $ED0E DEFB $00      ; Places the player and the first guard and keeps only their two frame slots live.
+ $ED0F DEFB $00      ; The initials buffer #R$F250 shows this mark in each blank place.
+ $ED10 DEFB $00      ; Each guard and its bounty are listed on the graphics page.
+ $ED11 DEFB $00      ; Each puff image fills two adjacent records.
+ $ED12 DEFB $00      ; Frames 9 to 14 are the climb loop, and the slide starts at frame 15.
+ $ED13 DEFB $00      ; Paints the outer frame into the room map and the attribute cells matching it.
+ $ED14 DEFB $00      ; It lays the floor and ceiling bands, two pillars, and one end wall behind the player.
+ $ED15 DEFB $00      ; Sets one pillar cap into the room map and colors its two cells bright yellow on blue.
+ $ED16 DEFB $00      ; Paints the far end wall, sealing the room on the side the player faces.
+ $ED17 DEFB $00      ; The fixed end wall #R$F270 guards the near edge.
+ $ED18 DEFB $00      ; It both lays the cells and advances the palette cycle.
+ $ED19 DEFB $00      ; Writes a frame row into the room map and tints its attribute cells.
+ $ED1A DEFB $00      ; Copies BC bytes from (HL) to (DE).
+ $ED1B DEFB $00      ; Paints the end wall along the side of the room behind the player.
+ $ED1C DEFB $00      ; Each cell it touches is flagged dirty, so the blit routine #R$F290 shows the wall on the screen.
+ $ED1D DEFB $00      ; Every band gets its pair of cell codes from #R$F2B0.
+ $ED1E DEFB $00      ; Removes the gate from the doorway, leaving its cells blank and plain cyan.
+ $ED1F DEFB $00      ; Visits the rows #R$F270 visits, writing the blank cell code into each.
+ $ED20 DEFB $00      ; Lays out the current floor's ledges in the room map when the floor begins.
+ $ED21 DEFB $00      ; Each plan code expands to a 2×1 pair of cell codes and one color byte.
+ $ED22 DEFB $00      ; The ledges appear on screen once the room map is painted (#R$F2D0).
+ $ED23 DEFB $00      ; The plan is 10×5 panels, each 3×4 characters, covering the room.
+ $ED24 DEFB $00      ; The plan is anchored to the floor below the player.
+ $ED25 DEFB $00      ; Each record holds two cell codes for the room's end wall, the upper cell then the lower.
+ $ED26 DEFB $00      ; Holds the cell codes of the floor and ceiling bands, the ceiling first.
+ $ED27 DEFB $00      ; Holds the 1×2 cell codes of each pillar cap, top first.
+ $ED28 DEFB $00      ; Blanks the bitmap area and then the first color cell after it.
+ $ED29 DEFB $00      ; Writes A into every color cell.
+ $ED2A DEFB $00      ; Prints a line of text in the game's typeface along a row of screen cells.
+ $ED2B DEFB $00      ; Steps HL one pixel line lower on the Spectrum display.
+ $ED2C DEFB $00      ; Writes one 8×8 glyph into a display cell and colors that cell.
+ $ED2D DEFB $00      ; It expects a glyph address in DE, so it skips the typeface lookup.
+ $ED2E DEFB $00      ; Advances a pointer by one 32-cell row in the room map or the work buffer.
+ $ED2F DEFB $00      ; The pointer returns in the same column a row lower, crossing into the next third of the display.
+ $ED30 DEFB $00      ; Renders each room-map cell to the work buffer, then copies the work buffer to the display.
+ $ED31 DEFB $00      ; Floods the room map with the blank cell code so the room begins empty.
+ $ED32 DEFB $00      ; Flags each room-map cell as clean.
+ $ED33 DEFB $00      ; Wipes the work buffer so #R$F2D0 can paint the room map into it.
+ $ED34 DEFB $00      ; Shifts the player up and down a ladder each frame, as the keys direct.
+ $ED35 DEFB $00      ; Two checks can cancel the climb, and the step tracking the guard #R$F2F0 runs even then.
+ $ED36 DEFB $00      ; Both key layouts check the same two ladder ends before they shift the player.
+ $ED37 DEFB $00      ; The two lamps are lit separately, so either, both or neither may go out.
+ $ED38 DEFB $00      ; Lowers the player's frame by the step, reusing the code of #R$F310.
+ $ED39 DEFB $00      ; Locates the room-map cell beside the player, offset toward the way it faces.
+ $ED3A DEFB $00      ; Climb ramp: converts the hold counter #R$F330 into the player's step per frame, stopping at 3 px.
+ $ED3B DEFB $00      ; The downward twin is #R$F350.
+ $ED3C DEFB $00      ; Executes every frame inside the main loop, as a sequence of independent pickup and hazard checks.
+ $ED3D DEFB $00      ; The sequence can trigger a tone, remove a life (#R$F370) or reload the floor (#R$F390).
+ $ED3E DEFB $00      ; Bypassed while the guards are asleep (#R$F3B0) or the player is hidden (#R$F3B1).
+ $ED3F DEFB $00      ; A partner still in the house takes the lead, and the game goes on with no life lost.
+ $ED40 DEFB $00      ; On the final life the game ends there, and the end sequence takes over.
+ $ED41 DEFB $00      ; Cycles the LAMP pickup's halo a step per frame: it swells, holds, fades, then vanishes.
+ $ED42 DEFB $00      ; Moves the one or two guards in the room, each frame.
+ $ED43 DEFB $00      ; Works out the thrown key's step lengths and directions from its facing code, through #R$F3D0.
+ $ED44 DEFB $00      ; Steps the thrown key one frame, shifting its frame by the pixels its sub-step counters accumulate.
+ $ED45 DEFB $00      ; A zero step length keeps that axis from moving.
+ $ED46 DEFB $00      ; Lists the facing each blocked axis falls back to, indexed by the axis code.
+ $ED47 DEFB $00      ; Every four-byte entry stores a horizontal deflect code, a vertical deflect code, and the facing a key ends with.
+ $ED48 DEFB $00      ; Deflects the thrown key from the first solid cell it meets, saving the new facing for the next frame.
+ $ED49 DEFB $00      ; The contact box extends 4 pixels one way and 3 the other, on both axes.
+ $ED4A DEFB $00      ; Deflects the chosen key off the gate, and off the second gate the same way.
+ $ED4B DEFB $00      ; Gives the facing a key leaves the gate with, indexed by where it strikes the gate.
+ $ED4C DEFB $00      ; Gives the facing a key leaves the wide gate with, indexed by where it strikes the gate.
+ $ED4D DEFB $00      ; Tallies the guard's patrol laps and quickens its pace after each set, so a long search gets harder.
+ $ED4E DEFB $00      ; Settles a catch of a guard: it reads the guard's rank and sets up the puff the frame update shows.
+ $ED4F DEFB $00      ; Converts a guard's kind code into its rank.
+ $ED50 DEFB $00      ; Stores one puff sequence per rank.
+ $ED51 DEFB $00      ; Address words lead the table, one per rank in ascending order, and the sequences follow them.
+ $ED52 DEFB $00      ; Ticks the lift's chime timer #R$F3F0 once per frame, halting itself after 12.
+ $ED53 DEFB $00      ; Grants the pickup the player has just collected, ending any pickup still active.
+ $ED54 DEFB $00      ; Turns a room-map address into its pixel coordinates on the display.
+ $ED55 DEFB $00      ; Paints the lives panel: a tiny face and the reserve count, one below #R$F410.
+ $ED56 DEFB $00      ; Moves the initials cursor one letter back along the letter row #R$F430, wrapping from A to Z.
+ $ED57 DEFB $00      ; Repaints the entire best-times screen: the heading and all six entries (#R$F450) in tall text.
+ $ED58 DEFB $00      ; Grants one life, up to a limit of 7, and repaints the lives panel (#R$F470).
+ $ED59 DEFB $00      ; Awards a bonus life (#R$F490) when the score reaches 2000 points, once per game.
+ $ED5A DEFB $00      ; Feeds a burst of square-wave cycles to the beeper through #R$F4B0, lengthening the period by one each cycle.
+ $ED5B DEFB $00      ; Every loop emits one cycle at the present period, then raises the period and tallies the cycle.
+ $ED5C DEFB $00      ; Every note's period is read from the chime table #R$F4D0.
+ $ED5D DEFB $00      ; Every note's period is read from the climb table #R$F4F0.
+ $ED5E DEFB $00      ; The sounded notes cover the 30 frames of the slide.
+ $ED5F DEFB $00      ; Every note's period is read from the slide table #R$F510.
+ $ED60 DEFB $00      ; The QUIET menu option #R$F530 silences every tone by making this routine exit straight away.
+ $ED61 DEFB $00      ; Paints the frame list (#R$F550), then performs the two work-buffer passes that bring the picture to the display.
+ $ED62 DEFB $00      ; A shifted line spans three bytes: a first byte whose left pixels are empty, a full middle byte, and a last byte that receives the overflow on the right.
+ $ED63 DEFB $00      ; Computes the work-buffer address of a frame's upper-left pixel, and the bit offset its X coordinate implies.
+ $ED64 DEFB $00      ; Transfers each dirty cell of the room from the work buffer to the display and resets its dirty bit.
+ $ED65 DEFB $00      ; Recomputes the key bits #R$F570 anew on every pass.
+ $ED66 DEFB $00      ; Waits until no key is down – a check made before reading a fresh key on the menu screens.
+ $ED67 DEFB $00      ; Confirm the selected entry: keep the entry's color address for the highlight, store the key layout, repaint the menu to remove the old marker, and chirp.
+ $ED68 DEFB $00      ; Test the Q key (quit), then step the menu jingle by one note, restarting it at the end marker.
+ $ED69 DEFB $00      ; Paints the game's name banner, a 10-by-3 group of character cells with its own color block.
+ $ED6A DEFB $00      ; Prints the four menu entries in tall text (#R$F590) from #R$F5B0, each in its own color.
+ $ED6B DEFB $00      ; Entries print downward from #R$F5B0.
+ $ED6C DEFB $00      ; Alternate entry point, taken from #R$F5D0 when the jump key is released: nothing differs, so it skips the repaint and reads the keys directly.
+ $ED6D DEFB $00      ; Spins for BC loop passes (0 means 65536) – a shared wait for the attract screens and the breaks between them.
+ $ED6E DEFB $00      ; Rewinds the news ticker so the text starts again from its first letter, with the rightmost column cleared.
+ $ED6F DEFB $00      ; At the end marker that frame's pixel step is omitted.
+ $ED70 DEFB $00      ; Common entry for any patrol slot other than 1: refuse a repeated solo guard, take a free guard record, pick the post by kind, then drop through to #R$F5F0.
+ $ED71 DEFB $00      ; Fill every remaining free guard slot with a new sentry, each placed 12 pixels right of the last.
+ $ED72 DEFB $00      ; Indexed by guard kind: 1 marks a kind limited to one copy per room.
+ $ED73 DEFB $00      ; Pose timer: a pose lasts four game frames.
+ $ED74 DEFB $00      ; The list of address words for the guard routines in #R$F610, indexed by guard kind, comes first.
+ $ED75 DEFB $00      ; Pose: two arm frames alternate every 6 frames.
+ $ED76 DEFB $00      ; Patrol: advance the patrol pose (#R$F630), then turn and step.
+ $ED77 DEFB $00      ; No ladder: roam any way (#R$F650), avoid walls (#R$F670), step (#R$F690), and leave through the far door (#R$F6B0).
+ $ED78 DEFB $00      ; Entry n holds n with its two nibbles swapped.
+ $ED79 DEFB $00      ; The listing prints the entries sixteen to a row, a row per value of the upper nibble of n.
+ $ED7A DEFB $00      ; This page also serves as the work buffer.
+ $ED7B DEFB $00      ; These bytes survive from the loader code.
+ $ED7C DEFB $00      ; One cell code per screen position, in the order of the attribute file: the cell in row R and column C is found at offset R × 32 + C.
+ $ED7D DEFB $00      ; The floor can never be cleared.
+ $ED7E DEFB $00      ; The deflection then resets the pace through #R$F6D0, zeroing the counters, so the key stays trapped in the corner.
+ $ED7F DEFB $00      ; The key stays in the corner.
+ $ED80 DEFB $00      ; The trapped path earns nothing and touches no game state, so nothing in the loop can alter the outcome.
+ $ED81 DEFB $00      ; The room locks up.
+ $ED82 DEFB $00      ; With the player at the top the corner is the player's own exit, and a key passing it leaves the room (#R$F6F0).
+ $ED83 DEFB $00      ; The sentry shows the wrong frames.
+ $ED84 DEFB $00      ; The offsets above lie inside the sentry's own record in #R$F710.
+ $ED85 DEFB $00      ; Extend the save block by one byte and keep FLAGS with the other key state, or reset FLAGS when the menu returns.
+ $ED86 DEFB $00      ; The ladder check reads the wrong byte.
+ $ED87 DEFB $00      ; The catch delay and the alarm delay leave HL holding whatever the guard step #R$F730 last used, and the check above at $F750 means the test only runs with the torch lit.
+ $ED88 DEFB $00      ; Two extra cells sit in #R$F770 / #R$F790: a weak ledge and a second firm one.
+ $ED89 DEFB $00      ; Drifts down while tracking the player's floor, and drops traps.
+ $ED8A DEFB $00      ; Closes in on the player.
+ $ED8B DEFB $00      ; Waits in place for a time, then closes in on the player.
+ $ED8C DEFB $00      ; Runs along a straight path, turning only at doors.
+ $ED8D DEFB $00      ; Rebounds from walls and ledges, weaving left and right as it goes.
+ $ED8E DEFB $00      ; Every guard except the phantom appears in a puff of smoke and vanishes in another.
+ $ED8F DEFB $00      ; Nothing else about the sentry differs: touching the player still removes it, and it still scores 50 points to a key.
+
+; Missed rows
+@label=missed_rows
+b$EE00 DEFB $00      ; Which walls the key's flight struck, and the facing each produced.
+ $EE01 DEFB $00      ; Which guard the patrol code handles this frame.
+ $EE02 DEFB $00      ; Whether the partner is in the house, then the step flags of the current climb.
+ $EE03 DEFB $00      ; The two values the catch check compares.
+ $EE04 DEFB $00      ; What the second frame slot holds, and whether the gate is down.
+ $EE05 DEFB $00      ; Lever frame, copied from #R$F7B0, up to the end of the page; the frame's remaining lines continue in #R$F7D0.
+ $EE06 DEFB $00      ; Tall guard, upper and lower halves, copied from #R$F7F0.
+ $EE07 DEFB $00      ; Puff frames, copied from #R$F810.
+ $EE08 DEFB $00      ; Smoke-ring frames, copied from #R$F830.
+ $EE09 DEFB $00      ; Phantom frames, copied from #R$F850.
+ $EE0A DEFB $00      ; The words of the exit prompt #R$F870: a question, and spaces that wipe it.
+ $EE0B DEFB $00      ; The words of the hold banner #R$F890, and spaces that wipe it.
+ $EE0C DEFB $00      ; The floor being explored and the count of lives remaining.
+ $EE0D DEFB $00      ; Scores per pace step.
+ $EE0E DEFB $00      ; Frame addresses for the puff every vanishing guard shows, indexed by pose.
+ $EE0F DEFB $00      ; Like #R$F8B0 but twice as tall (16 pixels high) – the big heading text.
+ $EE10 DEFB $00      ; The step opcode that #R$F310 writes to lift the player and #R$F8D0 writes to drop it.
+ $EE11 DEFB $00      ; Zero when quiet, 1 when the pickup jingle is queued, and above 1 while it sounds.
+ $EE12 DEFB $00      ; Per-guard state for all six guards, two bytes each, holding a caught guard's pending puff.
+ $EE13 DEFB $00      ; The letter-row position the cursor rests on.
+ $EE14 DEFB $00      ; Write position in the initials buffer #R$F250: where the next picked letter is kept.
+ $EE15 DEFB $00      ; A constant pause in the initials loop (#R$F8F0), limiting how quickly a held key repeats.
+ $EE16 DEFB $00      ; The record a new best-time entry is assembled in: the time field and a space, then the initials.
+ $EE17 DEFB $00      ; The chirp that acknowledges a selection on the menu screens.
+ $EE18 DEFB $00      ; The sound of anything in the room vanishing: a guard caught, the player fainting on a lost life, the torch beam fading at a wall, or the phantom's haunt time running out.
+ $EE19 DEFB $00      ; The fault tone for a failed tape load of the extra rooms, sounded eight times when the ROM loader signals a fault.
+ $EE1A DEFB $00      ; The sound of a catch that leaves the guard free: a ranked guard, or a sentry dropping a rank.
+ $EE1B DEFB $00      ; The wide gate sliding shut.
+ $EE1C DEFB $00      ; The LAMP pickup's chime, sounded as the halo swells and again before it fades.
+ $EE1D DEFB $00      ; The current key bits, then the key layout.
+ $EE1E DEFB $00      ; The name banner: 30 character cells in a 10-by-3 grid, then their 30 color bytes, cell for cell.
+ $EE1F DEFB $00      ; The menu marker, then the news ticker's pixel offset and text pointer.
+ $EE20 DEFB $00      ; The room-map cell an approaching guard is checking.
+ $EE21 DEFB $00      ; Temporary slot holding the room-map pointer of the cell #R$F910 is examining.
+ $EE22 DEFB $00      ; Each guard kind's initial facing, in the facing code of #R$F930, indexed by guard kind.
+ $EE23 DEFB $00      ; Each guard kind's patrol pace, indexed by guard kind.
+ $EE24 DEFB $00      ; The motion state of whichever frame holds the second slot: the partner, the thrown key, the phantom, the gate or the smoke puff.
+ $EE25 DEFB $00      ; Pointer to the next note of the jingle being sounded.
+ $EE26 DEFB $00      ; The available periods, a scale of whole tones with one step per entry.
+ $EE27 DEFB $00      ; The jingle heard after the CAUGHT banner, 39 bytes including its end marker.
+ $EE28 DEFB $00      ; The jingle heard on the menu screen and in attract mode.
+ $EE29 DEFB $00      ; The three-note jingle heard when the player collects a pickup, 4 bytes including its end marker.
+ $EE2A DEFB $00      ; QUICK-STEP pickup glyph frames, animated by #R$F950.
+ $EE2B DEFB $00      ; Moth frames, animated by #R$F970.
+ $EE2C DEFB $00      ; Gem frames, animated by #R$F990.
+ $EE2D DEFB $00      ; Puff frames for a vanishing guard, animated by #R$F9B0.
+ $EE2E DEFB $00      ; Smoke-ring frames for an arriving guard.
+ $EE2F DEFB $00      ; Phantom frames in motion: a flickering veil, animated by #R$F9D0.
+ $EE30 DEFB $00      ; Gate sealed with a padlock.
+ $EE31 DEFB $00      ; Padlock frames, animated by #R$F9F0.
+ $EE32 DEFB $00      ; Lantern swaying: its row of flames flickering, animated by #R$FA10.
+ $EE33 DEFB $00      ; Lantern shatter burst: the glass breaking apart, animated by #R$FA30.
+ $EE34 DEFB $00      ; Owl frames, animated by #R$FA50.
+ $EE35 DEFB $00      ; Sentry frames, animated by #R$FA70.
+ $EE36 DEFB $00      ; Trapdoor frames, animated by #R$FA90.
+ $EE37 DEFB $00      ; Candle frames, animated by #R$FAB0.
+ $EE38 DEFB $00      ; Hound tracking the player.
+ $EE39 DEFB $00      ; Hound run frames, animated by #R$FAD0.
+ $EE3A DEFB $00      ; Hound bark frames, animated by #R$FAD0.
+ $EE3B DEFB $00      ; Bone as the hound drops it.
+ $EE3C DEFB $00      ; Mask frames, animated by #R$FAF0.
+ $EE3D DEFB $00      ; Swinging-rope frames, animated by #R$FB10.
+ $EE3E DEFB $00      ; Clock frames, animated by #R$FB30.
+ $EE3F DEFB $00      ; Feather frames, animated by #R$FB50.
+ $EE40 DEFB $00      ; Beetle frames, animated by #R$FB70.
+ $EE41 DEFB $00      ; Pendulum frames, animated by #R$FB90.
+ $EE42 DEFB $00      ; The room's cell codes, one per character position.
+ $EE43 DEFB $00      ; A cell's position in the room as one number, 0 to 79, counting row by row.
+ $EE44 DEFB $00      ; One record per guard slot: the stage of its puff, and whether the guard is awake.
+ $EE45 DEFB $00      ; A bit on one display cell saying its contents have changed since the last frame.
+ $EE46 DEFB $00      ; How a guard copes with being caught: how many catches it shrugs off, and what it drops when it gives up.
+ $EE47 DEFB $00      ; Which way a key is flying, as one of 16 facings around the compass.
+ $EE48 DEFB $00      ; Which way a guard is walking, as one of the four directions.
+ $EE49 DEFB $00      ; The number of the floor being explored, counted from 1.
+ $EE4A DEFB $00      ; A guard's patrol state: its facing, its pace and its current pose.
+ $EE4B DEFB $00      ; The door the player watches, where a guard that slips through it costs a life.
+ $EE4C DEFB $00      ; The six slots holding all the things the game animates.
+ $EE4D DEFB $00      ; The area around the player within which a guard counts as a catch.
+ $EE4E DEFB $00      ; What the floor plan places in a map position: which cell sits there, or nothing.
+ $EE4F DEFB $00      ; A byte flagging the end of a list that carries no length.
+ $EE50 DEFB $00      ; Which 8×8 glyph sits at a position of the map.
+ $EE51 DEFB $00      ; The frame images as stored on tape, from which the frame list is built.
+ $EE52 DEFB $00      ; The frame images the game paints from, one 8×16 image per pose.
+ $EE53 DEFB $00      ; The six guards a floor can post in its rooms.
+ $EE54 DEFB $00      ; The dirty bits, one per display cell.
+ $EE55 DEFB $00      ; The splash image placed in display memory before play begins.
+ $EE56 DEFB $00      ; Lift chime – the lift's second tone, a sequence in the chime table (#R$FBB0) that nothing sounds.
+ $EE57 DEFB $00      ; The guards a floor posts after the first wave, in the order the floors first post them.
+ $EE58 DEFB $00      ; A guard waking.
+ $EE59 DEFB $00      ; A guard fleeing.
+

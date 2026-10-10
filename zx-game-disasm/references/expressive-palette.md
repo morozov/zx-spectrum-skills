@@ -1,5 +1,7 @@
 # The expressive palette — say it in SkoolKit, not in prose
 
+Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` holds.
+
 SkoolKit is a documentation toolkit, not just a disassembler. It gives you a large vocabulary of macros and directives for expressing what the code means, and the guiding principle is simple: **prefer the native device over prose.** A sprite is richer rendered from its own bytes than described in words. A sound effect is richer played than transcribed. A bitfield is richer as a table, a timing as a computed value, a constant as a substituted symbol. Reaching for the right device makes the disassembly both richer for the reader and self-maintaining — derived from the actual snapshot, so it cannot drift.
 
 So when you are about to write a sentence, ask whether SkoolKit has a device that *expresses the fact directly*. Usually it does. This file is the catalog; reach into it liberally. Exact parameters are in the official docs — skool macros at <https://skoolkit.ca/docs/skoolkit/skool-macros.html> and ASM directives at
@@ -36,7 +38,7 @@ Turn every mention of an address or page into a live link, so the disassembly is
 - **`#CHRnum`** — a character by code (with a ZX Spectrum mapping flag); express a control code as its glyph.
 - **`#STRaddr`** — pull a terminator-delimited string straight out of memory, so documented text comes from the bytes, not a hand copy.
 - **`#SPACE[n]`**, **`#RAW(text)`** (suppress macro expansion), **`#HTML(text)`** (HTML-only literal), **`#VERSION`** — finer text control.
-- **Numeric base prefixes** in data sublengths (`b` binary, `c` character, `d` decimal, `h` hex) and `C $addr,c` for character operands — see `references/ctl-authoring.md`. Show masks in binary, ASCII loads as characters.
+- **Numeric base prefixes** in data sublengths (`b` binary, `c` character, `d` decimal, `h` hex) and `C $addr,c` for character operands — see `references/ctl-authoring.md`. Data stays in the default radix (GFX-5), and ASCII loads show as characters.
 
 ## Structured documentation: tables and lists
 
@@ -74,7 +76,7 @@ Backgrounds, full screens, and playfield captures keep their paper: they *are* t
 **A frame-pointer entry says which address space it points at.** A game that `LDIR`s its sprites from a source area into a working bank has each bitmap at *two* addresses, and a frame table holds one of them — usually the working copy, because that is what the draw code reads. Annotate the entry with the address it actually holds *and* the source it mirrors, so neither identity is lost:
 
 ```
-W $9472,4,2 Frames 9-10: walk-cycle working copy 0 (source #R$D1C0)
+W $9472,4,2 Walk cycle, working copy (source #R$D1C0)
 ```
 
 Get this wrong and the table documents addresses the bytes do not contain. It is easy to get wrong, because the source area is where the sprite is *cataloged* and the working copy is where it is *used*, so the cataloged address is the one that comes to mind. Read the entry's real value out of the image before naming it. Type it `W`, never `B`: a pointer held as bytes names nothing and relocates nothing (see the pointer category in `references/ctl-authoring.md`).

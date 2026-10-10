@@ -1,0 +1,7 @@
+Found 2 comment defect(s):
+
+[HEADING_JARGON] 2
+  page-headings.ref:7: heading 'The spawn-cell record' uses the program's storage vocabulary or counts its contents – name what the reader is browsing, in the game's terms [HEAD-2]
+    <h2 class="ref-section" id="spawn">The spawn-cell record</h2>
+  page-headings.ref:8: heading 'The 100 records' uses the program's storage vocabulary or counts its contents – name what the reader is browsing, in the game's terms [HEAD-2]
+    <h2 class="ref-section" id="all">The 100 records</h2>

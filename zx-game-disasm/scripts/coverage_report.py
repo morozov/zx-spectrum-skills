@@ -361,6 +361,7 @@ def main():
     try:
         from lint_comments import scan as lint_scan
         from lint_comments import scan_prose as lint_scan_prose
+        from lint_comments import GATING_KINDS as lint_gating
         prose = {}
         found = list(lint_scan(args.skool))
         for path in refs + sorted(glob.glob(os.path.join(proj, 'spec', '*.md'))):
@@ -370,6 +371,7 @@ def main():
     except Exception as e:
         print(f"  (prose linter unavailable: {e})")
         prose = {}
+        lint_gating = frozenset()
     ret_group = prose.get('RET_GROUP', 0)
     selflink = prose.get('SELFLINK', 0)
     diary = prose.get('DIARY', 0)
@@ -391,9 +393,7 @@ def main():
     # near the bar" over a tree whose gate is red is the more forgiving
     # instrument writing the headline, which is the defect this file already
     # carries a section about.
-    prose_hard = (ret_group + selflink + diary + op_echo + ellipsis
-                  + group_split + group_entry + group_skip + base_echo
-                  + splice + layout_echo + pitch)
+    prose_hard = sum(n for k, n in prose.items() if k in lint_gating)
 
     # The honest unit is the basic block, not the line and not a ratio over
     # lines. A body is explained when every block in it — every stretch of

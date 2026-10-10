@@ -1,0 +1,6 @@
+Found 4 violation(s) of the registry in struct-term-label-registry.ref
+
+  struct-term-label.ctl:1: TERM_LABEL – 'enemy_spark' holds the banned form 'enemy': rename it to use 'guard' – @ $EC4B label=enemy_spark
+  struct-term-label.ctl:6: TERM_LABEL – 'Enemy-post table' holds the banned form 'enemy': rename it to use 'guard' – b $ECC0 Enemy-post table
+  struct-term-label.ctl:13: TERM_LABEL – 'drone_spin' holds the banned form 'drone': rename it to use 'Saw-bot' – @ $ED00 label=drone_spin
+  struct-term-label.ctl:14: write 'Saw-bot', not 'drone' – c $ED00 Spin the drone

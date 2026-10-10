@@ -1,5 +1,7 @@
 # Orchestration — running the disassembly as a multi-role workflow
 
+Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` holds.
+
 A full disassembly to the quality bar is far more work than one context window holds well. A single agent doing all of it degrades two ways: its context fills and it starts re-deriving and re-breaking solved work, and under pressure to look finished it trades correctness for completion — inventing a color, matching a sprite by shape, guessing a purpose from a routine's callers.
 
 This file is how the **Manager** runs the work as a set of roles so neither happens. The method (how to derive and document) lives in `comment-style.md`, `ctl-authoring.md`, `behavior-spec.md`, and the shared `../shared/disasm-analysis.md`. This file is the *organization* around it.
@@ -13,9 +15,9 @@ Each role is a caller-side contract in `references/roles/`. The Manager is the m
 | **Manager** | the main loop | plan, ledger, task queue, checkpoints | `roles/manager.md` |
 | **Researcher** | read-only subagent | non-authoritative external priors | `roles/researcher.md` |
 | **Worker** | subagent with edit access | one scoped target, derived + self-validated | `roles/worker.md` |
-| **Challenger** | read-only subagent | the commit gate; per-claim verdicts | `roles/challenger.md` |
+| **Challenger** | read-only subagent | the review half of the commit gate, with a verdict per rule ID and per claim written as the review record | `roles/challenger.md` |
 
-Code-quality is split: a mechanical linter (`make lint-comments`, whose precise kinds gate the build against the baseline and whose judgment-call kinds only report) plus the Challenger's semantic judgment.
+Code-quality is split: the mechanical gate (`make`: the linters, whose precise kinds gate the build against the baseline) and the Challenger's verdict on every rule ID in `references/rules.md`. Neither half stands in for the other (WORK-4).
 
 To spawn a role, direct the agent to read its brief and add the scoped task. The briefs are self-contained, so a spawned agent needs nothing else but the target and the project paths.
 
@@ -159,4 +161,3 @@ Findings are recorded as dig-tasks and worked through the normal loop, like any 
 | dig-tasks | Manager | the dig-task queue, kept wherever the user tracks work |
 | research notes | Researcher | non-authoritative priors |
 | `spec/*` | Worker | behavior spec / MDP |
-</content>

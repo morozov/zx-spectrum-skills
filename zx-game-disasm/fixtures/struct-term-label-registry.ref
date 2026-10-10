@@ -1,0 +1,8 @@
+[Term:guard:Guard]
+A hostile figure that patrols the level.
+
+#TABLE(default)
+{ =h Write | =h Not }
+{ guard | enemy }
+{ Saw-bot | drone }
+TABLE#

@@ -8,7 +8,7 @@ all - is a block nobody can identify, and it passes every other check in the
 build: it round-trips, it tiles, it can be fully labeled, and `coverage` counts
 it documented.
 
-Three kinds, all of them a directive that carries no words:
+Four kinds. The first three are a directive that carries no words:
 
   UNTITLED        a block directive with no title, following a data entry. Two
                   causes need opposite fixes here - one field split out of the
@@ -23,6 +23,14 @@ Three kinds, all of them a directive that carries no words:
   UNDESCRIBED     a sub-directive that carries no description anywhere and no
                   label on its address, so nothing in the listing says what those
                   bytes are and nothing outside it can refer to them.
+
+The fourth is a label that names something the bytes are not:
+
+  UNUSED_LABEL    a `u` entry carrying a label other than a generated `unused_*`
+                  one, or a labeled sub-directive whose whole description is
+                  "Unused". A label is a name a reader can look up and code can
+                  refer to; on bytes nothing uses, a name for a used thing is a
+                  false claim, and "Unused" under a name says the name is wrong.
 
 An `i` (ignore) block is exempt from the title rule: it publishes no page, it
 marks where the disassembly stops.
@@ -50,6 +58,10 @@ A sub-directive is identified when either holds:
 - it is a `W` whose every word, read from the built `.skool` (`--skool`), points
   at an address the .ctl labels. The listing renders that label as the operand,
   so a comment repeating it would echo the operand.
+- it is a `B` whose every byte a render macro draws: `#UDGARRAY`, `#UDG` or
+  `#FONT` on the entry or on a code partner the two name each other through, as
+  `validate_ctl_data_structure.py` measures it. The render is what those bytes
+  are, and a comment would restate the picture.
 
 The entry's own title, `D` or `N` does **not** discharge it, however completely
 the schema is stated there. That exemption is the one this check exists to
@@ -68,6 +80,7 @@ import re
 import sys
 
 import ctl_baseline
+import validate_ctl_data_structure as data_structure
 
 CHECK = 'identity'
 
@@ -95,7 +108,11 @@ DEFAULT_HEADINGS = {
 ADDR = r'(\$?[0-9A-Fa-f]+)'
 ENTRY = re.compile(r'^([bcgistuw]) +%s(?: +(\S.*))?$' % ADDR)
 SUB = re.compile(r'^([BCSTWM]) +%s((?:,[^\s]+)*)(?: +(\S.*))?$' % ADDR)
-LABEL = re.compile(r'^@ +%s +label=' % ADDR)
+LABEL = re.compile(r'^@ +%s +label=(\S+)' % ADDR)
+# A generated name for bytes nothing uses, the only label a `u` entry may carry.
+UNUSED_NAME = re.compile(r'^unused_')
+# A description that says only that the bytes are unused.
+UNUSED_TEXT = re.compile(r'(?i)^unused(?: bytes?)?\.?$')
 DEFW_ROW = re.compile(r'^[ *]?\$([0-9A-Fa-f]{4}) DEFW ([^;]+?)\s*(?:;|$)')
 WORD_OPERAND = re.compile(r'^\$[0-9A-Fa-f]{4}$')
 COMMENT = re.compile(r'^  %s(?:,[^\s]+)* +(\S.*)$' % ADDR)
@@ -127,13 +144,13 @@ def parse_ctl(lines):
     precedes it, and its sub-directives; each sub-directive carries its line
     number, type, address, length, and whether any description reaches it.
 
-    labeled is every address an `@ label=` names.
+    labeled maps every address an `@ label=` names to that label.
     """
-    labeled = set()
-    for line in lines:
+    labeled = {}
+    for i, line in enumerate(lines):
         match = LABEL.match(line)
         if match:
-            labeled.add(parse_address(match.group(1)))
+            labeled[parse_address(match.group(1))] = (match.group(2), i + 1)
 
     heads = [(i, m) for i, line in enumerate(lines)
              for m in [ENTRY.match(line.rstrip())] if m]
@@ -152,6 +169,7 @@ def parse_ctl(lines):
                 'address': parse_address(sub.group(2)),
                 'length': span_length(sub.group(3)),
                 'described': bool(sub.group(4)),
+                'text': [sub.group(4).strip()] if sub.group(4) else [],
             })
         for j in range(i + 1, end):
             comment = COMMENT.match(lines[j].rstrip())
@@ -161,6 +179,7 @@ def parse_ctl(lines):
             for sub in subs:
                 if sub['address'] <= address < sub['address'] + sub['length']:
                     sub['described'] = True
+                    sub['text'].append(comment.group(2).strip())
         entries.append({
             'line_number': i + 1,
             'type': m.group(1),
@@ -169,6 +188,10 @@ def parse_ctl(lines):
             'previous': entries[-1] if entries else None,
             'subs': subs,
         })
+    for entry, following in zip(entries, entries[1:]):
+        entry['end'] = following['address']
+    if entries:
+        entries[-1]['end'] = None
     return entries, labeled
 
 
@@ -212,7 +235,19 @@ def word_targets(path):
     return targets
 
 
-def check_descriptions(entry, labeled, targets=None):
+def rendered(sub, covered):
+    """Whether a render draws every byte of a sub-directive.
+
+    `covered` is what `data_structure.rendered_coverage` returned for the entry:
+    a set of addresses, or None for a macro whose extent no read of its text
+    states, which draws whatever it is asked about.
+    """
+    if covered is None:
+        return True
+    return covered.issuperset(range(sub['address'], sub['address'] + sub['length']))
+
+
+def check_descriptions(entry, labeled, targets=None, covered=frozenset()):
     """Report a sub-directive that neither describes nor names its bytes."""
     violations = []
     if entry['type'] == 'u':
@@ -226,11 +261,42 @@ def check_descriptions(entry, labeled, targets=None):
                 address in targets and all(target in labeled for target in targets[address])
                 for address in range(sub['address'], sub['address'] + sub['length'], 2)):
             continue
+        if sub['type'] == 'B' and rendered(sub, covered):
+            continue
         violations.append((sub['line_number'], 'UNDESCRIBED',
                            f"{sub['type']} ${sub['address']:04X},{sub['length']} carries no "
-                           f"description and no `@ ${sub['address']:04X} label=` — describe "
-                           f"it on the directive, or label it; the entry's own schema does "
-                           f"not name these bytes"))
+                           f"description and no `@ ${sub['address']:04X} label=`. Describe "
+                           f"it on the directive or label it: say what the bytes hold, "
+                           f"never their value or the label's words. The entry's own "
+                           f"schema does not name these bytes"))
+    return violations
+
+
+def check_unused_labels(entry, labeled):
+    """Report a label that names a used thing on bytes nothing uses."""
+    violations = []
+    if entry['type'] == 'u':
+        end = entry['end'] if entry['end'] is not None else entry['address'] + 1
+        for address in sorted(labeled):
+            if not entry['address'] <= address < end:
+                continue
+            label, line_number = labeled[address]
+            if UNUSED_NAME.match(label):
+                continue
+            violations.append((line_number, 'UNUSED_LABEL',
+                               f"{label} labels ${address:04X} inside an unused entry. "
+                               f"Bytes nothing uses carry no name for a used thing: "
+                               f"drop the label, or let the generated unused_ label stand"))
+    for sub in entry['subs']:
+        if sub['address'] not in labeled:
+            continue
+        if sub['text'] and all(UNUSED_TEXT.match(text) for text in sub['text']):
+            label, _ = labeled[sub['address']]
+            violations.append((sub['line_number'], 'UNUSED_LABEL',
+                               f"{label} names {sub['type']} ${sub['address']:04X},"
+                               f"{sub['length']}, which its own description calls unused. "
+                               f"Type the bytes `u` under a generated unused_ label, or "
+                               f"say what the label's bytes hold"))
     return violations
 
 
@@ -251,11 +317,16 @@ def main():
 
     entries, labeled = parse_ctl(lines)
     targets = word_targets(args.skool)
+    _, _, by_address = data_structure.parse_ctl(args.ctl)
 
     findings = []
     for entry in entries:
+        block = by_address.get(entry['address'])
+        covered = (data_structure.rendered_coverage(block, by_address)
+                   if block is not None else frozenset())
         for line_number, kind, message in check_title(entry) + \
-                check_descriptions(entry, labeled, targets):
+                check_descriptions(entry, labeled, targets, covered) + \
+                check_unused_labels(entry, labeled):
             findings.append((line_number, kind, message, entry))
     findings.sort(key=lambda f: f[0])
 

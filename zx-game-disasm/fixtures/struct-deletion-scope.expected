@@ -1,0 +1,32 @@
+$ validate_deletion_scope.py  # one labeled entry removed
+deletion-scope: the staged diff removes 2 item(s), at or under the threshold of 3
+exit 0
+
+$ validate_deletion_scope.py  # two labeled entries and a term removed, no record
+Found 5 removed item(s) out of scope: the staged diff removes 5, over the threshold of 3, and no review record build/review/<diffhash>.json exists to name these:
+
+  glossary.ref: DELETION_SCOPE – [Term:workbuf:Work buffer]
+  game.ctl: DELETION_SCOPE – @ $F003 label=enemy_y
+  game.ctl: DELETION_SCOPE – @ $F004 label=lives
+  game.ctl: DELETION_SCOPE – b $F003 enemy_y
+  game.ctl: DELETION_SCOPE – b $F004 lives
+
+  List each deletion in the review record's scope, or restore the ones nobody asked to delete.
+exit 1
+
+$ validate_deletion_scope.py  # record names one entry and the term
+Found 2 removed item(s) out of scope: the staged diff removes 5, over the threshold of 3, and the review record build/review/<diffhash>.json does not name these:
+
+  game.ctl: DELETION_SCOPE – @ $F003 label=enemy_y
+  game.ctl: DELETION_SCOPE – b $F003 enemy_y
+
+  List each deletion in the review record's scope, or restore the ones nobody asked to delete.
+exit 1
+
+$ validate_deletion_scope.py  # record names everything
+deletion-scope: the staged diff removes 5 item(s), and the review record names each in its scope
+exit 0
+
+$ validate_deletion_scope.py  # five labels renamed in place
+deletion-scope: the staged diff removes 0 item(s), at or under the threshold of 3
+exit 0

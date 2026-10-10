@@ -1,0 +1,25 @@
+Found 5 data-block schema violation(s) in 15 data entry(ies):
+
+  Line 17: ROW_WIDTH — B $F000,16,1 lists 16 one-byte rows, 0 of them a record the code addresses or the entry states. Cut the rows at the record the code walks, or 8 bytes per row when the bytes have no record
+    in b $F000 Attribute ramp
+
+  Line 19: ROW_WIDTH — 8 one-byte B directives run from $F010, 0 of them a record the code addresses or the entry states. Join them into one span cut at the record the code walks, or 8 bytes per row when the bytes have no record
+    in b $F010 Loose bytes
+
+  Line 51: UNTYPED — B $F080,16 has no sublength. Fix it in this order: render it; state the record length the code walks; never a width chosen to clear this check
+    in b $F080 Bad copy
+
+  Line 55: UNTYPED — 16 bytes with no sub-directives. Fix it in this order: render it; state the record length the code walks; model it as code if it is code; never a width chosen to clear this check. If this block was passing before, check whether a prose edit removed the #R that named its render's partner: the exemption needs the two blocks to name each other, and the link can be anywhere in the body
+    in b $F0A0 Mystery
+
+  Line 70: ROW_WIDTH — 4 one-byte B directives run from $F0C0, 0 of them a record the code addresses or the entry states. Join them into one span cut at the record the code walks, or 8 bytes per row when the bytes have no record
+    in b $F0C0 Padded bytes
+
+Advisory, not gated: 3 narrow sublength(s) over a render or a bitmap family. Keep each only when the code walks a record of that width:
+
+  Line 30: STRIDE_APPEASE – B $F020,8,2 cuts bytes a render draws into 2-byte rows. Keep the width only when the code walks a 2-byte record. Otherwise drop the sublength
+    in b $F020 Letter glyph
+  Line 34: STRIDE_APPEASE – B $F028,8,2 cuts bytes a render draws into 2-byte rows. Keep the width only when the code walks a 2-byte record. Otherwise drop the sublength
+    in b $F028 Pair glyph
+  Line 54: STRIDE_APPEASE – B $F090,16,2 cuts bytes the slot_ range holds into 2-byte rows. Keep the width only when the code walks a 2-byte record. Otherwise drop the sublength
+    in b $F090 Copy slot

@@ -1,0 +1,5 @@
+Found 2 layout defect(s) in the built pages:
+
+  review-layout-bad.html: HEADING_WRAP – h2 "Shuttle - two silver-panel contacts move the guard back and forth across the playfield until the sho" renders on 2.0 lines at 1280 px; a heading holds one line
+  review-layout-bad.html: INLINE_RENDER – image guard.png sits in a block with 14 words outside its own table cell ("The guard sprite moves one cell per frame while the fire key is held."); a render takes a block of its own
+exit=1

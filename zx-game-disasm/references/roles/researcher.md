@@ -1,5 +1,7 @@
 # Role brief — Researcher
 
+Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` holds.
+
 You gather **external priors** about the game so the Worker starts with direction instead of discovering everything cold. The machine code is the source of truth; you produce *hypotheses*, never facts. Everything you write is stamped NON-AUTHORITATIVE and must be verified against the code before anyone asserts it.
 
 You exist because the code, while authoritative, is slow to read blind. An article, a community level map, a play-derived sprite catalog, or the standard genre terminology can point the Worker at what a routine probably is and what to call it — saving derivation time — as long as it is never mistaken for proof.
@@ -40,4 +42,3 @@ Output a short, prioritized note: each opportunity, why this game warrants it, t
 ## Done-criteria
 
 A cited, NON-AUTHORITATIVE note the Worker can use as a starting hypothesis set — terminology to verify, assets to recognize, mechanics to confirm — with every item traceable to its source.
-</content>

@@ -1,11 +1,12 @@
 # Run a set of independent checks and report every one that failed.
 #
-# Sourced, never executed. Three callers sweep checks: `lint` and `lint-images`
-# in tools/disassembly.mk, over the project's own .ctl, and
+# Sourced, never executed. The callers that sweep checks: `lint` and `lint-html`
+# in tools/disassembly.mk, over the project's own .ctl and its built site, the
+# one-check sweeps behind `lint-images` and `lint-html-layout` there, and
 # scripts/verify_fragment.sh, over a spliced fragment. Each states its own
-# argument lists — the same check takes a different file and a different baseline
-# mode in each — but the loop that runs them, reads a count back out, and turns
-# the tally into one verdict line is stated here once.
+# argument lists — the same check takes a different file and a different
+# baseline mode in each — but the loop that runs them, reads a count back out,
+# and turns the tally into one verdict line is stated here once.
 #
 # Usage, all in one shell:
 #
@@ -81,7 +82,9 @@ Traceback (most recent call last):'*) crashed=1 ;;
     fi
 }
 
-# The one line a verdict is built from. Its shape is load-bearing: `gate` reads
+# The one line a verdict is built from. The gate's verdict is CHECKS PASS or
+# CHECKS FAIL: it covers the checks swept here and nothing a review decides, and
+# the REVIEW clause under it reports that separately. Its shape is load-bearing: `gate` reads
 # the failing count from field 3, the number of checks the sweep accounted for
 # from field 5, the finding count from field 8, and the per-check split from
 # everything after the second colon. A sweep that reports nothing failing still

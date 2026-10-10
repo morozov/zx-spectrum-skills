@@ -46,23 +46,71 @@ ones a reviewer would otherwise flag by hand:
                    pitch, so the figure is the clip read back in numbers. The
                    machine's own constants (the 3.5 MHz clock, the 50 Hz frame
                    interrupt) are not pitches and are not reported
-  - CODE_ECHO      a dispatch code named as a code in a `c` block's prose —
-                   "the drone (type 19)", "Guard behavior handler (enemy type 3)".
-                   The routine is named by what it does; the number is the
-                   byte this build spells it with, and it belongs to the table
-                   that defines the mapping
+  - CODE_ECHO      a number the player cannot see, labeled by an encoding noun:
+                   "the drone (type 19)", "enters state 2", "tile codes $21-$44".
+                   Every prose unit but register rows and a table's key column;
+                   a variable's own data row defines its encoding and is exempt
+                   (AUD-4)
   - DATA_ECHO      a data row whose comment repeats the row: an index key at
                    its head ("Code $12:", "Tile $21") or one of its own bytes.
                    The address is the row's position and the bytes are on the
                    line; the comment says what the row holds, and the block
-                   description says once what the table is indexed by
+                   description says once what the table is indexed by. A table
+                   cell outside the key column that opens on an index is the
+                   same defect (ROW-1)
+  - CODE_PAREN     a name followed by its code in parentheses, in any shape:
+                   "the lantern ($10)", "Wall/border ($21–$44)", "crate
+                   (code $12)", "(top-left tile $66)". OUT/IN port operands,
+                   register rows and a table's key column are exempt (AUD-4)
+  - NUMBER_LIST    four or more numbers in a run, or three after "level(s)":
+                   "those of 52, 54, 55, 61, 69" restates the level data (HOME-3)
+  - CODE_LIST      three or more codes in a run, "No layout places $04, $12 or
+                   $2E" (HOME-3)
+  - LEVEL_FACT     a claim about the level data: "Level 100 has no empty cell",
+                   "12 slots hold $00", "no level" (HOME-3)
+  - HEADING_JARGON a page heading in the program's storage vocabulary ("The
+                   spawn-cell record") or a heading or title counting its
+                   contents ("The 100 records"). `<hN>`, `[Page:]`,
+                   `SectionName=`, entry-section titles and the
+                   `[PageHeaders]`/`[Titles]`/`[Links]` values take both halves;
+                   entry and glossary titles take the count half (HEAD-2)
+  - IDENT_IN_PROSE an equate or constant identifier in prose or a title,
+                   "Work buffer (WORKBUF_FB)" (NAME-6)
+  - GLOSSARY_DEF   a glossary definition carrying progress ("How far the player
+                   has got"), logic that changes the value ("wraps back to 0")
+                   or the code that uses it (DEF-2 to DEF-4)
+  - GLOSSARY_IDENT a glossary term that is a constant or a category of program
+                   symbol, "Constants" (DEF-6)
+  - CALLERS        prose listing the code that reads, writes or calls a thing:
+                   "Written by #R$B200", "used by the routine", "Callers:".
+                   An `s` entry may name what fills it (HOME-4)
+  - TYPOGRAPHY     an ASCII stand-in for a typographic character: `2x2`, `->`,
+                   `>=`, `45 deg`, `row * 32`, a hyphen or `..` range, a spaced
+                   hyphen dash, and `Eb4` for E♭ where the unit is about notes.
+                   Quoted game text, text entries and macro parameters keep
+                   their bytes (TYPO-2)
+  - FRAGMENT_STOP  a full stop on a title, or on a data row, table cell, list
+                   item or register row that holds no verb-shaped word,
+                   "Silver door key." (TYPO-1)
+  - FOIL           an argument against a reading nobody offered: "is not a",
+                   ", not to", "rather than", "instead of" (AUD-3)
+  - UNUSED_TEXT    any text on an unused entry beyond its "Unused bytes" title;
+                   one unused byte keeps its "Unused" row (UNU-1)
+  - LABEL_ECHO     a row comment made only of its operand label's words,
+                   `DEFW update_rocket ; rocket` (HOME-5)
+  - WORDY_VARIABLE more words on a variable of up to four bytes than
+                   24 + 6 per extra byte (DEF-5)
+  - DEIXIS         an entry pointing at its neighbors by position, "the
+                   routines below" (HOME-2)
+  - FOREIGN_LOGIC  a data entry's description stating a routine's logic: a
+                   sentence holding a link to code and a verb such as "derives",
+                   "masks" or "adds" (HOME-2)
+  - INLINE_RENDER  a render macro inside a sentence, a row comment or a table
+                   cell with three or more words of prose beside it, outside a
+                   #UDGTABLE (VIS-1)
   - UNRENDERED     a data block whose title names a sprite, glyph, font or tune,
                    carrying no render macro. The catalog page is an index; a
                    block that encodes one element shows that element
-  - EULOGY         more than a couple of dozen words on a `u` block — bytes
-                   nothing uses. It owes that it is unused plus any real trivia,
-                   never the proof: the reader census, the fill that stops short,
-                   the stride that could not be found
   - SYNTH_ECHO     prose beside an #AUDIO describing how the tone is produced —
                    periods, cycles, T-states, a period formula. The clip is the
                    synthesis; the words owe what the sound means in play, what
@@ -73,14 +121,24 @@ ones a reviewer would otherwise flag by hand:
                    about behavior names the thing, not the byte it sits at
   - SPLICE         a comment continuing the sentence the previous comment left
                    open — one thought split across two comment units, so
-                   neither describes the rows it sits on
+                   neither describes the rows it sits on. A unit is open only
+                   when it ends on a comma, a conjunction, a preposition, an
+                   article or a relative pronoun
   - REFPOINTER     a comment pointing the reader at a `.ref` index file
   - OPEN           a typed uncertainty marker ("(unverified)", "TODO:") — the one
                    legitimate way to leave a doubt in the text, and a standing
                    statement that the work is not finished
-  - STAMP          the same >=8-word phrase (addresses normalized) in 3+ block
-                   comments — family text stamped per sibling instead of written
-                   once at the family head
+  - STAMP          the same sentence (addresses normalized) in two or more
+                   block comments — family text stamped per sibling instead of
+                   written once at the family head
+
+The text checks read prose units (`prose_units.py`): entry titles, description
+paragraphs and notes, row comments and groups, register rows, `.ref` paragraphs,
+headings and table cells, glossary titles and bodies, `.ctl` entry titles. Each
+check declares the surfaces it applies to and runs over every unit of those
+surfaces in every file, so a `.ref` page is held to the same rules as the
+listing. Each gating kind's message ends with the rulebook ID it enforces
+(`references/rules.md`).
 
 This is deliberately a *small, high-precision* pre-filter, not the review. The
 check that matters most is not scriptable and belongs to the Challenger:
@@ -107,24 +165,27 @@ interior rows carry no brace and are read like any other row. OPERAND_ECHO reads
 every row of a group, brace-carrying or not — see echo_rows() for why.
 
 The catalogs and the behavior spec are the same deliverable, read by the same
-reader, so DIARY runs over them too — any non-.skool argument is scanned line by
-line for that vocabulary alone. The `.skool` was linted and the `.ref` files were
-not, which is exactly where runtime-sourced claims accumulated.
+reader, so every unit check runs over them too. Pass the `.skool` first: its
+labels and entries resolve the `#R` references the other files carry.
 
 The gating kinds are held against the project's `lint-baseline.txt` like every
 other gating check, so a mature project records the findings it starts with and
 the gate fails on a new one. The advisory kinds print and never fail.
 
-Usage: lint_comments.py <file.skool> [prose-file …] [--baseline FILE] [--write-baseline]
+Usage: lint_comments.py <file.skool> [prose-file …] [--families AGENTS.md]
+                       [--baseline FILE] [--write-baseline]
 Exit 0 when no unbaselined gating finding stands, 1 otherwise.
 """
 
 import argparse
+import bisect
 import os
 import re
 import sys
 
 import ctl_baseline
+import validate_label_family
+from prose_units import PROSE_SURFACES, read_units
 
 CHECK = 'comments'
 
@@ -142,8 +203,11 @@ CHECK = 'comments'
 GATING_KINDS = frozenset((
     'RET_GROUP', 'SELFLINK', 'DIARY', 'OPERAND_ECHO', 'ELLIPSIS',
     'GROUP_SPLIT', 'GROUP_ENTRY', 'GROUP_SKIP', 'BASE_ECHO', 'SPLICE',
-    'LAYOUT_ECHO', 'PITCH', 'SYNTH_ECHO', 'EULOGY', 'UNRENDERED',
-    'CODE_ECHO', 'OPEN', 'DATA_ECHO',
+    'LAYOUT_ECHO', 'PITCH', 'SYNTH_ECHO', 'UNRENDERED', 'CODE_ECHO', 'OPEN',
+    'DATA_ECHO', 'CODE_PAREN', 'NUMBER_LIST', 'CODE_LIST', 'LEVEL_FACT',
+    'HEADING_JARGON', 'IDENT_IN_PROSE', 'GLOSSARY_DEF', 'GLOSSARY_IDENT',
+    'CALLERS', 'TYPOGRAPHY', 'FRAGMENT_STOP', 'FOIL', 'UNUSED_TEXT',
+    'LABEL_ECHO', 'WORDY_VARIABLE', 'DEIXIS', 'FOREIGN_LOGIC', 'INLINE_RENDER',
 ))
 
 # The finding's own row carries its address, so the baseline key is that address
@@ -273,17 +337,17 @@ def operand_target(operands, label_addrs):
 
 
 # A comment unit is one group or one commented row, and each one describes the
-# rows it sits on. A unit that opens lowercase after a unit that ended without
-# terminal punctuation is not doing that: the two are one sentence cut in half,
-# and the second half describes nothing on its own. "Leave it alone while the
-# grow animation still runs," / "and while the shrink animation still runs." is
-# the shape — the reader of the second block is handed a subordinate clause.
+# rows it sits on. A unit that opens lowercase after a unit that ended open - on
+# a comma, a conjunction, a preposition, an article or a relative pronoun - is
+# not doing that: the two are one sentence cut in half, and the second half
+# describes nothing on its own. "Leave it alone while the grow animation still
+# runs," / "and while the shrink animation still runs." is the shape – the
+# reader of the second block is handed a subordinate clause.
 #
 # Both halves of the test are needed. Opening lowercase is not enough on its own
-# (a unit may legitimately start with a symbol or a lowercased identifier), and
-# an unterminated previous unit is not enough either. Together they are exact.
-# A cross-reference between blocks is still allowed — it just has to be written
-# as one, in a sentence of its own.
+# (a unit may start with a symbol or a lowercased identifier), and a unit ending
+# without a full stop is a noun-phrase row, which takes none. A cross-reference
+# between blocks is still allowed, written as a sentence of its own.
 # A pitch in Hz is the sound described in the sound's own unit: the `#AUDIO` at
 # the block plays it, so the figure adds nothing the reader is missing and binds
 # the page to a tone formula that belongs once at the primitive. Being *derived*
@@ -313,15 +377,19 @@ PITCH_RE = re.compile(r'(?i)(?<![\w.])~?\s*(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<k>k?)
 # player meets carries a domain noun instead — "500 points", "3 lives", "250
 # frames" — and is kept.
 #
-# Four exemptions, each structural rather than a judgment:
+# Five exemptions, each structural rather than a judgment:
 #
-#   A table row. `{ $02 | silver key | … }` is the code's only home, and
-#   striking it out leaves a row about no code. Prose in the same block is not
-#   covered by this: "for character codes $20 to $5A" on the font block is a
-#   citation like any other, and the render below it already shows the glyphs.
+#   A table's key column. `{ $02 | silver key | … }` is the code's only home,
+#   and striking it out leaves a row about no code. The row's other cells, and
+#   prose in the same block, are not covered by this: "for character codes $20
+#   to $5A" on the font block is a citation like any other, and the render below
+#   it already shows the glyphs.
+#
+#   A variable's own data row. A `g` entry's row defines its encoding, so its
+#   bit and its values are the definition, not a citation.
 #
 #   An `R` line. A routine's register contract is where it states the convention
-#   its callers must honor — "I:DE pointer to the string (bit 7 set marks the
+#   its callers must honor – "I:DE pointer to the string (bit 7 set marks the
 #   final character)". That is the implementer speaking, not a caller citing.
 #
 #   A platform encoding. ULA bit 4, port $FE, an opcode byte. Not this program's
@@ -329,8 +397,8 @@ PITCH_RE = re.compile(r'(?i)(?<![\w.])~?\s*(?P<n>\d[\d,]*(?:\.\d+)?)\s*(?P<k>k?)
 #
 #   A Z80 mnemonic. `BIT 7`, `SET 3`, `RES 0` are instructions that happen to
 #   read like codes.
-CODE_ECHO_NOUN = r'(?:state|type|class|slot|bit|code|codes|index|mode|phase|octant)'
-CODE_ECHO_NUM = r'(?:\$[0-9A-Fa-f]{1,2}(?![0-9A-Fa-f])|\b\d{1,3}\b)'
+CODE_ECHO_NOUN = r'(?:state|type|class|slot|bit|code|codes|index|mode|phase|octant|headings?|ids?)'
+CODE_ECHO_NUM = r'(?:\$[0-9A-Fa-f]{1,2}(?![0-9A-Fa-f])|\b\d{1,3}\b(?!°))'
 CODE_ECHO_RE = re.compile(
     r'(?i)\b' + CODE_ECHO_NOUN + r'[-\s]+' + CODE_ECHO_NUM +
     r'|\b' + CODE_ECHO_NOUN + r's?\s+\$[0-9A-Fa-f]{2}\s*(?:to|[-\u2013])\s*\$?[0-9A-Fa-f]{2}\b')
@@ -364,15 +432,6 @@ UNRENDERED_DETAIL = (
     "catalog page is an index of everything at once; it is not the block"
 )
 
-EULOGY_WORDS = 25
-EULOGY_DETAIL = (
-    "{} words on bytes nothing uses. An unused block owes 'Unused.' and, if one "
-    "exists, the single thing worth knowing about it — bytes that decode to a "
-    "message, padding an alignment the next table needs. It does not owe the "
-    "proof that it is unused: no census of readers, no account of which fill "
-    "stops short, no note on why no stride could be found"
-)
-
 SYNTH_RE = re.compile(
     r'(?i)\bperiods?\b|\bcycles?\b|\bT-states?\b|\bhalf-cycle\b'
     r'|\b\d+\s*\*\s*[A-Za-z_#(]|#REG[a-z]+\s*='
@@ -391,11 +450,11 @@ PITCH_DETAIL = (
 
 
 def pitch_echo(text):
-    """Return the pitch a line states, or None when it states none."""
+    """Return the match of the pitch a text states, or None when it states none."""
     for m in PITCH_RE.finditer(text):
         if not m.group('k') and m.group('n').replace(',', '') in ('50', '48'):
             continue
-        return m.group(0).strip()
+        return m
     return None
 
 
@@ -448,6 +507,29 @@ SPLICE_DETAIL = (
 EQUATION_OPEN_RE = re.compile(r"^[a-z_][\w.]*'?(?:\[[^\]]*\])?\s*(?:=|:=|\+=|-=|->)")
 
 
+# What a cut sentence ends on: a comma, or a word that needs what follows it - a
+# conjunction, a preposition, an article or a relative pronoun. A noun phrase
+# ends on its noun and takes no full stop (TYPO-1), so a missing full stop is
+# not a cut, and reading it as one pushes an author to stop every fragment.
+SPLICE_OPEN_WORDS = frozenset((
+    'and', 'or', 'but', 'nor', 'so', 'yet',
+    'to', 'of', 'in', 'on', 'at', 'for', 'with', 'from', 'by', 'into', 'onto',
+    'over', 'under', 'as', 'than', 'via', 'about', 'through', 'toward',
+    'towards', 'between', 'against', 'without', 'within', 'across', 'past', 'per',
+    'the', 'a', 'an',
+    'that', 'which', 'while', 'when', 'where', 'who', 'whose', 'whom',
+))
+
+
+def unit_left_open(text):
+    """True when `text` ends where a sentence cannot."""
+    text = text.rstrip()
+    if text.endswith(','):
+        return True
+    words = re.findall(r"[A-Za-z']+$", text)
+    return bool(words) and words[0].lower() in SPLICE_OPEN_WORDS
+
+
 def splice_units(units):
     """Report each unit that completes the previous unit's unfinished sentence.
 
@@ -460,19 +542,19 @@ def splice_units(units):
             continue
         if EQUATION_OPEN_RE.match(text):
             continue
-        if prev[-1] in '.!?:':
+        if not unit_left_open(prev):
             continue
         hits.append((lineno, line, prev[-48:]))
     return hits
 
 
 def base_echo(text):
-    """Return the '$8A (138)' substring when one comment spells a value twice."""
+    """Return the '$8A (138)' match when one comment spells a value twice."""
     for m in BASE_PAIR_RE.finditer(text):
         hexed = m.group('hex') or m.group('hex2')
         dec = m.group('dec') or m.group('dec2')
         if int(hexed, 16) == int(dec):
-            return m.group(0)
+            return m
     return None
 
 
@@ -636,11 +718,12 @@ IMMEDIATE_RE = re.compile(r'\$([0-9A-Fa-f]{2})(?![0-9A-Fa-f])')
 # `LD B,$1C` repeats the operand as surely as "$1C" would: the base is a
 # notation, the echo is the value, and a reader who needs the count has it on
 # the row. Excluded to the left: '$' (the hex form, already matched), '+'/'-'
-# (a record offset — "+1" names a field, not a value), and a word character.
+# (a record offset – "+1" names a field, not a value), the en dash and minus
+# sign that stand for the hyphen in typeset prose, and a word character.
 # Excluded to the right: a word character, so "20th" is not a value, and a '.'
 # followed by a digit, so "1.3 kHz" is one number rather than two. A '.' that
 # ends a sentence is not part of the number, so "period: 50." still matches.
-DECIMAL_RE = re.compile(r'(?<![\w$+.-])(\d{1,5})(?![\w])(?!\.\d)')
+DECIMAL_RE = re.compile(r'(?<![\w$+.\-\u2013\u2212])(\d{1,5})(?![\w])(?!\.\d)')
 INDEXED_RE = re.compile(r'\((I[XY])\s*[-+]')
 DATA_DIRECTIVES = frozenset(('DEFB', 'DEFW', 'DEFM', 'DEFS'))
 
@@ -660,7 +743,7 @@ def operand_literals(mnemonic, operands):
 
 
 LITERAL_TOKEN_RE = re.compile(
-    r'\$([0-9A-Fa-f]{2})(?![0-9A-Fa-f])|(?<![\w$+.-])(\d{1,5})(?![\w])(?!\.\d)')
+    r'\$([0-9A-Fa-f]{2})(?![0-9A-Fa-f])|(?<![\w$+.\-\u2013\u2212])(\d{1,5})(?![\w])(?!\.\d)')
 
 
 def comment_literals(comment):
@@ -816,7 +899,7 @@ DATA_INDEX_RE = re.compile(
     r'^(?:Codes?|Tiles?|Entry|Entries|Index|Indices|Slots?|Class(?:es)?|Rows?'
     r'|Offsets?|Types?|Bytes?|Records?|Sub-frames?|Elements?|Items?|Cells?)'
     r' (?:\$[0-9A-Fa-f]+|\d+)(?:\s*-\s*(?:\$[0-9A-Fa-f]+|\d+))?\b')
-DATA_ECHO_DETAIL = ("a data row's comment repeats {} - the row shows its bytes "
+DATA_ECHO_DETAIL = ("a data row's comment repeats {} – the row shows its bytes "
                     "and its address is its position. Say what the row holds; "
                     "state the index once, in the block description")
 
@@ -877,37 +960,6 @@ def data_echoes(lines):
         yield hit
 
 
-def code_echoes(lines):
-    """Yield (lineno, line, token) for an unobservable number cited in prose.
-
-    Reads every block comment, of every block type, minus the four structural
-    exemptions above. Block type is deliberately *not* the test: it would let
-    "for character codes $20 to $5A" pass because the font block is data — a
-    prose citation wearing a data block's exemption. What earns the exemption
-    is the table row, not the block it sits in.
-    """
-    index, total = 0, len(lines)
-    while index < total:
-        if not lines[index].startswith(';'):
-            index += 1
-            continue
-        start, block = index, []
-        while index < total and lines[index].startswith(';'):
-            block.append(lines[index][1:].strip())
-            index += 1
-        for offset, raw in enumerate(block):
-            if raw.startswith(('{', '#TABLE', '#UDGTABLE', '#LIST', 'TABLE#', 'LIST#')):
-                continue                       # a table row: the code is its key
-            if REGISTER_LINE_RE.match(raw):
-                continue                       # the routine's own contract
-            text = MACRO_RE.sub(' ', MACRO_SPAN_RE.sub(' ', raw))
-            if CODE_ECHO_PLATFORM_RE.search(text) or CODE_ECHO_MNEMONIC_RE.search(raw):
-                continue
-            hit = CODE_ECHO_RE.search(text)
-            if hit:
-                yield start + offset + 1, raw[:120], hit.group(0)
-
-
 def unrendered_elements(lines):
     """Yield (lineno, title) for data blocks that name a renderable element and
     show none. Decided by the block's own title, so the author declares what the
@@ -938,86 +990,785 @@ def unrendered_elements(lines):
         yield start + 1, title[:120]
 
 
-def unused_annotations(lines):
-    """Yield (lineno, word count, first line) for every `u` entry's annotation.
+# --- Checks over prose units -------------------------------------------------
+#
+# Every text check below reads units from `prose_units.py` and declares the
+# surfaces it applies to. A unit is a title, a paragraph, a row comment or a
+# group, a register row, a table cell, a heading, a glossary title or body, in
+# a `.skool`, a `.ref`, a `.ctl` or a Markdown page alike. A check therefore
+# runs over every surface it names, in every file, with no second wiring for a
+# second file type.
+#
+# Each DETAIL ends with the rulebook ID the check enforces (`references/rules.md`).
 
-    A `u` block is bytes nothing uses, so the only content that exists is that
-    it is unused plus any one fact worth knowing. Everything a project writes
-    past that is the proof, and the proof is what the reader did not come for.
+ALL_SURFACES = PROSE_SURFACES
+NOT_REGISTER = PROSE_SURFACES - {'register'}
+# The surfaces a reader meets as running prose, outside the listing's rows.
+PAGE_PROSE = frozenset(('block', 'ref-para', 'term-body', 'list-item', 'table-cell'))
+SKOOL_COMMENT_SURFACES = frozenset(('title', 'block', 'register', 'row', 'data-row'))
+
+# The project's labels and entries, read from the `.skool`, so a `.ref` page's
+# `#R` can be resolved to the entry it names.
+ENV = {'labels': {}, 'entries': [], 'starts': [], 'family_stems': frozenset()}
+
+
+def set_env(labels, entries):
+    ENV['labels'] = labels
+    ENV['entries'] = sorted((int(e.addr, 16), e) for e in entries if e.addr)
+    ENV['starts'] = [a for a, _ in ENV['entries']]
+
+
+def entry_at(addr_hex):
+    """The entry whose span holds `addr_hex`, or None."""
+    try:
+        addr = int(addr_hex, 16)
+    except ValueError:
+        return None
+    index = bisect.bisect_right(ENV['starts'], addr) - 1
+    return ENV['entries'][index][1] if index >= 0 else None
+
+
+def entry_of(unit):
+    return unit.ctx.get('entry')
+
+
+def first_cell(unit):
+    """A table row's first cell holds its key, which the code checks exempt."""
+    return unit.surface == 'table-cell' and unit.ctx.get('col') == 0 \
+        and unit.ctx.get('table') != 'UDGTABLE'
+
+
+SENTENCE_SPLIT_RE = re.compile(r'(?<=[.!?])\s+(?=[A-Z#$"(])')
+
+
+def sentences(text):
+    """Yield (offset, sentence) for each sentence of `text`."""
+    start = 0
+    for m in SENTENCE_SPLIT_RE.finditer(text):
+        yield start, text[start:m.start()]
+        start = m.end()
+    yield start, text[start:]
+
+
+QUOTED_RE = re.compile(r'"[^"]*"|“[^”]*”')
+
+
+def unquoted(text):
+    """`text` with quoted game text blanked, offsets kept."""
+    return QUOTED_RE.sub(lambda m: ' ' * len(m.group(0)), text)
+
+
+def cite(detail, rule):
+    return f'{detail} [{rule}]'
+
+
+# BASE_ECHO, PITCH, OPEN, DIARY, REFPOINTER and SELFLINK read every unit.
+def check_base_echo(unit):
+    # A POKE page gives the decimal address the reader types and the hex that
+    # finds it in the listing: two facts, not one value read back.
+    if str((unit.ctx or {}).get('section', '')).startswith('Poke:'):
+        return
+    m = base_echo(unit.text)
+    if m:
+        yield m.start(), BASE_ECHO_DETAIL.format(m.group(0))
+
+
+def check_pitch(unit):
+    m = pitch_echo(unit.text)
+    if m:
+        yield m.start(), PITCH_DETAIL.format(m.group(0).strip())
+
+
+def check_open(unit):
+    for m in OPEN_MARKER_RE.finditer(unit.text):
+        yield m.start(), OPEN_DETAIL.format(m.group(0))
+
+
+def check_diary(unit):
+    m = DIARY_RE.search(OPEN_MARKER_RE.sub(lambda x: ' ' * len(x.group(0)), unit.text))
+    if m:
+        yield m.start(), diary_detail(m.group(0))
+
+
+def check_refpointer(unit):
+    m = REF_POINTER_RE.search(unit.text)
+    if m:
+        yield m.start(), (f"points the reader at '{m.group(0)}' – render the resource "
+                          'here (#UDG / #AUDIO); the .ref file is only the index')
+
+
+def check_selflink(unit):
+    for rx in (SELFLINK_RE, SELFLINK_REV_RE):
+        m = rx.search(unit.text)
+        if m and ENV['labels'].get(m.group('addr').upper()) == m.group('name'):
+            name = m.group('name')
+            yield m.start(), (f"'{name}' and '#R${m.group('addr')}' render as "
+                              f'"{name} ({name})" – link the first mention only, drop '
+                              'the parenthetical')
+            return
+
+
+def check_synth(unit):
+    if not (unit.ctx.get('run_audio') or unit.ctx.get('section_audio')):
+        return
+    m = SYNTH_RE.search(unit.text)
+    if m:
+        yield m.start(), SYNTH_DETAIL.format(m.group(0).strip())
+
+
+def check_code_echo(unit):
+    """A number the player cannot see, cited beside a name (AUD-4).
+
+    Read per sentence: the platform and mnemonic exemptions cover the sentence
+    that names the port or the instruction, and no other.
     """
-    index, total = 0, len(lines)
-    while index < total:
-        if not lines[index].startswith(';'):
-            index += 1
+    if first_cell(unit):
+        return
+    e = entry_of(unit)
+    # A variable's own row is where its encoding is defined.
+    if unit.surface == 'data-row' and e is not None and e.type == 'g':
+        return
+    text = unit.text
+    lead = len(text) - len(text.lstrip())
+    for offset, sentence in sentences(text):
+        if CODE_ECHO_PLATFORM_RE.search(sentence) or CODE_ECHO_MNEMONIC_RE.search(sentence):
             continue
-        start = index
-        block = []
-        while index < total and lines[index].startswith(';'):
-            block.append(lines[index][1:].strip())
-            index += 1
-        entry = index
-        while entry < total and (lines[entry].startswith('@') or not lines[entry].strip()):
-            entry += 1
-        if entry >= total or not re.match(r'^u\$[0-9A-Fa-f]{4}', lines[entry]):
+        m = CODE_ECHO_RE.search(sentence)
+        if not m:
             continue
-        gutter, row = [], entry
-        while row < total and lines[row].strip() and not lines[row].startswith(';'):
-            if ';' in lines[row]:
-                gutter.append(lines[row].split(';', 1)[1])
-            row += 1
-        text = ' '.join(block + gutter).replace('{', ' ').replace('}', ' ')
-        text = MACRO_SPAN_RE.sub(' ', text)
-        text = MACRO_RE.sub(' ', text)
-        first = next((b for b in block if b and b != '.'), '')
-        yield start + 1, len(text.split()), first[:120]
+        # A data row that opens on its index is DATA_ECHO's one finding.
+        if unit.surface == 'data-row' and offset + m.start() == lead \
+                and DATA_INDEX_RE.match(text.strip()):
+            continue
+        yield offset + m.start(), cite(CODE_ECHO_DETAIL.format(m.group(0)), 'AUD-4')
+
+
+# CODE_PAREN. A name, then its code in parentheses, in any shape the code
+# takes: one code, a range, a list, or a code behind an encoding noun.
+CODE_PAREN_RE = re.compile(
+    r'(?i)\b([a-z][\w/-]*)\s\((?:(?:tile|slot|type|code|state|class|index)s?\s+)?'
+    r'\$[0-9a-f]{2,4}(?![0-9a-f])[^()]*\)')
+CODE_PAREN_NOUN_RE = re.compile(
+    r'\([^()]*\b(?:tile|slot|type|code|state|class)s?\s+\$[0-9A-Fa-f]{2}(?![0-9A-Fa-f])[^()]*\)')
+CODE_PAREN_DETAIL = (
+    "names a thing and then its code in parentheses ('{}') – the code is "
+    "implementation the reader cannot see, and the name already says which "
+    "thing is meant; drop the code")
+
+
+def check_code_paren(unit):
+    if first_cell(unit):
+        return
+    for m in CODE_PAREN_RE.finditer(unit.text):
+        if m.group(1).upper() in ('OUT', 'IN'):
+            continue
+        yield m.start(), cite(CODE_PAREN_DETAIL.format(m.group(0)), 'AUD-4')
+        return
+    m = CODE_PAREN_NOUN_RE.search(unit.text)
+    if m:
+        yield m.start(), cite(CODE_PAREN_DETAIL.format(m.group(0)), 'AUD-4')
+
+
+# HOME-3. Four or more numbers in a run, or three after "level(s)", is a list of
+# values the data already holds. Three or more codes in a run is the same list
+# in hex.
+NUMBER_SEP = r'(?:\s*,\s*(?:(?:and|or)\s+)?|\s+(?:and|or)\s+)'
+NUMBER_LIST_RE = re.compile(
+    r'(?<![\w$.#,+\-–])\d{1,3}(?:' + NUMBER_SEP + r'\d{1,3}(?![\d.]\d)){3,}(?![\w,]|\.\d)'
+    r'|(?i:\blevels?\s+)\d{1,3}(?:' + NUMBER_SEP + r'\d{1,3}){2,}(?![\w,])')
+CODE_ITEM = r'\$[0-9A-Fa-f]{2}(?![0-9A-Fa-f])(?:\s*[–-]\s*\$[0-9A-Fa-f]{2}(?![0-9A-Fa-f]))?'
+CODE_LIST_RE = re.compile(
+    CODE_ITEM + r'(?:\s*(?:,|\bor\b|\band\b)?\s*(?:(?:and|or)\s+)?' + CODE_ITEM + r'){2,}')
+NUMBER_LIST_DETAIL = (
+    "lists numbers ('{}') – a list of the levels, slots or values that hold "
+    "something restates the game's data, which the data tables show")
+CODE_LIST_DETAIL = (
+    "lists codes ('{}') – a run of codes restates the game's data; name what "
+    "the codes have in common, or leave the list to the table that holds them")
+
+
+def check_number_list(unit):
+    if first_cell(unit):
+        return
+    for m in NUMBER_LIST_RE.finditer(unit.text):
+        yield m.start(), cite(NUMBER_LIST_DETAIL.format(m.group(0)), 'HOME-3')
+
+
+def check_code_list(unit):
+    if first_cell(unit):
+        return
+    for m in CODE_LIST_RE.finditer(unit.text):
+        yield m.start(), cite(CODE_LIST_DETAIL.format(m.group(0)), 'HOME-3')
+
+
+LEVEL_FACT_RE = re.compile(
+    r'(?i)\blevels?\s+\d+\s+(?:has|have|holds?|carries|carry|contains?|places?|uses?)\b'
+    r'|\bno levels?\b'
+    r'|\b(?:every|each) level\b[^.]*\b\d+\s+(?:slots?|cells?|tiles?|times)\b'
+    r'|\b\d+\s+(?:slots?|cells?|levels?)\s+(?:hold|carry|use|place|have|contain)\b'
+    r'|\b\w+ of the \d+ (?:\w+ )?(?:levels?|scripts?)\b')
+LEVEL_FACT_DETAIL = (
+    "states a fact about the level data ('{}') – which levels hold what, and "
+    "how many slots carry a value, is the data itself; the data tables show it")
+DATA_ENTRY_TYPES = frozenset('bgstuw')
+
+
+def check_level_fact(unit):
+    e = entry_of(unit)
+    if e is not None and e.type not in DATA_ENTRY_TYPES:
+        return
+    m = LEVEL_FACT_RE.search(unit.text)
+    if m:
+        yield m.start(), cite(LEVEL_FACT_DETAIL.format(m.group(0)), 'HOME-3')
+
+
+# HEAD-2. The storage vocabulary reads page headings only: an entry title in the
+# listing is the listing's own word for its bytes ("Tile attribute table"). A
+# count is wrong on any heading or title, the listing's included.
+HEADING_JARGON_RE = re.compile(
+    r'(?i)\b(records?|tables?|bytes?|pointers?|buffers?|offsets?)\b'
+    r'|\b\d+\s+[a-z]+s\b')
+HEADING_COUNT_RE = re.compile(r'(?i)^(?:the\s+)?\d+\s+[a-z-]+s\b')
+HEADING_JARGON_DETAIL = (
+    "heading '{}' uses the program's storage vocabulary or counts its "
+    "contents – name what the reader is browsing, in the game's terms")
+
+
+def check_heading_jargon(unit):
+    text = unit.text.strip()
+    if unit.surface == 'ref-heading':
+        hit = HEADING_JARGON_RE.search(text)
+    else:
+        hit = HEADING_COUNT_RE.search(text)
+    if hit:
+        yield 0, cite(HEADING_JARGON_DETAIL.format(text), 'HEAD-2')
+
+
+# NAME-6. An equate or constant name in prose: what a reader meets as a word is
+# the thing's name, never the identifier the assembler reads.
+IDENT_RE = re.compile(r'(?<![\w$#])[A-Z][A-Z0-9]*_[A-Z0-9_]*[A-Z0-9](?![\w])')
+IDENT_DETAIL = (
+    "names a constant by its identifier ('{}') – a reader meets the thing, not "
+    "the name the assembler reads; say what it is in words")
+
+
+def check_ident(unit):
+    m = IDENT_RE.search(unquoted(unit.text))
+    if m:
+        yield m.start(), cite(IDENT_DETAIL.format(m.group(0)), 'NAME-6')
+
+
+# DEF-2 to DEF-4. A glossary definition says what the thing is. Progress, the
+# logic that changes the value, and the code that uses it are not that.
+GLOSSARY_PROGRESS_RE = re.compile(r'(?i)\bhow far\b|\bhas got\b|\bso far\b|\bhas reached\b')
+GLOSSARY_LOGIC_RE = re.compile(
+    r'(?i)\b(?:wraps?|wrapped|resets?|increments?|incremented|decrements?|decremented'
+    r'|rolls? over)\b'
+    r'|\b(?:after|when|once|until|whenever|each time)\b[^.]*\b(?:advances?|repeats?'
+    r'|restarts?|clears?|counts? (?:up|down))\b')
+GLOSSARY_USE_RE = re.compile(r'#R\$[0-9A-Fa-f]{4}|(?i:\broutines?\b)')
+GLOSSARY_DEF_DETAIL = (
+    "the definition describes {} ('{}') – a glossary entry says what the thing "
+    "is, true before play starts; how it changes and what uses it belong to "
+    "the listing")
+
+
+def check_glossary_def(unit):
+    for rx, what, rule in ((GLOSSARY_PROGRESS_RE, "the player's progress", 'DEF-4'),
+                           (GLOSSARY_LOGIC_RE, 'logic that changes the value', 'DEF-2'),
+                           (GLOSSARY_USE_RE, 'the code that uses it', 'DEF-3')):
+        m = rx.search(unit.text)
+        if m:
+            yield m.start(), cite(GLOSSARY_DEF_DETAIL.format(what, m.group(0)), rule)
+            return
+
+
+GLOSSARY_IDENT_RE = re.compile(
+    r'(?i)^(?:constants?|variables?|labels?|equates?|identifiers?|symbols?)$')
+GLOSSARY_IDENT_DETAIL = (
+    "glossary term '{}' is a constant or a category of program symbol – the "
+    "glossary holds the game's and the project's own terms, and an identifier "
+    "is named in words where it is used")
+
+
+def check_glossary_ident(unit):
+    text = unit.text.strip()
+    if GLOSSARY_IDENT_RE.match(text) or IDENT_RE.search(text):
+        yield 0, cite(GLOSSARY_IDENT_DETAIL.format(text), 'DEF-6')
+
+
+# HOME-4. The actor must be a routine reference, so "cleared by a hit" is not
+# a hit. An `s` entry may name what fills it, so a writer verb there is exempt.
+CALLER_READ_VERBS = r'read|used|called|dispatched|polled|tested|consulted|checked'
+CALLER_WRITE_VERBS = (r'written|rewritten|set|cleared|updated|armed|seeded|incremented'
+                      r'|decremented|bumped|reset|zeroed|stored')
+CALLERS_RE = re.compile(
+    r'(?i)\b(?P<verb>' + CALLER_READ_VERBS + r'|' + CALLER_WRITE_VERBS + r')'
+    r'\s+(?:only\s+|both\s+|first\s+)?by\s+(?:#R\$|the routines?\b)'
+    r'|\b(?:readers?|writers?|callers?|used by)\s*:|\bEREF\b')
+CALLER_WRITE_RE = re.compile(r'(?i)^(?:' + CALLER_WRITE_VERBS + r')$')
+CALLERS_DETAIL = (
+    "lists the code that reads, writes or calls the thing ('{}') – the "
+    "listing's links already carry who touches what; say what the thing is")
+
+
+def check_callers(unit):
+    e = entry_of(unit)
+    for m in CALLERS_RE.finditer(unit.text):
+        verb = m.group('verb') or ''
+        if e is not None and e.type == 's' and CALLER_WRITE_RE.match(verb):
+            continue
+        yield m.start(), cite(CALLERS_DETAIL.format(m.group(0)), 'HOME-4')
+        return
+
+
+# TYPO-2. ASCII stand-ins for the typographic characters. Quoted game text and
+# macro parameters keep their bytes: the parameters are scrubbed from the unit,
+# and quoted text is blanked before matching.
+TYPO_RULES = (
+    ('a dimension', '×', re.compile(r'(?<![\w$#.])(?!0x)\d+\s?[xX]\s?\d+(?![\w])')),
+    ('an arrow', '→', re.compile(r'(?<![-<!])->|<-(?!-)|=>')),
+    ('a comparison', '≥ ≤ ≠', re.compile(r'(?<![<>=!])(?:>=|<=|!=)(?!=)')),
+    ('an angle', '°', re.compile(r'(?i)\b\d+\s*(?:deg|degrees?)\b')),
+    ('a product', '×', re.compile(r'(?<=[\w)])\s?\*\s?(?=[\w(])')),
+    ('a range', 'an en dash',
+     re.compile(r'(?<![\w$#\-–])(?:\$[0-9A-Fa-f]{2,4}|\d+)(?:-|\.\.)'
+                r'(?:\$[0-9A-Fa-f]{2,4}|\d+)(?![\w\-])')),
+    ('a minus sign', '−', re.compile(r'(?<![\w$#\-–+])-(?=\d)')),
+    ('a dash or a minus', 'a spaced en dash, or − for minus',
+     re.compile(r'(?<=[\w).])\s-\s(?=[\w(#$])')),
+)
+FLAT_RE = re.compile(r'(?<![\w$#])[A-G]b(?:\d|(?![\w]))')
+NOTE_CONTEXT_RE = re.compile(r'(?i)\b(?:note|notes|tune|pitch|pitches|melody|scale)\b')
+TYPOGRAPHY_DETAIL = (
+    "writes {} in ASCII ('{}') – prose uses {}; quoted game text and macro "
+    "parameters keep their bytes")
+
+
+def note_context(unit):
+    e = entry_of(unit)
+    if unit.ctx.get('run_audio') or unit.ctx.get('section_audio'):
+        return True
+    if e is not None and (e.audio or NOTE_CONTEXT_RE.search(e.title or '')):
+        return True
+    return bool(NOTE_CONTEXT_RE.search(unit.ctx.get('section') or ''))
+
+
+def check_typography(unit):
+    e = entry_of(unit)
+    if e is not None and e.type == 't':
+        return
+    text = unquoted(unit.text)
+    for what, write, rx in TYPO_RULES:
+        m = rx.search(text)
+        if m:
+            yield m.start(), cite(TYPOGRAPHY_DETAIL.format(what, m.group(0).strip(), write),
+                                  'TYPO-2')
+            return
+    if note_context(unit):
+        m = FLAT_RE.search(text)
+        if m:
+            yield m.start(), cite(TYPOGRAPHY_DETAIL.format('a flat', m.group(0), '♭'),
+                                  'TYPO-2')
+
+
+# TYPO-1. A full stop ends a sentence, and a noun phrase takes none. A unit is a
+# sentence when it holds a verb, and the test for one is broad on purpose: an
+# imperative opening a clause, a word from a long list of verbs, or any word after
+# the first ending in -s, -es, -ed or -ing. A plural noun or a participle passes
+# the last test too, so the check reports only units with no verb-shaped word in
+# them. Code rows are not read: they are imperatives.
+IMPERATIVES = frozenset('''
+    set clear add skip return stop step point copy draw mark keep take leave read
+    write load store test wait move fill pick hold count start award arm blank
+    blip bump call check compare compute convert decrement divide double drop
+    enter erase exit find fire flash flip get give halve increment invert jump
+    loop lower make mask merge multiply negate open paint play poll pop print
+    push put raise redraw render reset restore resume rotate run save scan seed
+    select shift show spawn swap toggle turn update use walk wipe zero apply
+    advance build choose close convert emit follow kill sound beep send seed
+    see note stash recover align end begin go try let pass repeat continue
+    finish carry flag hide reveal score subtract scroll wrap clamp fetch
+'''.split())
+# Past forms that name things in a listing (a shot, a bit, a set, a hit, the
+# left column, a read pointer) are left out, so a row naming one is still read.
+FINITE_VERBS = frozenset('''
+    is are was were be been being am has have had does do did can cannot could
+    will would may might must shall should isn't aren't wasn't weren't doesn't
+    don't didn't can't won't hasn't haven't
+    holds draws stands takes runs moves sets clears goes comes keeps makes gives
+    leaves marks points reads writes stores starts stops ends begins counts
+    returns plays shows means falls rises turns becomes covers lies sits carries
+    contains follows repeats spawns appears hides bounces breaks hits needs uses
+    lets gets puts says wins loses dies kills scores lands passes stays waits
+    fires flashes selects picks tests adds skips steps lasts reaches equals
+    matches spans shrinks grows slows speeds sticks drops opens closes wraps
+    flips swaps scrolls clamps fills wipes blanks arms awards
+    went made took gave kept held drew ran put fell rose began begun drawn
+    taken given shown known seen done gone became come brought caught thought
+    found lost won sent spent built meant led struck stuck spun spread let got
+    sat laid paid said told sold slid hid heard
+'''.split())
+# A word after the first that ends this way may be a verb, so the unit may be a
+# sentence. Short words (its, this, his, bus), -ss and -us words (class, bonus)
+# and -eed words (speed, seed) are not counted.
+VERB_ENDING_RE = re.compile(r'(?i)^[a-z][a-z\'’-]*(?:(?<![su])s|es|(?<!e)ed|ing)$')
+NOT_VERB_ENDINGS = frozenset('''
+    its this his hers ours yours theirs thus plus less unless across always
+    perhaps nothing something anything everything
+'''.split())
+# A first word ending in -s is a verb when one of these follows it. `of` and
+# `per` are left out: "Tiles per level" and "Records of the player" are nouns.
+VERB_OBJECT_WORDS = frozenset('''
+    the a an its their his her every each all both this that these those one
+    two any no on to in at into from with by for over off up down out through
+    toward towards back away
+'''.split())
+# A word after one of these is in that preposition's object.
+PREPOSITIONS = frozenset('''
+    of per for in on at with by from to into onto over under between across
+    through toward towards within without
+'''.split())
+# Bare verbs a plural subject takes that the imperative list does not hold.
+BARE_VERBS = frozenset('''
+    run hit fall rise lie sit stand bounce break die win lose land stay last
+    reach equal match span shrink grow slow speed stick come go appear hide
+    sound count hold
+'''.split())
+WORD_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z'’-]*")
+FRAGMENT_DETAIL = (
+    "ends a noun phrase with a full stop ('{}') – a full stop ends a sentence. "
+    "A row, caption, title or cell that names a thing takes none")
+
+
+def suffix_verb(words):
+    """Return whether a clause's words hold a verb by its ending, after a subject.
+
+    A word after a preposition belongs to that preposition's object, so "grid of
+    tile slot codes" holds a noun where "the lift rises" holds a verb.
+    """
+    for position, word in enumerate(words):
+        lower = word.lower()
+        if lower in PREPOSITIONS:
+            return False
+        if position and len(lower) > 3 and lower not in NOT_VERB_ENDINGS \
+                and VERB_ENDING_RE.match(lower):
+            return True
+    return False
+
+
+def has_verb(text):
+    """Return whether a unit holds a verb-shaped word, by the broad test above."""
+    for clause in re.split(r'[:;,]', text):
+        first = WORD_TOKEN_RE.search(clause)
+        if first and first.group(0).lower() in IMPERATIVES:
+            return True
+    words = WORD_TOKEN_RE.findall(text)
+    if any(w.lower() in FINITE_VERBS for w in words):
+        return True
+    for clause in re.split(r'[:;,]', text):
+        if suffix_verb(WORD_TOKEN_RE.findall(clause)):
+            return True
+    # A clause's first word is a verb when the subject is left out ("Paints the
+    # wall", "Advances HL to the next row", "Homes on the player"): an -s or -es
+    # word followed by an object or a preposition.
+    for clause in re.split(r'[:;,]', text):
+        pair = WORD_TOKEN_RE.findall(clause)[:2]
+        if len(pair) < 2:
+            continue
+        first, following = pair[0].lower(), pair[1]
+        if (len(first) > 3 and first not in NOT_VERB_ENDINGS and first.endswith('s')
+                and VERB_ENDING_RE.match(first)
+                and (following.lower() in VERB_OBJECT_WORDS
+                     or re.fullmatch(r'[A-Z]{1,3}', following))):
+            return True
+    for word, following in zip(words, words[1:]):
+        # A plural subject and a bare verb: "Records run in level order".
+        lower = word.lower()
+        if (len(lower) > 3 and lower not in NOT_VERB_ENDINGS and VERB_ENDING_RE.match(lower)
+                and lower.endswith('s') and following.lower() in IMPERATIVES | BARE_VERBS):
+            return True
+    return False
+
+
+def check_fragment_stop(unit):
+    text = unit.text.strip()
+    if not text.endswith('.') or text.endswith('..') or text.endswith('…'):
+        return
+    tail = ' '.join(text.split()[-6:])
+    if unit.surface == 'title':
+        yield len(unit.text.rstrip()) - 1, cite(FRAGMENT_DETAIL.format(tail), 'TYPO-1')
+        return
+    if unit.ctx.get('header'):
+        return
+    if len(list(sentences(text))) > 1:
+        return
+    if not WORD_TOKEN_RE.search(text) or has_verb(text):
+        return
+    yield len(unit.text.rstrip()) - 1, cite(FRAGMENT_DETAIL.format(tail), 'TYPO-1')
+
+
+# AUD-3. An argument against a reading nobody offered.
+FOIL_RE = re.compile(
+    r'(?i)\b(?:is|are|was|were)\s+not\s+(?:a|an|the)\b'
+    r'|,\s+not\s+(?:a|an|the|by|as|in|on|to|at|for|from|with)\b'
+    r'|\brather than\b|\binstead of\b|\bnot\s+\w+\s*,\s*but\b'
+    r'|\bbelongs? to [^,.]+, not\b')
+FOIL_DETAIL = (
+    "argues against a reading nobody offered ('{}') – state what the thing is "
+    "or does; a contrast earns its place only when the other side is on the page")
+
+
+DEFECT_SECTION_RE = re.compile(r'(?i)bug|defect')
+DEFECT_LINK_RE = re.compile(r'(?i)#LINK[(:][^)]*(?:bug|defect)')
+
+
+def check_foil(unit):
+    """AUD-3, minus a defect statement, which names the faulty behavior beside
+    the intended one: a `.ref` defects or bugs section, or a unit marked BUG or
+    linking to the defects page."""
+    text = unit.text.strip()
+    if unit.surface in ('row', 'data-row') and text.endswith('?'):
+        return
+    if DEFECT_SECTION_RE.search(unit.ctx.get('section') or '') \
+            or DEFECT_LINK_RE.search(unit.raw) or re.search(r'\bBUG\b', unit.text):
+        return
+    m = FOIL_RE.search(unit.text)
+    if m:
+        yield m.start(), cite(FOIL_DETAIL.format(m.group(0)), 'AUD-3')
+
+
+# HOME-2 and HOME-8. "Below" is a position, and a reader who arrived by a link
+# has no position to read it from.
+DEIXIS_RE = re.compile(
+    r'(?i)\b(?:the|these|those)\s+(?:routines?|entries|entry|blocks?|tables?)\s+'
+    r'(?:below|above)\b')
+DEIXIS_DETAIL = (
+    "points at its neighbors by position ('{}') – a reader who arrived by a link "
+    "has no 'below'; name the entry by its link, or describe only this one")
+
+
+def check_deixis(unit):
+    m = DEIXIS_RE.search(unit.text)
+    if m:
+        yield m.start(), cite(DEIXIS_DETAIL.format(m.group(0)), 'HOME-2')
+
+
+FOREIGN_VERBS_RE = re.compile(
+    r'(?i)\b(?:derives?|computes?|finds?|checks?|tests?|compares?|loops?|walks?'
+    r'|adds?|subtracts?|shifts?|masks?|branches?|packs?|reaches?|calculates?)\b')
+FOREIGN_LOGIC_DETAIL = (
+    "describes another routine's logic ('{}') on a data entry's page – the "
+    "page describes its own bytes; at most it names the routine that fills them")
+
+
+def check_foreign_logic(unit):
+    e = entry_of(unit)
+    if e is None or e.type not in ('b', 'g', 's', 'w', 't', 'u'):
+        return
+    for offset, sentence in sentences(unit.text):
+        verb = FOREIGN_VERBS_RE.search(sentence)
+        if not verb:
+            continue
+        for ref in re.finditer(r'#R\$([0-9A-Fa-f]{4})', sentence):
+            target = entry_at(ref.group(1))
+            if target is not None and target.type == 'c':
+                quote = sentence[min(ref.start(), verb.start()):
+                                 max(ref.end(), verb.end())]
+                yield offset + min(ref.start(), verb.start()), cite(
+                    FOREIGN_LOGIC_DETAIL.format(quote), 'HOME-2')
+                return
+
+
+# VIS-1. A render inside a sentence draws inside the sentence's box.
+INLINE_RENDER_DETAIL = (
+    "draws a render inside a line of text ('{}') – a render sits in a block of "
+    "its own (#UDGTABLE in an N note or a page block), never in a sentence or "
+    "a row comment")
+
+
+def check_inline_render(unit):
+    if not unit.render or unit.ctx.get('table') == 'UDGTABLE' or unit.ctx.get('markup'):
+        return
+    words = re.findall(r'[A-Za-z]{2,}', unit.text)
+    if len(words) >= 3:
+        yield 0, cite(INLINE_RENDER_DETAIL.format(' '.join(words[:6])), 'VIS-1')
+
+
+# ROW-1 on a `.ref` table: a cell other than the key column that opens on an
+# index ("Code $12:") repeats the key the row already shows.
+def check_cell_index(unit):
+    if first_cell(unit) or unit.ctx.get('header'):
+        return
+    text = unit.text.strip()
+    m = DATA_INDEX_RE.match(text)
+    if m:
+        yield unit.text.find(text), DATA_ECHO_DETAIL.format(f'its index ("{m.group(0)}")')
+
+
+# HOME-5. A row whose comment is only its operand label's words says what the
+# link beside it already says. A label's family prefix, read from the project's
+# label-families block (`--families`), says which bank the bytes sit in, so it
+# is not one of the words a comment could echo.
+LABEL_DROP_WORDS = frozenset(('update', 'anim', 'src', 'handler', 'h'))
+LABEL_OPERAND_RE = re.compile(r'(?i)^(DEFW|JP|CALL|JR|DJNZ|LD)\b\s*(.*)$')
+LABEL_ECHO_DETAIL = (
+    "the comment is the label's own words ('{}') – the operand's link already "
+    "names the target; say what this row does with it")
+
+
+def operand_labels(instr):
+    m = LABEL_OPERAND_RE.match(instr.strip())
+    if not m:
+        return []
+    found = []
+    for token in re.split(r'[,\s()]+', m.group(2)):
+        if not token:
+            continue
+        if token.startswith('$') and re.fullmatch(r'\$[0-9A-Fa-f]{4}', token):
+            label = ENV['labels'].get(token[1:].upper())
+        elif re.fullmatch(r'\d{4,5}', token):
+            label = ENV['labels'].get(f'{int(token):04X}')
+        else:
+            label = token if token in ENV['labels'].values() else None
+        if label:
+            found.append(label)
+    return found
+
+
+def check_label_echo(unit):
+    instrs = unit.ctx.get('instrs') or []
+    if len(instrs) != 1:
+        return
+    labels = operand_labels(instrs[0])
+    if not labels:
+        return
+    label_words = set()
+    for label in labels:
+        label_words |= {w for w in re.split(r'[_\-]+', label.lower())
+                        if w and not w.isdigit() and w not in LABEL_DROP_WORDS
+                        and w not in ENV['family_stems']}
+    comment = re.sub(r'#R\$[0-9A-Fa-f]{4}', ' ', unit.text.lower())
+    words = {w for w in re.findall(r'[a-z]+', comment) if w not in ('a', 'an', 'the')}
+    if words and words <= label_words:
+        yield 0, cite(LABEL_ECHO_DETAIL.format(unit.text.strip()), 'HOME-5')
+
+
+# Every unit check: its kind, the surfaces it reads, and the file types it reads
+# them in (None for every type).
+UNIT_CHECKS = (
+    ('BASE_ECHO', ALL_SURFACES, None, check_base_echo),
+    ('PITCH', ALL_SURFACES, None, check_pitch),
+    ('OPEN', ALL_SURFACES, None, check_open),
+    ('DIARY', ALL_SURFACES, None, check_diary),
+    ('REFPOINTER', SKOOL_COMMENT_SURFACES, ('.skool',), check_refpointer),
+    ('SELFLINK', ALL_SURFACES, None, check_selflink),
+    ('SYNTH_ECHO', ALL_SURFACES - {'row', 'data-row', 'register'}, None, check_synth),
+    ('CODE_ECHO', NOT_REGISTER - {'ref-heading', 'term-title'}, None, check_code_echo),
+    ('CODE_PAREN', NOT_REGISTER, None, check_code_paren),
+    ('NUMBER_LIST', NOT_REGISTER, None, check_number_list),
+    ('CODE_LIST', NOT_REGISTER, None, check_code_list),
+    ('LEVEL_FACT', NOT_REGISTER - {'title', 'ref-heading', 'term-title'}, None,
+     check_level_fact),
+    ('HEADING_JARGON', frozenset(('ref-heading', 'title', 'term-title')), None,
+     check_heading_jargon),
+    ('IDENT_IN_PROSE', NOT_REGISTER, None, check_ident),
+    ('GLOSSARY_DEF', frozenset(('term-body',)), None, check_glossary_def),
+    ('GLOSSARY_IDENT', frozenset(('term-title',)), None, check_glossary_ident),
+    ('CALLERS', ALL_SURFACES, None, check_callers),
+    ('TYPOGRAPHY', ALL_SURFACES, None, check_typography),
+    # Code rows are imperatives, and no fixed verb list holds them all.
+    ('FRAGMENT_STOP', frozenset(('data-row', 'table-cell', 'register', 'title',
+                                 'list-item')), None, check_fragment_stop),
+    ('FOIL', ALL_SURFACES, None, check_foil),
+    ('DEIXIS', frozenset(('block', 'title')), None, check_deixis),
+    ('FOREIGN_LOGIC', frozenset(('block',)), None, check_foreign_logic),
+    ('INLINE_RENDER', frozenset(('block', 'row', 'data-row', 'ref-para', 'term-body',
+                                 'list-item', 'table-cell')), None, check_inline_render),
+    ('DATA_ECHO', frozenset(('table-cell',)), None, check_cell_index),
+    ('LABEL_ECHO', frozenset(('row', 'data-row')), ('.skool',), check_label_echo),
+)
+
+
+def unit_findings(path, units):
+    """Run every unit check over every unit it applies to.
+
+    Returns (lineno, kind, display, detail) tuples, one per kind per line.
+    """
+    ext = os.path.splitext(path)[1]
+    seen, found = set(), []
+    for unit in units:
+        for kind, surfaces, files, check in UNIT_CHECKS:
+            if unit.surface not in surfaces or (files and ext not in files):
+                continue
+            for offset, detail in check(unit):
+                lineno, display = unit.locate(offset)
+                key = (lineno, kind, detail)
+                if key in seen:
+                    continue
+                seen.add(key)
+                found.append((lineno, kind, display[:120], detail))
+    return found
+
+
+# UNU-1 and UNU-3. An unused entry is its title and nothing else.
+UNUSED_TITLES = ('unused bytes', 'unused byte')
+UNUSED_TEXT_DETAIL = (
+    "an unused entry carries text ('{}') – unused bytes are titled 'Unused "
+    "bytes' and say nothing else: no reason, no neighbors, no guessed purpose. "
+    "One unused byte inside a used table keeps its 'Unused' row")
+# DEF-5. A variable's words, against the variables and bytes it holds: 24 words
+# for each labeled variable and 6 for each further byte.
+WORDY_BASE, WORDY_PER_BYTE, WORDY_MAX_BYTES = 24, 6, 4
+WORDY_DETAIL = (
+    "{} words on a {}-byte variable ('{}') – a variable's definition says what it holds "
+    "and how it is encoded, in one sentence per byte or so; who reads it, how "
+    "it changes and what it selects belong to the code")
+
+
+def entry_findings(units):
+    """UNUSED_TEXT and WORDY_VARIABLE, which read a whole entry's units."""
+    by_entry = {}
+    for unit in units:
+        e = entry_of(unit)
+        if e is not None and unit.surface in SKOOL_COMMENT_SURFACES:
+            by_entry.setdefault(id(e), (e, []))[1].append(unit)
+    found = []
+    for e, entry_units in by_entry.values():
+        if e.type == 'u':
+            for unit in entry_units:
+                text = unit.text.strip()
+                if unit.surface == 'title' and text.lower().rstrip('.') in UNUSED_TITLES:
+                    continue
+                if e.length == 1 and unit.surface in ('row', 'data-row') \
+                        and text.rstrip('.').lower() == 'unused':
+                    continue
+                found.append((unit.lineno, 'UNUSED_TEXT', unit.display[:120],
+                              cite(UNUSED_TEXT_DETAIL.format(text[:60]), 'UNU-1')))
+                break
+        elif e.type == 'g' and 0 < e.length <= WORDY_MAX_BYTES:
+            words = sum(len(u.text.split()) for u in entry_units if u.surface != 'register')
+            # Each labeled byte is a variable of its own, with its own sentence.
+            variables = max(1, sum(1 for addr, _ in e.rows if addr in ENV['labels']))
+            budget = WORDY_BASE * variables + WORDY_PER_BYTE * max(0, e.length - variables)
+            if words > budget:
+                first = entry_units[0]
+                found.append((first.lineno, 'WORDY_VARIABLE', first.display[:120],
+                              cite(WORDY_DETAIL.format(words, e.length, e.title[:60]), 'DEF-5')))
+    return found
 
 
 def scan_prose(path):
-    """Scan a reader-facing prose deliverable (.ref catalog, spec page) for
-    investigation vocabulary. Only DIARY applies — the rest of the checks read
-    an instruction column this file does not have."""
-    violations = []
-    with open(path, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+    """Scan a reader-facing page (`.ref`, `.ctl` titles, a spec page).
 
-    # An entry that renders its sound owes the render and the meaning, not the
-    # method. A page's shared model, stated once in a section that renders
-    # nothing, is the one home for it and stays — so the signal is the #AUDIO
-    # beside the prose, which is on the page and decidable.
-    audio_lines = set()
-    start, holds_audio = 0, False
-    for index, raw in enumerate(lines):
-        if raw.startswith('['):
-            if holds_audio:
-                audio_lines.update(range(start + 1, index + 1))
-            start, holds_audio = index, False
-        if '#AUDIO' in raw:
-            holds_audio = True
-    if holds_audio:
-        audio_lines.update(range(start + 1, len(lines) + 1))
-
-    for lineno, raw in enumerate(lines, 1):
-            text = raw.strip()[:120]
-            pair = base_echo(raw)
-            if pair:
-                violations.append((lineno, 'BASE_ECHO', text,
-                                   BASE_ECHO_DETAIL.format(pair)))
-            pitch = pitch_echo(raw)
-            if pitch:
-                violations.append((lineno, 'PITCH', text,
-                                   PITCH_DETAIL.format(pitch)))
-            for om in OPEN_MARKER_RE.finditer(raw):
-                violations.append((lineno, 'OPEN', text,
-                                   OPEN_DETAIL.format(om.group(0))))
-            dm = DIARY_RE.search(OPEN_MARKER_RE.sub(' ', raw))
-            if dm:
-                violations.append((lineno, 'DIARY', text,
-                                   diary_detail(dm.group(0))))
-            if lineno in audio_lines and not raw.lstrip().startswith('#'):
-                sm = SYNTH_RE.search(raw)
-                if sm:
-                    violations.append((lineno, 'SYNTH_ECHO', text,
-                                       SYNTH_DETAIL.format(sm.group(0).strip())))
+    The same unit checks the `.skool` gets, over the same surfaces: a page is
+    read by the same reader as the listing, so it is held to the same rules.
+    The `.skool`'s labels and entries, when it was scanned first, resolve the
+    page's `#R` references.
+    """
+    units = read_units(path)[0]
+    violations = unit_findings(path, units)
+    violations.sort(key=lambda v: v[0])
     return violations
 
 
@@ -1025,48 +1776,20 @@ def scan(path):
     with open(path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
 
-    # Which block comments render their sound. An entry's block comment is one
-    # contiguous run of column-0 ';' lines, so the run is the unit and the
-    # #AUDIO in it is the signal: prose sitting beside the clip that plays the
-    # effect must not also say how the effect is made. Instruction comments are
-    # not marked — the body is where the algorithm is explained, and it should
-    # be. This is the same shape as LAYOUT_ECHO: decided by location, not by
-    # reading the prose.
-    audio_block_lines = set()
-    run_start, run_audio = None, False
-    for index, raw in enumerate(lines):
-        if raw.startswith(';'):
-            if run_start is None:
-                run_start, run_audio = index, False
-            if '#AUDIO' in raw:
-                run_audio = True
-            continue
-        if run_start is not None and run_audio:
-            audio_block_lines.update(range(run_start + 1, index + 1))
-        run_start, run_audio = None, False
-    if run_start is not None and run_audio:
-        audio_block_lines.update(range(run_start + 1, len(lines) + 1))
+    # The text checks read prose units, each over the surfaces it declares; the
+    # checks below them read the listing's structure, which a unit does not
+    # carry: groups and their spans, operands, entry types.
+    units, unit_labels, entries = read_units(path)
+    set_env(unit_labels, entries)
 
-    violations_pending = []
-
-    for lineno, text, token in code_echoes(lines):
-        violations_pending.append((lineno, 'CODE_ECHO', text,
-                                   CODE_ECHO_DETAIL.format(token)))
+    violations_pending = unit_findings(path, units) + entry_findings(units)
 
     for lineno, text, what in data_echoes(lines):
         violations_pending.append((lineno, 'DATA_ECHO', text,
-                                   DATA_ECHO_DETAIL.format(what)))
+                                   cite(DATA_ECHO_DETAIL.format(what), 'ROW-1')))
 
     for lineno, title in unrendered_elements(lines):
         violations_pending.append((lineno, 'UNRENDERED', title, UNRENDERED_DETAIL))
-
-    # Unused blocks, and what they were given. A `u` entry's whole annotation is
-    # its block comment plus whatever sits in its gutter, and both are where the
-    # eulogy lands. Counted together, reported once, at the block.
-    for lineno, words, first in unused_annotations(lines):
-        if words > EULOGY_WORDS:
-            violations_pending.append((lineno, 'EULOGY', first,
-                                       EULOGY_DETAIL.format(words)))
 
     violations = list(violations_pending)
 
@@ -1135,11 +1858,6 @@ def scan(path):
             units.append((para_lineno, ' '.join(para_text)))
             joined = ' '.join(para_text)
             layout_rows.append((para_lineno, joined.strip()[:120], joined, in_code))
-            if para_lineno in audio_block_lines:
-                sm = SYNTH_RE.search(joined)
-                if sm:
-                    add(para_lineno, 'SYNTH_ECHO', joined.strip()[:120],
-                        SYNTH_DETAIL.format(sm.group(0).strip()))
         para_lineno, para_text = None, []
 
     def close_group():
@@ -1280,31 +1998,6 @@ def scan(path):
             in_group = False        # a block-comment line breaks any group
             close_group()
 
-        # Text-level checks apply to every comment, grouped or not.
-        for slre in (SELFLINK_RE, SELFLINK_REV_RE):
-            sm = slre.search(comment)
-            if sm and labels.get(sm.group('addr').upper()) == sm.group('name'):
-                add(lineno, 'SELFLINK', line.strip(),
-                    f"'{sm.group('name')}' and '#R${sm.group('addr')}' render as "
-                    f"\"{sm.group('name')} ({sm.group('name')})\" — link the first "
-                    "mention only, drop the parenthetical")
-                break
-        pair = base_echo(comment)
-        if pair:
-            add(lineno, 'BASE_ECHO', line.strip(), BASE_ECHO_DETAIL.format(pair))
-        pitch = pitch_echo(comment)
-        if pitch:
-            add(lineno, 'PITCH', line.strip(), PITCH_DETAIL.format(pitch))
-        for om in OPEN_MARKER_RE.finditer(comment):
-            add(lineno, 'OPEN', line.strip(), OPEN_DETAIL.format(om.group(0)))
-        dm = DIARY_RE.search(OPEN_MARKER_RE.sub(' ', comment))
-        if dm:
-            add(lineno, 'DIARY', line.strip(), diary_detail(dm.group(0)))
-        rm = REF_POINTER_RE.search(comment)
-        if rm:
-            add(lineno, 'REFPOINTER', line.strip(),
-                f"points the reader at '{rm.group(0)}' — render the resource "
-                'here (#UDG / #AUDIO); the .ref file is only the index')
         # ELLIPSIS runs before the group skip below, because the splice it looks
         # for is *made of* groups: one closes on '...' and the next opens on
         # '...', chaining a thought across two groups instead of writing one over
@@ -1391,8 +2084,14 @@ def main():
     parser.add_argument('paths', nargs='+', help='the .skool, then any prose files')
     parser.add_argument('--advisory', action='store_true',
                         help='list the advisory findings, not just their counts')
+    parser.add_argument('--families',
+                        help="the project's AGENTS.md, whose label-families block "
+                             "names the prefixes LABEL_ECHO leaves out of a label's words")
     ctl_baseline.add_arguments(parser)
     args = parser.parse_args()
+    ENV['family_stems'] = frozenset(
+        validate_label_family.stem(prefix).lower()
+        for prefix, _, _ in validate_label_family.read_families(args.families) or [])
 
     findings = []
     for path in args.paths:

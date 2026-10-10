@@ -9,12 +9,30 @@ about its bytes is not documented data — it is a region nobody has digested, a
 code modeled as an undifferentiated byte span reads as clean under every other
 check while relocating nothing.
 
-Five checks, all arithmetic over directives the .ctl already carries:
+Seven checks, all arithmetic over directives the .ctl already carries:
 
   UNTYPED      a block with no sub-directives, a B/T span carrying no
                sublength, or the part of a block no render macro reaches, over
                the scalar threshold (default 8 bytes). `w` and `W` state the
-               element size themselves and are exempt.
+               element size themselves and are exempt. The fixes, in order:
+               render it; state the record length the code walks; never a width
+               chosen to clear this check.
+  ROW_WIDTH    a B span cut one byte per row, or a run of three or more
+               one-byte B directives, where fewer than half of the rows are a
+               record of their own. A row is one when the code addresses that
+               byte by an absolute operand, when a `LD IX,nn` or `LD IY,nn` base
+               sits within 127 bytes below it inside the entry (both need
+               --bin), or when the entry's `D` or `N` states a one-byte record:
+               "indexed by", "one … per …", "a byte per", or a run "closed by"
+               a sentinel. A comment on a row is no evidence of a record, so
+               commenting rows never clears this.
+  STRIDE_APPEASE (advisory) a B span with a sublength of 2, 3 or 4 over bytes
+               a render draws, or inside the range of a label family whose
+               range holds a render or a copy of one (`--families`). That
+               sublength may be a width chosen to clear UNTYPED. Whether it is
+               the record the code walks is not decidable from the .ctl, so the
+               kind is listed and never gates, and a record length stated in
+               prose does not clear it.
   ZEROFILL     (needs --bin) an all-zero span enumerated as a stride instead of
                declared a buffer — nothing checks a stride over zeros
   TILING       sub-directive lengths sum to the block size, contiguous from its
@@ -28,9 +46,12 @@ An unused entry (`u`) is exempt from every check here: its bytes have no layout
 to declare.
 
 A block drawn by an image or audio macro is exempt from UNTYPED: the macro is
-the schema and the render is its proof. The macro may sit in the block's own
-prose, or on a partner block the two name each other through — a beeper sound is
-code plus data, so its #AUDIO lives on the player, not on the period table.
+the schema and the render is its proof. With `--bin`, so is a span whose entry
+`D`, or whose own comment, says it is `copied from #R$XXXX` a rendered source,
+when its bytes in the image match that source's: the source's render draws them.
+The macro may sit in the block's own prose, or on a partner block the two name
+each other through — a beeper sound is code plus data, so its #AUDIO lives on
+the player, not on the period table.
 
 The exemption discharges over the bytes a macro actually reads, not over the
 block a macro appears in. #UDGARRAY, #UDG and #FONT state their addresses, so
@@ -57,6 +78,7 @@ import re
 import sys
 
 import ctl_baseline
+import validate_label_family
 
 CHECK = 'data-structure'
 
@@ -120,7 +142,32 @@ REF_RE = re.compile(r'#R(\$?[0-9A-Fa-f]{4,5})\b')
 
 BLOCK_RE = re.compile(r'^([%s]) +(\$?[0-9A-Fa-f]+) *(.*)$' % BLOCK_TYPES)
 LABEL_RE = re.compile(r'^@ +(\$?[0-9A-Fa-f]+) +label=')
-SPAN_RE = re.compile(r'^([%s]) +(\$?[0-9A-Fa-f]+),([^ ]+)' % SPAN_TYPES)
+SPAN_RE = re.compile(r'^([%s]) +(\$?[0-9A-Fa-f]+),([^ ]+)(?: +(\S.*))?' % SPAN_TYPES)
+# A comment on one row inside a span: two spaces, the row's address, the text.
+ROW_COMMENT_RE = re.compile(r'^  (\$?[0-9A-Fa-f]+)(?:,[^\s]+)* +\S')
+
+# A copy names its source this way, in its entry's `D` or on its own directive.
+COPIED_RE = re.compile(r'(?i)\bcopied from #R(\$?[0-9A-Fa-f]{4,5})\b')
+
+# An entry's statement that each byte is a record of its own: a table indexed by
+# something, one value per thing, or runs closed by a sentinel byte.
+ONE_BYTE_RECORD_RE = re.compile(
+    r'(?i)\bindexed by\b|\bone\b[^.]{0,40}?\bper\b|\b(?:a|one|1)[ -]byte '
+    r'(?:per|each|record)\b|\bbyte per\b|\b(?:closed|terminated) by\b')
+
+# Instructions whose two-byte operand is an address the code reads or writes
+# directly, and the index-register loads that set a record's base.
+ABSOLUTE_OPCODES = (b'\x3a', b'\x32', b'\x2a', b'\x22', b'\x21', b'\x11', b'\x01',
+                    b'\x31', b'\xed\x4b', b'\xed\x5b', b'\xed\x7b', b'\xed\x43',
+                    b'\xed\x53', b'\xed\x73', b'\xdd\x2a', b'\xdd\x22', b'\xfd\x2a',
+                    b'\xfd\x22')
+INDEX_BASE_OPCODES = (b'\xdd\x21', b'\xfd\x21')
+
+# The sublengths a width chosen to clear UNTYPED takes over a bitmap or a slot.
+APPEASING_WIDTHS = (2, 3, 4)
+
+# Kinds that are listed and never gate.
+ADVISORY_KINDS = frozenset(('STRIDE_APPEASE',))
 
 
 def parse_address(text):
@@ -205,11 +252,20 @@ def parse_ctl(path):
                 'line_number': i + 1,
                 'spans': [],
                 'text': '',
+                'description': '',
+                'commented': set(),
             })
             continue
 
         if TEXT_RE.match(line) and blocks:
             blocks[-1]['text'] += line
+            if line.startswith('D '):
+                blocks[-1]['description'] += line
+            continue
+
+        comment_match = ROW_COMMENT_RE.match(line)
+        if comment_match and blocks:
+            blocks[-1]['commented'].add(parse_address(comment_match.group(1)))
             continue
 
         span_match = SPAN_RE.match(line)
@@ -224,6 +280,7 @@ def parse_ctl(path):
                 'length': length,
                 'sublengths': sublengths,
                 'line_number': i + 1,
+                'comment': span_match.group(4) or '',
             })
 
     for block, following in zip(blocks, blocks[1:]):
@@ -597,7 +654,54 @@ def reads_all_zero(address, length, image, origin):
     return not any(image[start:start + length])
 
 
-def check_untyped(block, threshold, by_address):
+def copied_coverage(block, by_address, image, origin):
+    """
+    Return the addresses of a block that are a byte-exact copy of a rendered source.
+
+    A copy names its source with `copied from #R$XXXX`: in the entry's `D`, where
+    the block's first byte maps to the source's address, or on one span's own
+    directive, where that span's first byte does. A span counts when the source's
+    render draws every byte it maps to and the image holds the same bytes at both
+    places. The render of the source is then the render of the copy.
+    """
+    covered = set()
+    if image is None:
+        return covered
+
+    def read(address, length):
+        start = address - origin
+        if start < 0 or start + length > len(image):
+            return None
+        return image[start:start + length]
+
+    def source_drawn(source, length):
+        block_at = None
+        for candidate in by_address.values():
+            if candidate['address'] <= source and (
+                    block_at is None or candidate['address'] > block_at['address']):
+                block_at = candidate
+        if block_at is None or block_at['type'] == 'c':
+            return False
+        drawn = rendered_coverage(block_at, by_address)
+        return drawn is None or drawn.issuperset(range(source, source + length))
+
+    entry_sources = [parse_address(a) for a in COPIED_RE.findall(block['description'])]
+    for span in block['spans']:
+        sources = [parse_address(a) for a in COPIED_RE.findall(span['comment'])]
+        mapped = [(span['address'], source) for source in sources]
+        mapped += [(span['address'], source + span['address'] - block['address'])
+                   for source in entry_sources]
+        for address, source in mapped:
+            length = span['length']
+            copy, original = read(address, length), read(source, length)
+            if copy is None or copy != original or not source_drawn(source, length):
+                continue
+            covered.update(range(address, address + length))
+            break
+    return covered
+
+
+def check_untyped(block, threshold, by_address, covered=frozenset()):
     """
     Report a block that declares no structure over the scalar threshold.
 
@@ -621,7 +725,6 @@ def check_untyped(block, threshold, by_address):
     # linter — those bytes are already declared by something that is exercised.
     # The discharge reaches only as far as the macro reads, so what it leaves is
     # asked about below exactly as if no macro were there.
-    covered = rendered_coverage(block, by_address)
     if render_discharges(block, covered):
         return violations
     uncovered = []
@@ -636,21 +739,24 @@ def check_untyped(block, threshold, by_address):
             return violations
         if covered:
             message = (f"{left} of {size} bytes fall outside every render's extent, "
-                       f"the first at ${uncovered[0][0]:04X} — the macros draw "
-                       f"{size - left} bytes and declare nothing about the rest; "
-                       f"widen them or state its stride")
+                       f"the first at ${uncovered[0][0]:04X}. The macros draw "
+                       f"{size - left} bytes and declare nothing about the rest. "
+                       f"Fix it in this order: widen the render; state the record "
+                       f"length the code walks; never a width chosen to clear this "
+                       f"check")
         else:
             extent = 'unbounded' if size is None else f'{size} bytes'
             # A partner exemption is invisible from the prose that holds it open:
             # it reads as an ordinary cross-reference, so an edit that strips a
             # sentence can close it from another file, and this fires in an entry
             # the edit never opened. Say so, because nothing else will.
-            message = (f"{extent} with no sub-directives — declare the stride, "
-                       f"cover it with a render, or model it as code. If this "
-                       f"block was passing before, check whether a prose edit "
-                       f"removed the #R that named its render's partner: the "
-                       f"exemption needs the two blocks to name each other, and "
-                       f"the link can be anywhere in the body")
+            message = (f"{extent} with no sub-directives. Fix it in this order: "
+                       f"render it; state the record length the code walks; model "
+                       f"it as code if it is code; never a width chosen to clear "
+                       f"this check. If this block was passing before, check "
+                       f"whether a prose edit removed the #R that named its "
+                       f"render's partner: the exemption needs the two blocks to "
+                       f"name each other, and the link can be anywhere in the body")
         violations.append((block['line_number'], 'UNTYPED', message))
         return violations
 
@@ -669,7 +775,163 @@ def check_untyped(block, threshold, by_address):
         if span['length'] > threshold and not span['sublengths']:
             violations.append((span['line_number'], 'UNTYPED',
                                f"{span['type']} ${span['address']:04X},{span['length']} "
-                               f"has no sublength — {span['length']} bytes of what?"))
+                               f"has no sublength. Fix it in this order: render it; "
+                               f"state the record length the code walks; never a "
+                               f"width chosen to clear this check"))
+    return violations
+
+
+def code_operands(image, origin):
+    """
+    Return (direct, bases): the addresses the image's code names as operands.
+
+    `direct` holds every two-byte operand of an instruction that reads, writes or
+    loads an absolute address, and `bases` every operand of a `LD IX,nn` or
+    `LD IY,nn`. The scan reads every byte offset, so a data byte that happens to
+    look like an opcode adds an address too. That can only discharge a row, never
+    report one.
+    """
+    direct, bases = set(), set()
+    if image is None:
+        return direct, bases
+    for opcodes, into in ((ABSOLUTE_OPCODES, direct), (INDEX_BASE_OPCODES, bases)):
+        for opcode in opcodes:
+            at = image.find(opcode)
+            while at >= 0:
+                operand = at + len(opcode)
+                if operand + 1 < len(image):
+                    into.add(image[operand] | image[operand + 1] << 8)
+                at = image.find(opcode, at + 1)
+    return direct, bases
+
+
+def own_records(block, rows, operands):
+    """Return how many of `rows` are a record of their own, by the code or the entry.
+
+    A row is one when the code names its address as an operand, when an index
+    base sits within 127 bytes below it inside the entry, or when the entry's
+    `D` or `N` states a one-byte record.
+    """
+    if ONE_BYTE_RECORD_RE.search(block['text']):
+        return len(rows)
+    direct, bases = operands
+    entry_bases = [b for b in bases if b >= block['address']]
+    return sum(1 for at in rows
+               if at in direct or any(b <= at < b + 128 for b in entry_bases))
+
+
+def check_row_width(block, covered=None, operands=(frozenset(), frozenset())):
+    """
+    Report one-byte rows that fewer than half of are a record of their own.
+
+    Bytes a render draws are exempt: a sprite, glyph or bitmap row takes no
+    comment (GFX-4), and its schema is the render.
+
+    Two shapes: a B span cut at sublength 1, and a run of three or more
+    contiguous one-byte B directives. A one-byte row is the record the code walks
+    when the code addresses that byte, or when the entry says each byte is one.
+    A comment on the row says nothing about the record, so it counts for nothing.
+    """
+    violations = []
+
+    def drawn(span):
+        if covered is None:
+            return True
+        return bool(covered) and covered.issuperset(
+            range(span['address'], span['address'] + span['length']))
+
+    for span in block['spans']:
+        if span['type'] != 'B' or span['sublengths'] != [1] or span['length'] < 2:
+            continue
+        if drawn(span):
+            continue
+        rows = range(span['address'], span['address'] + span['length'])
+        found = own_records(block, rows, operands)
+        if found * 2 < span['length']:
+            violations.append((span['line_number'], 'ROW_WIDTH',
+                               f"B ${span['address']:04X},{span['length']},1 lists "
+                               f"{span['length']} one-byte rows, {found} of them a "
+                               f"record the code addresses or the entry states. Cut "
+                               f"the rows at the record the code walks, or 8 bytes "
+                               f"per row when the bytes have no record"))
+
+    run = []
+
+    def flush():
+        if len(run) >= 3:
+            found = own_records(block, [span['address'] for span in run], operands)
+            if found * 2 < len(run):
+                violations.append((run[0]['line_number'], 'ROW_WIDTH',
+                                   f"{len(run)} one-byte B directives run from "
+                                   f"${run[0]['address']:04X}, {found} of them a "
+                                   f"record the code addresses or the entry states. "
+                                   f"Join them into one span cut at the record the "
+                                   f"code walks, or 8 bytes per row when the bytes "
+                                   f"have no record"))
+        run.clear()
+
+    for span in block['spans']:
+        single = span['type'] == 'B' and span['length'] == 1 and not drawn(span)
+        if single and run and span['address'] == run[-1]['address'] + 1:
+            run.append(span)
+            continue
+        flush()
+        if single:
+            run.append(span)
+    flush()
+    return violations
+
+
+def bitmap_families(blocks, families, by_address):
+    """
+    Return the declared families whose bytes are bitmaps, as (prefix, start, end).
+
+    A family is one when a block in its range is drawn by a render, or names a
+    source it is `copied from`. The label-families block declares only prefixes
+    and ranges, so what the bytes are is read off the blocks in the range.
+    """
+    found = []
+    for family in families:
+        _, start, end = family
+        for block in blocks:
+            if not start <= block['address'] <= end:
+                continue
+            drawn = rendered_coverage(block, by_address)
+            if drawn is None or drawn or COPIED_RE.search(block['prose']):
+                found.append(family)
+                break
+    return found
+
+
+def check_stride_appease(block, covered, families):
+    """
+    List a narrow sublength over a render or a bitmap family (advisory).
+
+    A sublength of 2, 3 or 4 on a span a render draws, or one inside the range
+    of a family whose bytes are bitmaps, cuts a bitmap into rows of no record
+    unless the code walks a record of that width. The .ctl cannot show what the
+    code walks, and a length stated in prose is no evidence of it, so this is
+    listed for a reader to settle and never gates.
+    """
+    violations = []
+    for span in block['spans']:
+        if span['type'] != 'B' or len(span['sublengths']) != 1:
+            continue
+        width = span['sublengths'][0]
+        if width not in APPEASING_WIDTHS:
+            continue
+        extent = range(span['address'], span['address'] + span['length'])
+        drawn = covered is None or covered.issuperset(extent)
+        family = next((prefix for prefix, start, end in families
+                       if start <= span['address'] <= end), None)
+        if not drawn and family is None:
+            continue
+        where = 'a render draws' if drawn else f'the {family} range holds'
+        violations.append((span['line_number'], 'STRIDE_APPEASE',
+                           f"B ${span['address']:04X},{span['length']},{width} cuts "
+                           f"bytes {where} into {width}-byte rows. Keep the width "
+                           f"only when the code walks a {width}-byte record. "
+                           f"Otherwise drop the sublength"))
     return violations
 
 
@@ -816,6 +1078,9 @@ def main():
                         help='address the --bin image loads at (default $4000)')
     parser.add_argument('--reloc-floor', type=lambda s: int(s, 0), default=0x5B00,
                         help='addresses at/above this are the game region (default $5B00)')
+    parser.add_argument('--families',
+                        help="the project's AGENTS.md, whose label-families block "
+                             "names the family ranges STRIDE_APPEASE reads")
     ctl_baseline.add_arguments(parser)
     args = parser.parse_args()
 
@@ -834,13 +1099,22 @@ def main():
             print(f"Error: File not found: {args.binary}")
             return 1
 
+    families = validate_label_family.read_families(args.families) or []
+    families = bitmap_families(blocks, families, by_address)
+    operands = code_operands(image, args.org)
+
     violations = []
     for block in blocks:
         if block['type'] == 'u':
             # Bytes nothing uses have no layout to declare: asking an unused entry
             # for a stride, a tiling or a type would invent structure for them.
             continue
-        found = check_untyped(block, args.threshold, by_address)
+        covered = rendered_coverage(block, by_address)
+        if covered is not None:
+            covered = covered | copied_coverage(block, by_address, image, args.org)
+        found = check_untyped(block, args.threshold, by_address, covered)
+        found += check_row_width(block, covered, operands)
+        found += check_stride_appease(block, covered, families)
         found += check_tiling(block)
         found += check_divisibility(block)
         if image is not None:
@@ -849,6 +1123,8 @@ def main():
         for line_number, kind, message in found:
             violations.append((line_number, kind, message, block))
     violations.sort(key=lambda v: v[0])
+    advisory = [v for v in violations if v[1] in ADVISORY_KINDS]
+    violations = [v for v in violations if v[1] not in ADVISORY_KINDS]
 
     with open(args.ctl, encoding='utf-8') as f:
         lines = f.read().splitlines()
@@ -873,6 +1149,16 @@ def main():
             print(f"  Line {line_number}: {kind} — {message}")
             print(f"    in {block['type']} ${block['address']:04X} {block['title']}")
             print()
+
+    if advisory:
+        print(f"Advisory, not gated: {len(advisory)} narrow sublength(s) over a "
+              f"render or a bitmap family. Keep each only when the code walks a "
+              f"record of that width:")
+        print()
+        for line_number, kind, message, block in advisory:
+            print(f"  Line {line_number}: {kind} – {message}")
+            print(f"    in {block['type']} ${block['address']:04X} {block['title']}")
+        print()
 
     ctl_baseline.report(args.baseline, CHECK, held, stale)
     return 1 if new or stale else 0

@@ -1,0 +1,15 @@
+$ validate_renames.py game.ctl --base HEAD~1 --agents AGENTS.md
+Found 2 rename(s) with no registry row, against HEAD~1:
+
+  Line 1: RENAME_UNREGISTERED – label at $EC4B: enemy_spark → guard_spark drops 'enemy', which no Not cell of the registry lists. Add the row with the rename, so the terms check holds every remaining mention
+  Line 2: RENAME_UNREGISTERED – title at $EC4B: "Enemy spark update" → "Guard spark update" drops 'enemy', which no Not cell of the registry lists. Add the row with the rename, so the terms check holds every remaining mention
+
+exit 1
+
+$ validate_renames.py game.ctl --base HEAD~1 --agents AGENTS.md
+renames: every word a rename dropped since HEAD~1 has its registry row
+exit 0
+
+$ validate_renames.py game.ctl --agents AGENTS.md
+renames: every word a rename dropped since HEAD has its registry row
+exit 0

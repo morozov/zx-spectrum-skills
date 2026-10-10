@@ -1,0 +1,7 @@
+Found 5 rulebook problem(s) in struct-rules.md:
+
+  struct-rules.md:8: NO_ENFORCER – ROW-2 names no enforcer
+  struct-rules.md:10: UNKNOWN_KIND – ROW-4 names the check kind FOIL, which no script defines
+  struct-rules.md:11: UNKNOWN_TARGET – ROW-5 names the target lint-nowhere, which the gate does not define
+  struct-rules.md:12: UNKNOWN_ENFORCER – ROW-6 names the enforcer "Vale NoDiary", which is no check kind, no lint- target and no review
+  struct-rules.md: UNRULED_KIND – the gating kind SPLICE in lint_comments.py is named by no rule

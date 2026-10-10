@@ -1,0 +1,239 @@
+; Listing text with one bad line per defect, each beside its corrected form.
+; Every bad line is reported and no good line is. This run is not published
+; (a blank line follows it), so nothing here is a prose unit.
+;
+; Bad, and the defect each one shows:
+;   $D010  a one-byte variable described at length, listing its writers
+;   $D011  a variable naming the routine that writes it
+;   $F601  a data row opening on its index, with a tile code beside a name
+;   $F603  a data row opening on a code range
+;   $F605  a noun-phrase row ending in a full stop
+;   $F607  an entry title counting its contents
+;   $F610  a title holding a constant's identifier and a hyphen dash
+;   $F620  a data entry pointing at "the routines below"
+;   $F630  a data entry describing another routine's logic
+;   $F640  an argument against a reading nobody offered
+;   $F650  the same, as "X, not Y"
+;   $F660  the same, as "Instead of"
+;   $F670  a DEFW row whose comment is its operand label's words
+;   $F680  a note written with "b" for the flat
+;   $F690  ASCII stand-ins for ×, →, ° and the en dash
+;   $F6A0  a render inside a description sentence
+;   $F6B0  an unused entry saying "Unused."
+;
+; Good, at the address after each bad one, or in the entry beside it: the same
+; content with the defect removed.
+; Two more defects are not here: one-byte rows of a multi-byte record and an
+; unused span under a used label, which the data-structure and identity checks
+; report, not this linter. A plain word in the glossary needs a reader and is
+; not here either.
+;
+
+; Enemy hit-type code
+;
+; Which path removes a struck enemy.
+@label=removal_code
+g$D010 DEFB $00      ; Enemy hit-type code read by #R$A010 to pick the removal
+                     ; path. 0 = a shot hit, set by the shot collision test
+                     ; #R$A020. A heavy shot such as the LASER bolt
+                     ; force-clears at #R$A030, and a plain shot checks armor
+                     ; at #R$A040. 1 = an ordinary enemy step, the default
+                     ; #R$A050 sets. It checks armor at #R$A040 and spares the
+                     ; armored robot. 2 = the bomb step, set by #R$A050 for the
+                     ; bomb only. That step takes the force-clear #R$A030,
+                     ; which empties any enemy slot, the armored robot too. The
+                     ; only routines that write it are #R$A020 and #R$A050
+                     ; (#R$A050 setting 1 or 2).
+
+; Heading code for the player
+@label=player_heading
+g$D011 DEFB $00      ; Heading code for the player. Each active sprite's code
+                     ; comes from the #R$A060 table, written by #R$A070.
+
+; Enemy hit type
+;
+; Which path removes a struck enemy.
+@label=hit_type
+g$D012 DEFB $00      ; 0 a shot, 1 an enemy, 2 the bomb
+
+; Heading code
+@label=heading
+g$D013 DEFB $00      ; Heading code of the player
+
+; Enemy attribute table
+;
+; One attribute byte per enemy design, indexed by type code.
+@label=enemy_attr
+b$F601 DEFB $45      ; Code $1C: ROBOT enemy (top-left tile $5A), bright blue
+ $F602 DEFB $45      ; ROBOT enemy, bright blue
+ $F603 DEFB $46      ; Codes $70-$78: GHOST enemies
+ $F604 DEFB $46      ; GHOST enemies
+ $F605 DEFB $47      ; Armored-1 enemy.
+ $F606 DEFB $47      ; Armored-1 enemy
+
+; The 50 records
+@label=level_records
+b$F607 DEFB $00
+
+; Level by level
+@label=level_cards
+b$F608 DEFB $00
+
+; Work buffer (WORK_BUF) - redraw flags
+@label=work_buffer
+s$F610 DEFS $10
+
+; Work buffer
+@label=work_buffer_good
+s$F620 DEFS $01
+
+; Redraw flags
+;
+; Why the address: the routines below derive this base…
+@label=redraw_flags
+s$F621 DEFS $01
+
+; Redraw flags, one per screen cell
+;
+; Filled by #R$A200.
+@label=redraw_flags_good
+s$F622 DEFS $01
+
+; Back buffer
+;
+; The page is also used as a bit field. The address routine #R$A311 packs the
+; screen third and the cell's pixel row into the low bits of the page, and the
+; sprite copy routine #R$A3FC masks the third back out to find the cell's
+; redraw flag.
+@label=back_buffer
+s$F630 DEFS $01
+
+; Back buffer, one byte per screen byte
+;
+; Filled by #R$A3FC.
+@label=back_buffer_good
+s$F631 DEFS $01
+
+; End marker
+;
+; One byte is not a flag: the final byte of the grid holds the $FF end
+; marker.
+@label=end_marker
+g$F640 DEFB $FF
+
+; End marker
+;
+; The final byte of the grid holds the $FF end marker.
+@label=end_marker_good
+g$F641 DEFB $FF
+
+; Enemy contact test
+;
+; Loops over every sprite but the player's shield. Those skips belong to the
+; loop, not to the caller, so an enemy that never runs the shot test #R$A080
+; still gets them.
+@label=contact_test
+c$F650 RET
+
+; Enemy contact test
+;
+; Loops over every sprite but the player's shield. An enemy that never runs
+; the shot test #R$A080 still gets these skips.
+@label=contact_test_good
+c$F651 RET
+
+; Ghost
+;
+; Frame handler for the ghost. Instead of wandering it homes on
+; the player.
+@label=ghost
+c$F660 RET
+
+; Ghost
+;
+; Frame handler for the ghost. It homes on the player.
+@label=ghost_good
+c$F661 RET
+
+; Handler table
+;
+; One handler per enemy.
+@label=handlers
+w$F670 DEFW $A14B     ; drone
+ $F672 DEFW $A14B     ; falls toward the player
+
+; Note period/duration table
+;
+; The 36 pitches the tune player can play, two bytes each.
+@label=tone_table
+b$F680 DEFB $40,$01   ; Eb4
+ $F682 DEFB $3C,$01   ; E♭4
+
+; Room grid
+;
+; A 2x2-character block, a 16x16-pixel tile.
+; .
+; The grid is 8 x 6 of them, 128 x 96 pixels.
+; .
+; The cell address is row * 32 + col.
+; .
+; A cell's tile -> its attribute byte.
+; .
+; The diagonal headings sit 45 deg apart.
+; .
+; Rows 2-17 hold the grid.
+@label=grid
+b$F690 DEFB $00
+
+; Room grid
+;
+; A 2×2-character block, a 16×16-pixel tile.
+; .
+; The grid is 8×6 of them, 128×96 pixels.
+; .
+; The cell address is row × 32 + col.
+; .
+; A cell's tile → its attribute byte.
+; .
+; The diagonal headings sit 45° apart.
+; .
+; Rows 2–17 hold the grid.
+@label=grid_good
+b$F691 DEFB $00
+
+; Player sprite
+;
+; The player #UDGARRAY2,7,4,2($B801,,2;$B800,,2)(player_img) in its plain form,
+; drawn at the starting point.
+@label=player_sprite
+b$F6A0 DEFB $00,$00
+
+; Player sprite
+;
+; The player in its plain form, drawn at the starting point.
+; .
+; #UDGTABLE { #UDGARRAY2,7,4,2($B801,,2;$B800,,2)(player_img_good) } TABLE#
+@label=player_sprite_good
+b$F6A2 DEFB $00,$00
+
+; Unused bytes
+;
+; Unused.
+@label=unused_f6b0
+u$F6B0 DEFS $06
+
+; Unused bytes
+@label=unused_f6b6
+u$F6B6 DEFS $06
+
+@label=update_drone
+c$A14B RET
+
+@label=decode_heading
+c$A200 RET
+
+@label=address_builder
+c$A311 RET
+
+@label=sprite_copy
+c$A3FC RET

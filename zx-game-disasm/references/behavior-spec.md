@@ -1,5 +1,7 @@
 # The behavior specification — the capstone artifact
 
+Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` holds.
+
 The annotated `.ctl` documents the game routine by routine. The behavior specification (a "porting spec") is the synthesis: a subsystem-by-subsystem description of *how the game behaves*, lifted out of the code into language a reader can act on without reading Z80 at all. It is the capstone deliverable of stage 3, and it is what serves both documentation goals:
 
 - **A human porter** rewrites the game in another language straight from the spec.

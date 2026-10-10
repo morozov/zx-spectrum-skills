@@ -1,12 +1,12 @@
 # The prose bar
 
-`comment-style.md` says what a comment is *for*. This says how well it has to be written, in numbers a check can read.
+Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` holds.
 
-Every rule here is measured. `make lint-prose` reports them, `make coverage` counts them, and a project does not reach "done" while any of them is unmet.
+`comment-style.md` says what a comment is *for*. This says how well it has to be written, and gives the figures the prose bar holds a project to. The rules and their enforcers are in `rules.md`. The reasons some rules have no check are in `rationale.md`.
 
 ## Who the prose is for
 
-A person who likes this game and wants to know how it worked. They read pages, they do not grep. Write for them.
+A person who likes this game and wants to know how it worked. They read pages, and they read them in the game's terms (AUD-1). Write for them.
 
 Two other readers exist and neither sets the register. A porter needs the format tables, and gets them from the same document. An agent-trainer needs the state addresses, and gets them from the behavior specification, which is written for them. Writing for either of those two produces exhaustive text nobody reads, because every rule written for a reader who greps can only ask for more.
 
@@ -20,7 +20,7 @@ Two other readers exist and neither sets the register. A porter needs the format
 
 **T4 — a term change is retroactive and atomic.** Rename everywhere in one commit: prose, titles, labels, `@equ` names, ref pages, spec. A half-finished rename is worse than the original name. The reader now sees two terms and has to work out whether they are one thing.
 
-**T5 — a term already in the artifact is not evidence for the term.** This is the one the others depend on. A term reaches a later pass by being read off the work: you open a routine, its title and its neighbors supply the vocabulary, and you write with what you found. That feels like T1. It is not. **T1 asks for consistency with the registry, never with whatever the file already says.**
+**T5 – a term earns its standing from the registry.** This is the one the others depend on. A term reaches a later pass by being read off the work: you open a routine, its title and its neighbors supply the vocabulary, and you write with what you found. **T1 asks for consistency with the registry.** Whatever the file already says carries no weight of its own.
 
 An unregistered term has no standing however often it appears, and the count is an aggravating factor. This is what `comment-style.md` already says about comment forms — "it is the house style" is not a defense — reaching vocabulary.
 
@@ -33,9 +33,9 @@ Reuse also *amplifies*. Sites multiply. The term climbs from prose into the labe
 3. Does the code hold the contrast the word implies?
 4. Does it name the thing, or a property you inferred about it?
 
-**The registry is `glossary.ref`, and `make lint-terms` reads it.** Publish the pairs as a `#TABLE` under a `Write | Not` header — the left cell is what to write, the right cell the forms that must not appear — and the check holds every other file to it.
+**The registry is `glossary.ref`, and `make lint-terms` reads it.** Publish the pairs as a `#TABLE` under a `Write | Not` header — the left cell is what to write, the right cell the forms that must not appear — and the check holds every other file to it, labels included. A rename lands its registry row in the same commit, so the gate fails until every mention has changed (NAME-2).
 
-Two limits, stated because a registry that claims more enforcement than it has is worse than none. A row qualified by grammatical role — "zeros **as the verb**" — is not decidable by pattern, so it is counted in the report and left to a hand pass. And the pairs are spellings and synonyms; the entity-level rules T1 to T5 above are the Challenger's, judged by reading.
+A row qualified by grammatical role – "zeros **as the verb**" – is not decidable by pattern, so it is counted in the report and left to a hand pass. The entity-level rules T1 to T5 are NAME-1 to NAME-4 in `rules.md`.
 
 ## How long a description runs
 
@@ -65,7 +65,7 @@ A ceiling on one description is the wrong instrument: a well-written disassembly
 
 **S4 — no semicolon joining two clauses, and asides do not stack.** Never two asides in one sentence: no parenthetical inside a parenthetical, no colon and semicolon together.
 
-**S5 — two addresses per sentence at most.** A sentence that names a third reads as a list. Split it.
+**S5 – two addresses per sentence at most.** A sentence that names a third reads as a list. Split it.
 
 **S6 — a bare `$XXXX` needs a name in the same sentence.** A label, a constant, or what the thing is. The reader came for the name; the address is the citation.
 
@@ -87,7 +87,7 @@ The `#R` reference already in the sentence is the reader's way to the encoding. 
 
 **Four exemptions, all structural.**
 
-*A table row whose number is its key.* `{ $02 | silver key | … }` — strike the code and the row is about no code. This is the row, **not** the block it sits in: "the game font, for character codes $20 to $5A" is prose on a data block and is a citation like any other. Write "space through Z", or nothing, since the block renders the glyphs.
+*A `.ref` `#TABLE` column that holds the code.* A catalog table may give the code a column of its own, beside the name and the render (ROW-7). A listing row never carries its code (ROW-1), and prose on a data block is a citation like any other: "the game font, for character codes $20 to $5A" is written "space through Z", or left out, since the block renders the glyphs.
 
 *An `R` line.* A routine's register contract is where it establishes the convention its callers must honor — `I:HL address of the message (a $FF byte ends it)`. The implementer states it once; every caller that repeats it is citing.
 
@@ -95,9 +95,7 @@ The `#R` reference already in the sentence is the reader's way to the encoding. 
 
 *A Z80 mnemonic.* `BIT 7`, `SET 3`, `RES 0` are instructions that read like codes.
 
-`CODE_ECHO` gates it over every block comment of every block type.
-
-**Every kind of unobservable number is one rule** — type codes, tile ranges and state numbers alike. If a fourth kind turns up, it is this rule, not a new one.
+This is AUD-4. Any kind of unobservable number is this one rule.
 
 ## A thing the reader can see or hear is shown at its own block
 
@@ -112,9 +110,9 @@ So: **if a block encodes one element the reader can see or hear, that block show
 > b$A640 DEFB $18,$18  ; {Working copy of the walking-frame bitmap, 2 bytes per row.
 > ```
 >
-> **Good:** the same, with `#UDGARRAY2,7,...($A640-$A65E-2)(player_walk)` in the block comment, so the page shows the player.
+> **Good:** the same, with the row comment gone and an `N` note on the block, `N $A640 #UDGTABLE { #UDGARRAY2,7,...($A640-$A65E-2)(player_walk) } TABLE#`, so the page shows the player.
 
-`UNRENDERED` gates it, and the block's own title decides: a title naming a sprite, bitmap, glyph, font, wordmark, logo or tileset, with no render macro anywhere in the block. A block *about* those things — a sprite pointer table, a glyph-code index, a bank's state flags — names them too and owes no picture, so that vocabulary is excluded.
+The block's own title decides (GFX-3): a title naming a sprite, bitmap, glyph, font, wordmark, logo or tileset owes a render macro in the block. A block *about* those things – a sprite pointer table, a glyph-code index, a bank's state flags – names them too and owes no picture.
 
 ## A title that lists things is a page that holds things
 
@@ -124,33 +122,27 @@ So: **if a block encodes one element the reader can see or hear, that block show
 
 Ask the question the title raises. What do these share, that they are on one page? If the answer is nothing, the page is a bag and the seams are where the title puts its commas — split it. If the answer is that they are *interleaved*, so no address range separates them, say that in the description, because the reader is about to wonder the same thing.
 
-Not every list is a defect. "Missile shot sprites, left and right" is one thing in two mirrored forms. The test is not the comma; it is whether the reader would draw the same boundary.
-
-No check ships. Titles that carry a list are rare, and a legitimate one is as common as a defect, so a pattern here reports one defect for every one it gets wrong.
+Some lists are one thing. "Missile shot sprites, left and right" is one thing in two mirrored forms. The test is whether the reader would draw the same boundary (HEAD-3).
 
 ## An entry stands alone, and is about its own bytes
 
-Two rules the Challenger reads for, because neither is decidable by pattern.
-
-**An entry stands alone.** A reader arrives at a block by following a link, not by scrolling into it, so a sentence that only makes sense after the block above says nothing to the person actually reading it. It takes three shapes.
+**An entry stands alone** (HOME-8). A reader arrives at a block by following a link and has not read the block above it, so a sentence that only makes sense after that block says nothing to the person actually reading it. It takes three shapes.
 
 A *connective* pointing at the previous block: "More of the same leftover", "The stunned player then draws again". The "same" and the "then" name a paragraph that reader never saw.
 
-A *position* standing in for a description: "The page above the sprite bank." Above is an address relation, and the page shows no map — so this locates the block by a neighbor instead of saying what it is. The address is already in the heading. Say what the bytes are and what touches them.
+A *position* standing in for a description: "The page above the sprite bank." Above is an address relation, and the page shows no map — so this locates the block by a neighbor instead of saying what it is. The address is already in the heading. Say what the bytes are.
 
 A *description that restates its own title* and adds nothing else. If the title is "Back buffer and work RAM" and the description says where it sits, the entry has one fact in it and has spent a paragraph not saying it.
 
-**An entry is about its own bytes.** A sprite entry owes what the sprite is, the event that draws it, and the routine — not the plumbing by which a pointer comes to hold it. Which slot the handler writes, which field it swaps, what happens to the player afterwards: that is the handler's, and it is already documented there.
+**An entry is about its own bytes** (HOME-2). A sprite entry owes what the sprite is, the event that draws it, and the routine — not the plumbing by which a pointer comes to hold it. Which slot the handler writes, which field it swaps, what happens to the player afterwards: that is the handler's, and it is already documented there.
 
 > **Bad:** Stunned-player sprite the trap installs into the player's sprite pointer (slot 1) during its hold state (#R$B7E2). The stunned player then draws again.
 >
-> **Good:** The player while the trap holds it, drawn through its hold state (#R$B7E2).
+> **Good:** The player while the trap holds it, drawn through its hold state (#R$B7E2)
 
-The good form names the object and the frame: "Trap release frame 1 (state 4); stepped by #R$B7E2."
+A frame caption names the object and the mode it is drawn in, and nothing about how the code switches to it (GFX-7): `Trap releasing the player, frame 1`.
 
-Nothing in a project states its callers: no `Used by #FOREACH(EREF…)` note, no "called by" or "dispatched by" clause in a description, and no generated line. `skoolkit.ini` sets `ListRefs=0`, so `sna2skool` writes neither the entry-level "Used by" nor the "This entry point is used by …" line at an entry point. A routine can have any number of callers, the list is not what the page is about, and the toolchain tracks the references anyway. What a routine does at its callers' request is its own description. A variable's entry does not list its writers or readers either: what a routine does to the variable is said at the routine.
-
-**Why no check.** Both shapes fail the bar. The back-reference — a sentence opening on "then", "also", "the same" — is almost always a routine referring to its own previous sentence, which is correct. The plumbing shape, scoped to catalog entries that render, is rare, and its hits include legitimate ones. A pattern narrowed until it catches the known instance is the keyed match this skill rejects elsewhere; the precision is what decides, and here it decides against.
+Nothing in a project states its callers (HOME-4): no `Used by #FOREACH(EREF…)` note, no "called by" or "dispatched by" clause in a description, and no generated line. `skoolkit.ini` sets `ListRefs=0`, so `sna2skool` writes neither the entry-level "Used by" nor the "This entry point is used by …" line at an entry point. A routine can have any number of callers, the list is not what the page is about, and the toolchain tracks the references anyway. What a routine does at its callers' request is its own description. A variable's entry does not list its writers or readers either: what a routine does to the variable is said at the routine.
 
 ## A rendered thing is not described in words
 
@@ -166,32 +158,28 @@ An entry beside a clip owes three things: **what the sound means in play, the ev
 
 The production method is not deleted, it is *placed*. The algorithm belongs in the routine's body, at the instructions that implement it, where a reader is reading code. The period formula belongs once, at the tone primitive that computes it, because every effect shares it. Both are "one home per fact"; the catalog is not that home.
 
-`SYNTH_ECHO` gates this, and it decides by location rather than by reading: synthesis vocabulary in block prose or a `.ref` section that carries an `#AUDIO`. Instruction comments are never reported — the body is exactly where the algorithm should be.
+This is HOME-7. It reaches block prose and any `.ref` section that carries an `#AUDIO`. Instruction comments are where the algorithm belongs.
 
-## Unused bytes owe one line
+## Unused bytes say nothing
 
-A block nothing uses has one fact: it is unused. Write that, and stop.
+A block nothing uses has one fact: it is unused. The entry type `u` and the title "Unused bytes" say it, and the entry carries no description and no row comments (UNU-1). One unused byte inside a used table keeps the row comment `Unused`, because there the row is the only place that says so.
 
-If something about it is genuinely worth knowing, that is welcome and it is one sentence — the bytes decode to a message the programmer left, the block pads an alignment the next table needs, the values are the loader's leftovers from the BASIC area. Trivia is content. A reader enjoys it.
-
-What an unused block never owes is **the proof that it is unused**. No census of which routines do not read it. No account of which fill stops short of it. No note on why no stride could be found. That is the author's working-out, and the reader did not come for it.
+An unused block owes no proof that it is unused, no reason, no neighbors and no guessed purpose (UNU-3). No census of which routines do not read it, no account of which fill stops short of it, no note on why no stride could be found. That is the author's working-out. The test: move the bytes somewhere else, and the title must still be true. When the bytes decode to something – a message, a sprite, a table – the entry is that thing, described as such.
 
 > **Bad:** Undetermined zero-fill tail of the state block before the sprite bank; no reader found, and the only writer is the level-setup clear, whose fill stops seven bytes in.
 >
 > **Bad:** Nothing in the image reads these bytes, and the values vary from one to the next, so nothing fixes a stride: the size is the whole claim, and the listing shows the bytes.
 >
-> **Good:** Unused.
->
-> **Good:** Unused. The loader's leftovers from the old BASIC area, kept because the image runs contiguously into the level table.
+> **Good:** `u $B3F0 Unused bytes`, with no description and no row comments.
 
-`EULOGY` gates it at a couple of dozen words over the block comment and its gutter together. A cap is the right instrument here, and only here: the content of an unused block is bounded by what exists to say, which is one fact and perhaps one more. Everywhere else the bar is a distribution, for the reason under "How a sentence reads".
+Unused bytes carry no label that names a used thing (UNU-2), and they have no layout: a check that asks them for a stride, a tiling, a type or a description is a check to fix (WORK-2).
 
-**Type it `u`, not `s`.** `s` asserts the game fills the block at runtime, and `ctl-authoring.md` rightly makes that claim cost a named writer. A block nothing writes is not a buffer — it is unused, and typing it `s` buys an exemption from this rule by making a claim about the game that is not true.
+**Type it `u`.** `s` asserts the game fills the block at runtime, and `ctl-authoring.md` makes that claim cost a named writer. A block nothing writes is unused, and typing it `s` makes a claim about the game that is false.
 
 ## What the prose never does
 
 - **Claim what the original author intended.** Say what the code does. An inference is marked as one, in the reader's own words.
-- **Narrate the investigation.** Already `comment-style.md`'s rule; the checker reads it over the `.ref` pages and the spec too.
+- **Narrate the investigation** (AUD-2), on any page the reader opens.
 
 ## What the prose is allowed to do, and should
 
@@ -199,10 +187,10 @@ Ask a question. The question/answer pair over a test and its branch is the house
 
 ## What runs
 
-- **`make lint-prose`** — Vale, carrying the Microsoft style plus the rules above that a regex can decide. Errors fail; warnings and suggestions report. Setup and the filter are in `build-verify.md`.
+- **`make lint-prose`** – Vale, carrying the Microsoft style and the ZXDisasm rules. Errors fail, and warnings and suggestions report. Setup and the filter are in `build-verify.md`.
 - **`make lint-comments`** — the checks that need the listing rather than the sentence.
 - **`make coverage`** — counts what the two of them found, and is where "done" is decided.
 
 ## Done
 
-A project is not done while `make coverage` reports a prose gap. That is not advice about polish. It is the same kind of bar as a bare basic block: a disassembly whose prose is unread-able is not a finished disassembly, however green its round-trip.
+A project is done only when `make coverage` reports no prose gap. That is the same kind of bar as a bare basic block: a disassembly whose prose cannot be read is unfinished, however green its round-trip.

@@ -96,6 +96,24 @@ run label-namespace \
     --skool fixtures/label-namespace.skool
 run comments-group-span \
     scripts/lint_comments.py fixtures/group-span.skool
+run comments-page-headings \
+    scripts/lint_comments.py fixtures/no-code.skool fixtures/page-headings.ref
+# The bad rows, each beside its corrected form: every bad line is reported and
+# no good line is.
+run comments-units-session \
+    scripts/lint_comments.py fixtures/units-session.skool fixtures/units-session.ref
+# FRAGMENT_STOP over noun phrases, padded noun phrases, and full sentences,
+# which keep their full stop.
+run comments-fragment-stop \
+    scripts/lint_comments.py fixtures/fragment-stop.skool
+# LABEL_ECHO with the family stems read from a label-families block.
+run comments-label-echo-families \
+    scripts/lint_comments.py fixtures/label-echo-families.skool \
+    --families fixtures/label-echo-families.md
+# Which surface each piece of prose is read as. A unit that lands on the wrong
+# surface is skipped by every check that does not declare that surface.
+run prose-units \
+    scripts/prose_units.py fixtures/units-session.skool fixtures/units-session.ref
 
 # Where one block ends and the next begins. Each case is a boundary that, read
 # wrong, deletes a line with no report: a `u` block, a non-`label=` directive
@@ -117,6 +135,27 @@ run prose-extract \
 run prose-extract-map \
     scripts/extract_prose.py --out /dev/null --map - --print-map \
     fixtures/prose-extract.skool
+run struct-term-label \
+    scripts/validate_glossary_terms.py fixtures/struct-term-label.ctl \
+    --registry fixtures/struct-term-label-registry.ref
+run struct-rename \
+    fixtures/rename.sh
+run struct-label-family \
+    scripts/validate_label_family.py fixtures/struct-label-family.ctl \
+    --agents fixtures/struct-label-family-agents.md
+run struct-identity \
+    scripts/validate_ctl_identity.py fixtures/struct-identity.ctl
+run struct-data \
+    scripts/validate_ctl_data_structure.py fixtures/struct-data.ctl \
+    --bin fixtures/struct-data.bin --org 0xF000 \
+    --families fixtures/struct-data-agents.md
+run struct-diff-entries \
+    fixtures/struct-diff-entries.sh
+run struct-deletion-scope \
+    fixtures/struct-deletion-scope.sh
+run struct-rules \
+    scripts/validate_rules.py --rules fixtures/struct-rules.md \
+    --scripts fixtures/struct-rules-scripts --mk fixtures/struct-rules.mk
 
 if [ "$record" = 1 ]; then
     echo "check-findings: recorded $ran expectation(s) — review the diff before committing"

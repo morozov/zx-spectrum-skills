@@ -1,5 +1,7 @@
 # The control file (.ctl)
 
+Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` holds.
+
 The `.ctl` is the only file you hand-edit. It is a list of directives, each tied to an address, that tells `sna2skool` how to interpret the snapshot: where code and data live, what to name things, what to substitute, and what to say about it. `sna2skool` weaves the `.ctl` over the snapshot to produce the `.skool`.
 
 The `.skool` and `.asm` are **generated and overwritten on every `make`**; an edit to either is silently lost. The project's `AGENTS.md` opens with this file contract so a cold agent sees it — keep that line intact.
@@ -63,7 +65,7 @@ The code settles which letter is right, and nothing else does. An address a rout
 
 That asymmetry also decides the fix. A store proves the entry is not what `b` promises, and the count of stores says nothing about the bytes no instruction names, so retype the entry `g`. Split the written bytes into a `g` entry of their own only when the rest of the entry really is a static table — a table with a runtime cursor glued to its tail — and read the writers to confirm it.
 
-**The letter is not the only place the promise is made.** Consider this entry:
+**The title and the label make the promise too.** Consider this entry:
 
 ```
 @ $7F20 label=unused_7f20
@@ -79,7 +81,7 @@ So settle all three from the one fact, and `make lint-publication` holds all thr
 - Text written **inside** the entry speaks for its own bytes. The title and a `D`/`N` at the entry's address speak for everything it publishes; a `D`/`N` further in, or the description on a sub-directive, speaks from its address to the next address carrying text. So `N $F3A0 Spare bytes after the font` is checked against $F3A0 onwards and not against the whole entry.
 - A bare `unused` / `unreferenced` / `orphan` in the title or the `@label` is read as a denial on every type **but `g`**, whose letter has already said the program writes these bytes. `orphan_list_head` on a `g` entry names what the list holds; there is no claim there to strike and no letter to correct. A denial with a verb is read on `g` too — an entry saying "nothing writes these" over a store contradicts itself whatever its letter is.
 
-Write what the code shows instead. Name the routine that sets the bytes. Where you have not found what uses them, say that and no more: "purpose undetermined" is honest, while "no writer found in the image" is a claim, and a claim has to have been checked.
+Write what the code shows instead: retype the entry to match the stores, and say what the bytes hold. Where you have not found what uses them, say nothing about it (AUD-7). "No writer found in the image" is a claim, and a claim has to have been checked. The entry lists no writers either way (HOME-4).
 
 ### An entry holds one kind of thing
 
@@ -114,7 +116,7 @@ The one exemption is the trailing `i` block. It publishes no page — it marks w
 
 **A sub-directive is identified when it carries its own description, or when its address carries an `@ label=`.** A description is trailing text on the directive or a line comment inside its span; a label names those exact bytes, renders on that row, and makes the span reachable by name from anywhere in the disassembly. Either one, and the bytes have a name a reader can use.
 
-**The entry's own title, `D` or `N` does not discharge it**, however completely the schema is stated there. This is the exemption the rule exists to refuse. A record whose `N` says, in as many words, "+4/+5 are the X/Y speeds" and "+7 is the pass counter" over anonymous `S` sub-directives still leaves those bytes nameless and unreachable by absolute address. "It is obvious from the record above" is exactly the reasoning the rule refuses. A rule you cannot state is not a rule.
+**The entry's own title, `D` or `N` does not discharge it**, however completely the schema is stated there (ENT-1). A record whose `N` says "+4/+5 are the X/Y speeds" over two anonymous `S` sub-directives still leaves those bytes nameless and unreachable by address.
 
 ## Labels and routine descriptions
 
@@ -125,7 +127,7 @@ D $ADDRESS Description paragraph — what the routine does and why.
 N $ADDRESS Narrative: the algorithm, step by step. Use a lone dot for a paragraph break.
 ```
 
-`@ label=` names the address; SkoolKit resolves every reference to it automatically, so you never hand-write the address in a comment again. Name for *purpose* (`spawn_enemy`, `player_energy`), not mechanism (`loop_routine_3`).
+`@ label=` names the address; SkoolKit resolves every reference to it automatically, so you never hand-write the address in a comment again. Name for *purpose* (`fire_shot`, `player_energy`), never for mechanism (`loop_routine_3`).
 
 The first name is rarely the final one. As you understand a routine better, a truer name appears — rename it. This is cheap precisely because references resolve through the label: change the `@ label=` line and every `#R` pointer and operand follows. Do not agonize over a perfect name on first contact; give it your best current understanding and refine as the picture fills in.
 
@@ -160,6 +162,30 @@ Four rules no check can decide:
 **`D` and `R` are entry-level — they render only at a block start.** An "entry" is an address declared with a block-type line (`c`/`b`/…). A branch target or internal label inside a block (the `*` sub-entries) is *not* an entry, so a `D` or `R` written at a mid-block address is **silently dropped** by `sna2skool` — no warning, the contract and register table just vanish from the `.skool`/`.asm`. Only `N` and instruction comments render mid-block. So when several CALLable subroutines are lumped into one `c` block, only the first (the block start) gets a visible `D`/`R`. To give an interior subroutine its own contract description or `I:`/`O:` register table, **split it into its own `c` entry** at that address (a clean RET/CALL boundary makes this safe and byte-identical). Catch this by grepping the generated `.skool` for the `D` text you wrote — if it is absent, the directive landed at a non-entry address. The build stays green either way, so the round-trip will not flag it.
 
 **One paragraph per directive line — never hard-wrap.** Each `D` at the same address renders as its own paragraph, separated by a blank comment line. Splitting one sentence across several `D` lines produces a blank `;` mid-sentence. Write the whole paragraph on a single `D` line and let `skool2asm` word-wrap it (`Set-line-width` in `skoolkit.ini` sets the width); use a second `D` line only for a genuine second paragraph. The same holds for `N` and for instruction comments. See `references/comment-style.md` for what each paragraph should say.
+
+### Label families by address
+
+A project declares which label prefix owns which address range in its `AGENTS.md`, as one HTML comment block the checks read as data:
+
+```
+<!-- label-families
+spr_ $F000-$F7FF
+slot_ $7100-$7177
+slot_ $7180-$72FF
+-->
+```
+
+Each line holds a prefix and an inclusive `$`-hex range, separated by a hyphen or an en dash. A prefix may own several ranges, one line each. The block declares nothing else: what the bytes in a range are is read off the entries there. A prefix's stem is the prefix without its trailing `_`, and a word starting with the stem names the family (`spr` names "sprite", `slot` names "slots").
+
+Three checks read the block:
+
+| Check | What it reads from the block |
+| --- | --- |
+| `LABEL_FAMILY` (`make lint-label-family`) | A label inside a range carries that range's prefix, and a declared prefix stays inside its ranges (NAME-5). A title in one family's range that names another family names its own too (NAME-7). |
+| `LABEL_ECHO` (`lint_comments.py --families`) | A family stem is left out of a label's words, so a row naming the family says more than the label does (HOME-5). |
+| `STRIDE_APPEASE` (`validate_ctl_data_structure.py --families`) | A family is a bitmap family when an entry in its range is drawn by a render or names a source it is `copied from`. A narrow sublength anywhere in that range is listed (ROW-5). |
+
+A project with no block has no family held to a range, and `make lint-label-family` says so.
 
 ## Line-level comments and the length rule
 
@@ -226,11 +252,13 @@ Show values in the base that conveys meaning.
 | `d` | decimal | `255` |
 | `h` | hex | `$FF` |
 
+Data is written in the default radix (GFX-5). A bitmap is rendered and never spelled out in binary. The `c` prefix suits bytes that are characters:
+
 ```
-  $9580,2,b2 Top row mask.
+  $7B40,3,c3 Player initials
 ```
 
-renders `DEFB %11111111,%11000000`. Use binary for bitmaps and masks where individual bits matter.
+renders the bytes as characters, `DEFB "J","O","E"`, in place of their codes.
 
 **Instruction operands** — `C $addr,c` displays operands as characters until reset with `C $addr,h`:
 
@@ -275,13 +303,13 @@ And **lay the bytes out at that stride** so the structure is *visible*, not a fl
 
 ```
 b $7A40 Per-room tile maps
-D $7A40 The 50 rooms' tile maps laid end to end, 96 bytes per room: a 12x8 grid of tile codes, one row of 12 after another. Records run in room order.
+D $7A40 The rooms' tile maps laid end to end, 96 bytes per room: a 12×8 grid of tile codes, one row of 12 after another. Records run in room order.
 B $7A40,96,12 Room 1
 B $7AA0,96,12 Room 2
 …
 ```
 
-Each record is addressable: the `D` carries the schema, the stride renders the 12x8 grid as eight rows, and the per-record line says *which* room this one is. One `B $7A40,4800,96` in place of those 50 lines would render the rows and name none of them; a bare `b $7A40` under a label, with no title, schema or stride, is worse again — an undocumented blob.
+Each record is addressable: the `D` carries the schema, the stride renders the 12×8 grid as eight rows, and the per-record line says *which* room this one is. One `B $7A40,4800,96` in place of those 50 lines would render the rows and name none of them; a bare `b $7A40` under a label, with no title, schema or stride, is worse again — an undocumented blob.
 
 Name records by what the reader is looking for, not by ordinal position, and use the number the game *shows*. Where a counter is 0-based and the caption prints it plus one, record 0 is annotated `Room 1` — and the `D` states that convention, so the two readings cannot be confused.
 
@@ -291,11 +319,10 @@ Either spelling of the annotation satisfies it, because both put one named row p
 
 ```
 b $7D80 Per-type starting energy
-D $7D80 Indexed by enemy type (0 to $0F). #R$7DA0 copies the entry for its type into a
-D $7D80 new enemy's record +$04, its starting energy.
+D $7D80 Each enemy type's energy at spawn, one byte per type in type order.
 B $7D80,16,1
-  $7D80 Type $00: no enemy
-  $7D81 Type $01: spider
+  $7D80 No enemy
+  $7D81 Spider
 …
 ```
 
@@ -380,27 +407,19 @@ Properly typed data also renders better for free: `W` gives `DEFW door_frame_0` 
 
 **Its limit: tiling proves accounting, not meaning.** A wrong stride that happens to divide will pass, and a mis-typed field will tile. It is necessary, not sufficient — its job is to make an unparsed span impossible to leave behind. Only the render, the round-trip and the relocation proof test whether the parse is right.
 
-For an **array of records**, go one level finer — this is the norm, not a nicety for long sections only: mark up each element with its own **inline comment** (`  $addr,len  Label`), so an opaque run becomes a self-describing, indexed list and a reader can address "frame 7" without counting bytes. A sprite-frame array names every frame; level and spawn-slot tables name every entry:
+For an **array of records**, go one level finer, whatever the section's length. Mark up each record that holds something of its own with its own **inline comment** (`  $addr,len  Label`), so an opaque run becomes a self-describing list. Room and wave tables name every entry.
 
-```
-b $9A00 Four arrays of walking-enemy sprites (2x2 tiles x 4 frames = 128 bytes each).
-  $9A00,32,2 Frame 1
-  $9A20,32,2 Frame 2
-  $9A40,32,2 Frame 3
-  $9A60,32,2 Frame 4
-```
+The `room_maps` block above is the model. The block `D` states the schema once. Each record's line says what that record holds (ROW-9), there the room by the number the game shows. A row whose only content would be its index has no comment, and the block renders the records instead (ROW-6). A sprite-frame array is one `#UDGARRAY` per frame in an `N` note, with no "Frame 1" rows. For a *pointer* table – frame pointers, handler addresses – each element links its target by label, so the table navigates into the blocks it points at. Leave a uniform blob uncommented. A table whose elements mean different things is a table, and each element gets its line.
 
-The block `D` states the schema once; the per-record inline comments then say *which* record each row is (Frame 3, Room 5, wave 2). A reader scanning the data sees the structure without counting bytes. For a *pointer* table — frame pointers, handler addresses — each element's comment links its target (`  $9440,2 Frame 1 — #R$F020`), so the table navigates into the blocks it points at. Do not comment every byte of a uniform blob, but a table whose elements mean different things is not a uniform blob.
+Describe a variable by *what its value represents* — physical meaning, units, range, special values (DEF-1). Its logic, usage and readers belong to the code that does those things (DEF-2, DEF-3, HOME-4):
 
-Describe a variable by *what its value represents* — physical meaning, units, range, special values — not where it is used:
-
-> **Bad:** Used as a delay counter in the sound loop. **Good:** Alarm beep period (0–127). Lower = higher pitch. Counts down each frame.
-
-For load-bearing variables, list the routines that read and write them using cross-references, so a reader can trace data flow.
+> **Bad:** Used as a delay counter in the sound loop.
+>
+> **Good:** Alarm beep period, 0–127
 
 **Give structures a field-and-flag vocabulary and spend it everywhere.** A multi-byte record's fields get names (`enemy.counter_and_flags`), flag bits get named values (`flags_FACING_LEFT`), and bounded quantities get named endpoints (`lives_MIN`..`lives_MAX`); comments then use those names instead of re-deriving offsets and bit masks in prose. One naming, many uses: the same vocabulary appears in the `g`-block schema, in every comment that touches the field, and in the behavior spec — so a rename is a grep, and a mismatch is visible instead of silent.
 
-Hunt for those readers and writers in the `.skool`/`.ctl`, not by grepping the generated `.asm` for the raw address. `skool2asm --create-labels` auto-labels any referenced line-start, data bytes included, as `L<hex>`, so a referenced `$8E00` renders as `L8E00` and a grep for `$8E00` finds none of its readers. Before calling a variable unused, grep for the bare hex without the `$` (it matches both forms) or for the assigned label — better, label the variable yourself first so every reference renders through your name.
+Hunt for a variable's readers and writers in the `.skool`/`.ctl`, where the address resolves to its label. `skool2asm --create-labels` auto-labels any referenced line-start, data bytes included, as `L<hex>`, so a referenced `$8E00` renders as `L8E00` and a grep for `$8E00` finds none of its readers. Before calling a variable unused, grep for the bare hex without the `$` (it matches both forms) or for the assigned label — better, label the variable yourself first so every reference renders through your name.
 
 The `g` block is also the agent-facing memory map: a live agent reads game state straight from these addresses. Documenting it richly serves both the human porter and the MDP described in `references/behavior-spec.md`.
 
@@ -418,7 +437,7 @@ Every entry in the `.ctl` becomes a page on the site and a row in the memory map
 
 **A page does not deny what its own listing shows.** A title, description or label saying that nothing writes the bytes is contradicted by the listing on the same page when it shows the code storing to them. The same store that settles the letter settles the sentence and the label, and the check reports all three — see [What `b`, `g` and `u` promise](#what-b-g-and-u-promise) for what it reads as a denial and what it deliberately does not.
 
-**One entity, one name.** `references/agents.md` states it — one canonical term per concept, anchored to the `@label` identifiers, never a synonym for something a label already names. Three names for two enemy slots ("enemy A", "first/second enemy", "the chasing enemy") against labels `enemy_a` and `enemy_b` read fine page by page and leave a reader crossing pages to translate.
+**One entity, one name** (NAME-1). One canonical term per concept, anchored to the `@label` identifiers. Three names for two enemy slots ("enemy A", "first/second enemy", "the chasing enemy") against labels `enemy_a` and `enemy_b` read fine page by page and leave a reader crossing pages to translate.
 
 `make lint-names` holds the one part of that arithmetic can settle. Where the labels declare a **slot family** — a set differing only in one slot token, at the same place in the name (`enemy_a` / `enemy_b`, `enemy_a_timer` / `enemy_b_timer`) — prose must not name a member by its position. "The second enemy" is the worst available name: it is not in the listing, it is not searchable, and which member is "second" is a fact about the `.ctl`'s ordering rather than about the game. Write the slot's own name, or give the thing you actually mean a label.
 
@@ -467,7 +486,7 @@ In comment text, reference addresses with `#R$XXXX` (SkoolKit resolves it to the
 
 ## Validation rules
 
-The build runs ten `.ctl` linters; violations fail the build. The first four keep the `.ctl` mechanically consistent so diffs stay clean and `sna2skool` never silently reorders; the last six hold it to the contracts above.
+The build runs these `.ctl` linters, and violations fail the build. The first four keep the `.ctl` mechanically consistent so diffs stay clean and `sna2skool` never silently reorders. The rest hold it to the contracts above. `build-verify.md` describes every check, and `rules.md` names the check behind each rule.
 
 1. **Address order** — every directive in ascending address order.
 2. **Instruction order** — directives at the *same* address follow the canonical sequence: `@` → block type (`c`/`b`/…) → `D` → `N` → `R` → line comment.
@@ -480,7 +499,7 @@ The build runs ten `.ctl` linters; violations fail the build. The first four kee
 9. **No recited lengths** (`validate_ctl_byte_counts.py`) — an instruction comment must not state the size of the span it works on; a rate ("6 bytes per enemy") is the exemption. See `references/comment-style.md`.
 10. **Array elements** (`validate_ctl_array_elements.py`) — every record of an array of records is named on its own line, and a span that is not a record array is exempt by a declaration rather than by assertion. See [Data structures and tables](#data-structures-and-tables).
 
-A twelfth check, `validate_rendered_images.py` (`make lint-images`), gates the built site rather than the `.ctl`: every image macro must name an output file, and every named file must be under `html/`. It runs after `make html`, because its subject is what the build produced.
+Another check, `validate_rendered_images.py` (`make lint-images`), gates the built site rather than the `.ctl`: every image macro must name an output file, and every named file must be under `html/`. It runs after `make html`, because its subject is what the build produced.
 
 Run the `.ctl` ones yourself while editing (`python3 scripts/validate_ctl_address_order.py {game}.ctl`) rather than waiting for the full build.
 

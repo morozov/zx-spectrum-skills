@@ -1,0 +1,19 @@
+none: no review record exists for this diff (2178095bb385)
+review_record: refusing to write: it leaves 1 rule ID(s) unanswered: DEF-4.
+review_record: refusing to write: it says COMMIT over a failing rule; it leaves 1 rule ID(s) unanswered: DEF-4.
+review_record: wrote build/review/2178095bb3850a7f0e79c1a8d865622a5b4ba0a26e67680339089ec90feaa542.json (REJECT, 1 rule(s), 1 file(s) in the diff).
+rejected: the reviewer (fixture) returned REJECT for this diff
+review_record: wrote build/review/2178095bb3850a7f0e79c1a8d865622a5b4ba0a26e67680339089ec90feaa542.json (COMMIT, 2 rule(s), 1 file(s) in the diff).
+approved: reviewer fixture, 2 rule(s) answered
+review_record: staged diff approved (reviewer fixture, 2 rule(s) answered).
+deletion-scope: the staged diff removes 0 item(s), at or under the threshold of 3
+hook: commit allowed
+stale: the newest record on this base, build/review/2178095bb3850a7f0e79c1a8d865622a5b4ba0a26e67680339089ec90feaa542.json, was written for an earlier diff; the diff changed after that review
+Commit refused: review stale. The newest record on this base, build/review/2178095bb3850a7f0e79c1a8d865622a5b4ba0a26e67680339089ec90feaa542.json, was written for an earlier diff; the diff changed after that review.
+Needed: build/review/2fec42fb09b1a5dd11aee9c2be29dea9909ebdff4faac9e524d34da4f90be568.json with verdict COMMIT, written by a Challenger through `review_record.py write` over exactly the staged diff. Stage every change the review covered, or have the Challenger review what is staged.
+hook: commit refused
+review_record: refusing to write: the diff changes a stylesheet or theme file and the record lists no screenshot.
+REVIEW: stale – the newest record on this base, build/review/2178095bb3850a7f0e79c1a8d865622a5b4ba0a26e67680339089ec90feaa542.json, was written for an earlier diff; the diff changed after that review.
+NOT READY TO COMMIT: the checks pass and the review is stale. The checks cover only what a pattern can decide; a Challenger review of this exact diff is required.
+Review-only rules for the changed css, ref files, which no check above enforces: AUD-3 DEF-4 HEAD-1
+exit=0

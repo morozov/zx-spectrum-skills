@@ -1,0 +1,140 @@
+Found 48 comment defect(s):
+
+[CALLERS] 2
+  units-session.skool:36: lists the code that reads, writes or calls the thing ('read by #R$') – the listing's links already carry who touches what; say what the thing is [HOME-4]
+    g$D010 DEFB $00      ; Enemy hit-type code read by #R$A010 to pick the removal
+  units-session.skool:51: lists the code that reads, writes or calls the thing ('written by #R$') – the listing's links already carry who touches what; say what the thing is [HOME-4]
+    ; comes from the #R$A060 table, written by #R$A070.
+
+[CODE_ECHO] 2
+  units-session.ref:112: cites a number the player cannot see ('IDs $20'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays [AUD-4]
+    IDs $20–$3F are passable.
+  units-session.ref:115: cites a number the player cannot see ('Headings 0'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays [AUD-4]
+    Headings 0–3 move it 2 px left instead.
+
+[CODE_LIST] 1
+  units-session.ref:35: lists codes ('$06, $1A or $3C') – a run of codes restates the game's data; name what the codes have in common, or leave the list to the table that holds them [HOME-3]
+    No level places $06, $1A or $3C.
+
+[CODE_PAREN] 7
+  units-session.skool:67: names a thing and then its code in parentheses ('(top-left tile $5A)') – the code is implementation the reader cannot see, and the name already says which thing is meant; drop the code [AUD-4]
+    b$F601 DEFB $45      ; Code $1C: ROBOT enemy (top-left tile $5A), bright blue
+  units-session.ref:26: names a thing and then its code in parentheses ('shield ($2C)') – the code is implementation the reader cannot see, and the name already says which thing is meant; drop the code [AUD-4]
+    The iron shield ($2C) is in the scripts of levels 3, 8, 14, 20. Rock rain
+  units-session.ref:65: names a thing and then its code in parentheses ('Wall ($40–$7F)') – the code is implementation the reader cannot see, and the name already says which thing is meant; drop the code [AUD-4]
+    <h2 class="ref-section" id="wall">Wall ($40–$7F)</h2>
+  units-session.ref:68: names a thing and then its code in parentheses ('wall ($40–$7F)') – the code is implementation the reader cannot see, and the name already says which thing is meant; drop the code [AUD-4]
+    A wall ($40–$7F) stands in a slot until a bomb clears it.
+  units-session.ref:73: names a thing and then its code in parentheses ('wall ($40–$7F)') – the code is implementation the reader cannot see, and the name already says which thing is meant; drop the code [AUD-4]
+    { wall | A wall ($40–$7F) of any design }
+  units-session.ref:97: names a thing and then its code in parentheses ('Wall ($40–$7F)') – the code is implementation the reader cannot see, and the name already says which thing is meant; drop the code [AUD-4]
+    [Term:wall:Wall ($40–$7F)]
+  units-session.ref:106: names a thing and then its code in parentheses ('wall ($20–$3F, or $80 and up)') – the code is implementation the reader cannot see, and the name already says which thing is meant; drop the code [AUD-4]
+    Not a wall ($20–$3F, or $80 and up): passable. The tile map ($B200) holds codes.
+
+[DATA_ECHO] 2
+  units-session.skool:67: a data row's comment repeats its index ("Code $1C") – the row shows its bytes and its address is its position. Say what the row holds; state the index once, in the block description [ROW-1]
+    b$F601 DEFB $45      ; Code $1C: ROBOT enemy (top-left tile $5A), bright blue
+  units-session.skool:69: a data row's comment repeats its index ("Codes $70-$78") – the row shows its bytes and its address is its position. Say what the row holds; state the index once, in the block description [ROW-1]
+    $F603 DEFB $46      ; Codes $70-$78: GHOST enemies
+
+[DEIXIS] 1
+  units-session.skool:92: points at its neighbors by position ('the routines below') – a reader who arrived by a link has no 'below'; name the entry by its link, or describe only this one [HOME-2]
+    Why the address: the routines below derive this base…
+
+[FOIL] 3
+  units-session.skool:119: argues against a reading nobody offered ('is not a') – state what the thing is or does; a contrast earns its place only when the other side is on the page [AUD-3]
+    One byte is not a flag: the final byte of the grid holds the $FF end
+  units-session.skool:132: argues against a reading nobody offered ('belong to the loop, not') – state what the thing is or does; a contrast earns its place only when the other side is on the page [AUD-3]
+    Loops over every sprite but the player's shield. Those skips belong to the
+  units-session.skool:147: argues against a reading nobody offered ('Instead of') – state what the thing is or does; a contrast earns its place only when the other side is on the page [AUD-3]
+    Frame handler for the ghost. Instead of wandering it homes on
+
+[FOREIGN_LOGIC] 1
+  units-session.skool:104: describes another routine's logic ('#R$A311 packs') on a data entry's page – the page describes its own bytes; at most it names the routine that fills them [HOME-2]
+    The page is also used as a bit field. The address routine #R$A311 packs the
+
+[FRAGMENT_STOP] 2
+  units-session.skool:71: ends a noun phrase with a full stop ('Armored-1 enemy.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    $F605 DEFB $47      ; Armored-1 enemy.
+  units-session.ref:61: ends a noun phrase with a full stop ('grid of room tile codes, row-major.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
+    { #R$CC00 | 48 bytes | The 8×6 grid of room tile codes, row-major. }
+
+[GLOSSARY_DEF] 2
+  units-session.ref:81: the definition describes the player's progress ('How far') – a glossary entry says what the thing is, true before play starts; how it changes and what uses it belong to the listing [DEF-4]
+    How far the player has got, 0 to 49. It wraps back to 0, so the level set
+  units-session.ref:85: the definition describes logic that changes the value ('After the fiftieth level it wraps back to 0, so the level set repeats') – a glossary entry says what the thing is, true before play starts; how it changes and what uses it belong to the listing [DEF-2]
+    After the fiftieth level it wraps back to 0, so the level set repeats.
+
+[GLOSSARY_IDENT] 1
+  units-session.ref:90: glossary term 'Constants' is a constant or a category of program symbol – the glossary holds the game's and the project's own terms, and an identifier is named in words where it is used [DEF-6]
+    [Term:constants:Constants]
+
+[HEADING_JARGON] 2
+  units-session.skool:74: heading 'The 50 records' uses the program's storage vocabulary or counts its contents – name what the reader is browsing, in the game's terms [HEAD-2]
+    The 50 records
+  units-session.ref:21: heading 'The 50 records' uses the program's storage vocabulary or counts its contents – name what the reader is browsing, in the game's terms [HEAD-2]
+    <h2 class="ref-section" id="all">The 50 records</h2>
+
+[IDENT_IN_PROSE] 1
+  units-session.skool:82: names a constant by its identifier ('WORK_BUF') – a reader meets the thing, not the name the assembler reads; say what it is in words [NAME-6]
+    Work buffer (WORK_BUF) - redraw flags
+
+[INLINE_RENDER] 1
+  units-session.skool:206: draws a render inside a line of text ('The player in its plain form') – a render sits in a block of its own (#UDGTABLE in an N note or a page block), never in a sentence or a row comment [VIS-1]
+    The player #UDGARRAY2,7,4,2($B801,,2;$B800,,2)(player_img) in its plain form,
+
+[LABEL_ECHO] 1
+  units-session.skool:162: the comment is the label's own words ('drone') – the operand's link already names the target; say what this row does with it [HOME-5]
+    w$F670 DEFW $A14B     ; drone
+
+[LEVEL_FACT] 4
+  units-session.ref:35: states a fact about the level data ('No level') – which levels hold what, and how many slots carry a value, is the data itself; the data tables show it [HOME-3]
+    No level places $06, $1A or $3C.
+  units-session.ref:39: states a fact about the level data ('Level 50 has') – which levels hold what, and how many slots carry a value, is the data itself; the data tables show it [HOME-3]
+    Level 50 has no empty cell.
+  units-session.ref:43: states a fact about the level data ('9 slots hold') – which levels hold what, and how many slots carry a value, is the data itself; the data tables show it [HOME-3]
+    9 slots hold $00.
+  units-session.ref:124: states a fact about the level data ('Nine of the 50 wave scripts') – which levels hold what, and how many slots carry a value, is the data itself; the data tables show it [HOME-3]
+    The drone skips the speed limit. Nine of the 50 wave scripts carry it.
+
+[NUMBER_LIST] 2
+  units-session.ref:26: lists numbers ('levels 3, 8, 14, 20') – a list of the levels, slots or values that hold something restates the game's data, which the data tables show [HOME-3]
+    The iron shield ($2C) is in the scripts of levels 3, 8, 14, 20. Rock rain
+  units-session.ref:27: lists numbers ('41, 43, 47, 50, 58') – a list of the levels, slots or values that hold something restates the game's data, which the data tables show [HOME-3]
+    is in those of 41, 43, 47, 50, 58.
+
+[TYPOGRAPHY] 11
+  units-session.skool:69: writes a range in ASCII ('$70-$78') – prose uses an en dash; quoted game text and macro parameters keep their bytes [TYPO-2]
+    $F603 DEFB $46      ; Codes $70-$78: GHOST enemies
+  units-session.skool:82: writes a dash or a minus in ASCII ('-') – prose uses a spaced en dash, or − for minus; quoted game text and macro parameters keep their bytes [TYPO-2]
+    Work buffer (WORK_BUF) - redraw flags
+  units-session.skool:169: writes a flat in ASCII ('Eb4') – prose uses ♭; quoted game text and macro parameters keep their bytes [TYPO-2]
+    b$F680 DEFB $40,$01   ; Eb4
+  units-session.skool:174: writes a dimension in ASCII ('2x2') – prose uses ×; quoted game text and macro parameters keep their bytes [TYPO-2]
+    A 2x2-character block, a 16x16-pixel tile.
+  units-session.skool:176: writes a dimension in ASCII ('8 x 6') – prose uses ×; quoted game text and macro parameters keep their bytes [TYPO-2]
+    The grid is 8 x 6 of them, 128 x 96 pixels.
+  units-session.skool:178: writes a product in ASCII ('*') – prose uses ×; quoted game text and macro parameters keep their bytes [TYPO-2]
+    The cell address is row * 32 + col.
+  units-session.skool:180: writes an arrow in ASCII ('->') – prose uses →; quoted game text and macro parameters keep their bytes [TYPO-2]
+    A cell's tile -> its attribute byte.
+  units-session.skool:182: writes an angle in ASCII ('45 deg') – prose uses °; quoted game text and macro parameters keep their bytes [TYPO-2]
+    The diagonal headings sit 45 deg apart.
+  units-session.skool:184: writes a range in ASCII ('2-17') – prose uses an en dash; quoted game text and macro parameters keep their bytes [TYPO-2]
+    Rows 2-17 hold the grid.
+  units-session.ref:52: writes a dimension in ASCII ('2x2') – prose uses ×; quoted game text and macro parameters keep their bytes [TYPO-2]
+    A 2x2-character block, a 16x16-pixel tile.
+  units-session.ref:121: writes a minus sign in ASCII ('-') – prose uses −; quoted game text and macro parameters keep their bytes [TYPO-2]
+    Test Y = sprite Y moved -2 px, upward.
+
+[UNUSED_TEXT] 1
+  units-session.skool:221: an unused entry carries text ('Unused.') – unused bytes are titled 'Unused bytes' and say nothing else: no reason, no neighbors, no guessed purpose. One unused byte inside a used table keeps its 'Unused' row [UNU-1]
+    Unused.
+
+[WORDY_VARIABLE] 1
+  units-session.skool:32: 113 words on a 1-byte variable ('Enemy hit-type code') – a variable's definition says what it holds and how it is encoded, in one sentence per byte or so; who reads it, how it changes and what it selects belong to the code [DEF-5]
+    Enemy hit-type code
+
+  advisory, not gated: 5 STAMP  — run `lint_comments.py … --advisory` for the list
+  (a STAMP count is not comparable across an edit: the phrase it matches is bounded by comment units, so splitting a unit or rewording a sentence moves the tally without changing what is duplicated. Read the list, not the delta.)

@@ -1,0 +1,30 @@
+; LABEL_ECHO with the label families read from fixtures/label-echo-families.md,
+; which declares `tune_` and no other family.
+;
+; Bad, each reported: a pointer row whose comment is its target label's words.
+;   $FC00  the words of `tune_title` without the family stem
+;   $FC04  the words of `jingle_title`, whose prefix no block declares
+; Good, none reported: the same rows naming the family as well, since a
+; declared family's stem is not one of the words a comment could echo.
+;   $FC02  the words of `tune_title` and its family stem
+
+; Pointers to the tunes
+;
+; One pointer per tune.
+@label=tune_pointers
+w$FC00 DEFW $FD00     ; title
+ $FC02 DEFW $FD00     ; title tune
+ $FC04 DEFW $FD20     ; title jingle
+
+; Title tune
+@label=tune_title
+b$FD00 DEFB $00,$00,$00,$00,$00,$00,$00,$00
+ $FD08 DEFB $00,$00,$00,$00,$00,$00,$00,$00
+ $FD10 DEFB $00,$00,$00,$00,$00,$00,$00,$00
+ $FD18 DEFB $00,$00,$00,$00,$00,$00,$00,$00
+
+; Title jingle
+@label=jingle_title
+b$FD20 DEFB $00,$00,$00,$00,$00,$00,$00,$00
+
+i$FD28

@@ -1,0 +1,122 @@
+units-session.skool:32	title entry=gD010	Enemy hit-type code
+units-session.skool:34	block entry=gD010	Which path removes a struck enemy.
+units-session.skool:36	data-row entry=gD010	Enemy hit-type code read by #R$A010 to pick the removal path. 0 = a shot hit, set by the shot collision test #R$A020. A heavy shot such as the LASER bolt force-clears at #R$A030, and a plain shot checks armor at #R$A040. 1 = an ordinary enemy step, the default #R$A050 sets. It checks armor at #R$A040 and spares the armored robot. 2 = the bomb step, set by #R$A050 for the bomb only. That step takes the force-clear #R$A030, which empties any enemy slot, the armored robot too. The only routines that write it are #R$A020 and #R$A050 (#R$A050 setting 1 or 2).
+units-session.skool:48	title entry=gD011	Heading code for the player
+units-session.skool:50	data-row entry=gD011	Heading code for the player. Each active sprite's code comes from the #R$A060 table, written by #R$A070.
+units-session.skool:53	title entry=gD012	Enemy hit type
+units-session.skool:55	block entry=gD012	Which path removes a struck enemy.
+units-session.skool:57	data-row entry=gD012	0 a shot, 1 an enemy, 2 the bomb
+units-session.skool:59	title entry=gD013	Heading code
+units-session.skool:61	data-row entry=gD013	Heading code of the player
+units-session.skool:63	title entry=bF601	Enemy attribute table
+units-session.skool:65	block entry=bF601	One attribute byte per enemy design, indexed by type code.
+units-session.skool:67	data-row entry=bF601	Code $1C: ROBOT enemy (top-left tile $5A), bright blue
+units-session.skool:68	data-row entry=bF601	ROBOT enemy, bright blue
+units-session.skool:69	data-row entry=bF601	Codes $70-$78: GHOST enemies
+units-session.skool:70	data-row entry=bF601	GHOST enemies
+units-session.skool:71	data-row entry=bF601	Armored-1 enemy.
+units-session.skool:72	data-row entry=bF601	Armored-1 enemy
+units-session.skool:74	title entry=bF607	The 50 records
+units-session.skool:78	title entry=bF608	Level by level
+units-session.skool:82	title entry=sF610	Work buffer (WORK_BUF) - redraw flags
+units-session.skool:86	title entry=sF620	Work buffer
+units-session.skool:90	title entry=sF621	Redraw flags
+units-session.skool:92	block entry=sF621	Why the address: the routines below derive this base…
+units-session.skool:96	title entry=sF622	Redraw flags, one per screen cell
+units-session.skool:98	block entry=sF622	Filled by #R$A200.
+units-session.skool:102	title entry=sF630	Back buffer
+units-session.skool:104	block entry=sF630	The page is also used as a bit field. The address routine #R$A311 packs the screen third and the cell's pixel row into the low bits of the page, and the sprite copy routine #R$A3FC masks the third back out to find the cell's redraw flag.
+units-session.skool:111	title entry=sF631	Back buffer, one byte per screen byte
+units-session.skool:113	block entry=sF631	Filled by #R$A3FC.
+units-session.skool:117	title entry=gF640	End marker
+units-session.skool:119	block entry=gF640	One byte is not a flag: the final byte of the grid holds the $FF end marker.
+units-session.skool:124	title entry=gF641	End marker
+units-session.skool:126	block entry=gF641	The final byte of the grid holds the $FF end marker.
+units-session.skool:130	title entry=cF650	Enemy contact test
+units-session.skool:132	block entry=cF650	Loops over every sprite but the player's shield. Those skips belong to the loop, not to the caller, so an enemy that never runs the shot test #R$A080 still gets them.
+units-session.skool:138	title entry=cF651	Enemy contact test
+units-session.skool:140	block entry=cF651	Loops over every sprite but the player's shield. An enemy that never runs the shot test #R$A080 still gets these skips.
+units-session.skool:145	title entry=cF660	Ghost
+units-session.skool:147	block entry=cF660	Frame handler for the ghost. Instead of wandering it homes on the player.
+units-session.skool:152	title entry=cF661	Ghost
+units-session.skool:154	block entry=cF661	Frame handler for the ghost. It homes on the player.
+units-session.skool:158	title entry=wF670	Handler table
+units-session.skool:160	block entry=wF670	One handler per enemy.
+units-session.skool:162	data-row entry=wF670	drone
+units-session.skool:163	data-row entry=wF670	falls toward the player
+units-session.skool:165	title entry=bF680	Note period/duration table
+units-session.skool:167	block entry=bF680	The 36 pitches the tune player can play, two bytes each.
+units-session.skool:169	data-row entry=bF680	Eb4
+units-session.skool:170	data-row entry=bF680	E♭4
+units-session.skool:172	title entry=bF690	Room grid
+units-session.skool:174	block entry=bF690	A 2x2-character block, a 16x16-pixel tile.
+units-session.skool:176	block entry=bF690	The grid is 8 x 6 of them, 128 x 96 pixels.
+units-session.skool:178	block entry=bF690	The cell address is row * 32 + col.
+units-session.skool:180	block entry=bF690	A cell's tile -> its attribute byte.
+units-session.skool:182	block entry=bF690	The diagonal headings sit 45 deg apart.
+units-session.skool:184	block entry=bF690	Rows 2-17 hold the grid.
+units-session.skool:188	title entry=bF691	Room grid
+units-session.skool:190	block entry=bF691	A 2×2-character block, a 16×16-pixel tile.
+units-session.skool:192	block entry=bF691	The grid is 8×6 of them, 128×96 pixels.
+units-session.skool:194	block entry=bF691	The cell address is row × 32 + col.
+units-session.skool:196	block entry=bF691	A cell's tile → its attribute byte.
+units-session.skool:198	block entry=bF691	The diagonal headings sit 45° apart.
+units-session.skool:200	block entry=bF691	Rows 2–17 hold the grid.
+units-session.skool:204	title entry=bF6A0	Player sprite
+units-session.skool:206	block entry=bF6A0	The player   in its plain form, drawn at the starting point.
+units-session.skool:211	title entry=bF6A2	Player sprite
+units-session.skool:213	block entry=bF6A2	The player in its plain form, drawn at the starting point.
+units-session.skool:219	title entry=uF6B0	Unused bytes
+units-session.skool:221	block entry=uF6B0	Unused.
+units-session.skool:225	title entry=uF6B6	Unused bytes
+units-session.ref:17	ref-heading	Levels
+units-session.ref:21	ref-heading	The 50 records
+units-session.ref:23	ref-heading	Level by level
+units-session.ref:26	ref-para	The iron shield ($2C) is in the scripts of levels 3, 8, 14, 20. Rock rain is in those of 41, 43, 47, 50, 58.
+units-session.ref:31	ref-para	The iron shield turns a shot back where it strikes.
+units-session.ref:35	ref-para	No level places $06, $1A or $3C.
+units-session.ref:39	ref-para	Level 50 has no empty cell.
+units-session.ref:43	ref-para	9 slots hold $00.
+units-session.ref:47	ref-para	Each card shows the level's room layout and the enemies its wave script can send.
+units-session.ref:52	ref-para	A 2x2-character block, a 16x16-pixel tile.
+units-session.ref:56	ref-para	A 2×2-character block, a 16×16-pixel tile.
+units-session.ref:60	table-cell col=0	Table
+units-session.ref:60	table-cell col=1	Record
+units-session.ref:60	table-cell col=2	What the record holds
+units-session.ref:61	table-cell col=0	#R$CC00
+units-session.ref:61	table-cell col=1	48 bytes
+units-session.ref:61	table-cell col=2	The 8×6 grid of room tile codes, row-major.
+units-session.ref:62	table-cell col=0	#R$CC30
+units-session.ref:62	table-cell col=1	48 bytes
+units-session.ref:62	table-cell col=2	The 8×6 grid of room tile codes, row-major
+units-session.ref:65	ref-heading	Wall ($40–$7F)
+units-session.ref:68	ref-para	A wall ($40–$7F) stands in a slot until a bomb clears it.
+units-session.ref:72	table-cell col=0	Thing
+units-session.ref:72	table-cell col=1	What it is
+units-session.ref:73	table-cell col=0	wall
+units-session.ref:73	table-cell col=1	A wall ($40–$7F) of any design
+units-session.ref:74	table-cell col=0	wall
+units-session.ref:74	table-cell col=1	A wall of any design
+units-session.ref:77	ref-heading	Glossary
+units-session.ref:80	term-title	Level index
+units-session.ref:81	term-body	How far the player has got, 0 to 49. It wraps back to 0, so the level set repeats.
+units-session.ref:84	term-title	Level index
+units-session.ref:85	term-body	After the fiftieth level it wraps back to 0, so the level set repeats.
+units-session.ref:87	term-title	Level index
+units-session.ref:88	term-body	Which level is being played, counted from 0.
+units-session.ref:90	term-title	Constants
+units-session.ref:91	term-body	The names in operands. Each stands for one address or size.
+units-session.ref:93	term-title	Redraw flag
+units-session.ref:94	term-body	A flag on one screen cell saying its picture has changed since the screen was last drawn.
+units-session.ref:97	term-title	Wall ($40–$7F)
+units-session.ref:98	term-body	A block in the room that a bomb can break.
+units-session.ref:100	ref-heading	Enemy speeds above 6
+units-session.ref:101	ref-para	POKE 47904 ($BB20) with the new limit. The decimal is what the reader types.
+units-session.ref:103	ref-heading	Tiles
+units-session.ref:106	ref-para	Not a wall ($20–$3F, or $80 and up): passable. The tile map ($B200) holds codes.
+units-session.ref:109	ref-heading	Siblings
+units-session.ref:112	ref-para	IDs $20–$3F are passable.
+units-session.ref:115	ref-para	Headings 0–3 move it 2 px left instead.
+units-session.ref:118	ref-para	The headings sit 45° apart.
+units-session.ref:121	ref-para	Test Y = sprite Y moved -2 px, upward.
+units-session.ref:124	ref-para	The drone skips the speed limit. Nine of the 50 wave scripts carry it.

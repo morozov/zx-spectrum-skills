@@ -1,5 +1,7 @@
-; The structural laws over a '{ }' comment group's span, with the near misses
-; that must stay silent.
+; The structural laws over a '{ }' comment group's span, and the text checks over
+; listing prose, with the near misses that must stay silent. A comment run like
+; this one, with a blank line before the next entry, is not published and is no
+; prose unit, so the explanations here and above each case are never read.
 ;
 ; Expected, and nothing else:
 ;   GROUP_SPLIT at $EC05 — the group spans a JR whose target is outside it.
@@ -13,27 +15,38 @@
 ;   ELLIPSIS    at $EC5C and $EC5E — one thought chained across two groups
 ;               by '...' instead of written over the rows it covers.
 ;   SYNTH_ECHO  at $EC66 — prose beside an #AUDIO saying how the tone is made.
-;   EULOGY     at $EC6E — a proof that a block of unused bytes is unused.
-;   UNRENDERED at $EC76 — a block titled a sprite that shows no sprite.
-;   CODE_ECHO  at $EC82, $EC84 and $EC8A — numbers the player cannot see:
-;               a dispatch code, a state index, a tile range.
+;   UNUSED_TEXT at $EC6E — a proof that a block of unused bytes is unused.
+;   UNRENDERED  at $EC76 — a block titled a sprite that shows no sprite.
+;   CODE_ECHO   at $EC82 and $EC84 — numbers the player cannot see: a dispatch
+;               code in the title and the description, a state index, a tile
+;               range.
+;   DATA_ECHO   at $EC86 and $EC92 — a row opening on its index, a row quoting
+;               its own byte.
+;   CODE_PAREN  at $EC84, $EC92 and $EC9B — a name followed by its code in
+;               parentheses, a tile range behind an encoding noun included.
+;   TYPOGRAPHY  at $EC84 — a code range written with a hyphen.
+;   NUMBER_LIST at $EC9B — prose listing level numbers.
 ;
 ; Silent by construction: the branch target at $EC11 is its span's own loop top,
 ; reached only from below it; the conditional RET at $EC21 abandons the act
 ; rather than starting another; and the elided sequence at $EC62 is an ellipsis
 ; standing for omitted values, not a comment spliced across rows; and the entry
 ; at $EC6A renders its sound and says only what the sound is and what fires it,
-; which is what an entry beside a clip owes; and the unused block at $EC72 says
-; that it is unused and one thing worth knowing, which is all one owes; the
-; sprite at $EC7A renders itself, and the pointer table at $EC7E names sprites
-; without holding one, so neither owes a picture; and the dispatch table at
-; $EC86 is where a type number is the content, so it is not reported. Nor are
-; the register contract at $EC8E, the platform bit at $EC90, or the Z80
-; mnemonic at $EC92 — a contract states a convention, and a port bit and an
-; instruction are not this program's to reassign.
+; which is what an entry beside a clip owes; and the unused block at $EC72
+; carries its title and nothing else, and the single unused byte at $EC75 keeps
+; its "Unused" row; the sprite at $EC7A renders itself, and the pointer table at
+; $EC7E names sprites without holding one, so neither owes a picture; and the
+; dispatch row at $EC86 is reported once, as DATA_ECHO, and not again as
+; CODE_ECHO. Nor are the register contract at $EC8E, the platform bit at $EC90,
+; or the Z80 mnemonic at $EC90 — a contract states a convention, and a port bit
+; and an instruction are not this program's to reassign. The variable at $EC94
+; names its own byte, which is its encoding and not an echo.
 ; The equation at $EC96 opens lower case under a row with no full stop, and is
 ; silent: a noun-phrase row takes no full stop, and an identifier and its
-; operator start a statement of their own, not the rest of the row above.
+; operator start a statement of their own. The row at $ECA2 opens lower case
+; under a noun-phrase row at $ECA0 and is silent too: a unit is left open only
+; when it ends on a comma, a conjunction, a preposition, an article or a
+; relative pronoun.
 
 @label=split_span
 c$EC00 LD A,$01       ; {Arm the shot, then blank the stale sprite cell.
@@ -73,6 +86,7 @@ c$EC28 LD A,($FC01)   ; {Fire from the other path.
 ; stretches to the next documented address instead of stopping at the act. The
 ; rows from $EC40 do not run on the skipping path. Its parenthetical is the
 ; second defect: one value, both bases.
+
 @label=clamp_and_prime
 c$EC35 LD A,($FC00)   ; {Clamp the stored width to a maximum of $8A (138), then
  $EC38 CP $8A         ; aim the sprite pointer.
@@ -87,6 +101,7 @@ c$EC35 LD A,($FC00)   ; {Clamp the stored width to a maximum of $8A (138), then
 ; A record's layout quoted into prose about behavior, and a sentence cut in
 ; half across two comment units. The offset belongs at the record's own block;
 ; the second comment describes nothing on its own.
+
 @label=track_slot
 c$EC47 LD HL,($FC10)  ; Read the slot's +0/+1 position word.
  $EC4A LD A,H         ; {Hold the slot while the fade settles,
@@ -99,8 +114,9 @@ c$EC47 LD HL,($FC10)  ; Read the slot's +0/+1 position word.
 ; The pitch of an effect, written beside the routine that plays it. The clip
 ; conveys it; the comment owes the trigger instead. The frame interrupt below is
 ; the machine's tick, not a pitch, and stays silent.
+
 @label=play_blip
-c$EC56 LD D,$64       ; The door-close click, ~1.3 kHz.
+c$EC56 LD D,$64       ; The door-close click, ~1.3 kHz
  $EC58 CALL $FD00     ; {Hold it for one tick of the 50 Hz frame interrupt.
  $EC5B RET            ;
 
@@ -108,6 +124,7 @@ c$EC56 LD D,$64       ; The door-close click, ~1.3 kHz.
 ; single act, so they owe one group over both, not two groups holding half a
 ; sentence each. The splice is authored, which is what makes it decidable — and
 ; it hides inside braces, so the check must look inside them too.
+
 @label=copy_glyph_row
 c$EC5C LD A,(DE)      ; {Copy one font row to the screen...
  $EC5D INC H          ; }
@@ -117,12 +134,15 @@ c$EC5C LD A,(DE)      ; {Copy one font row to the screen...
 
 ; An ellipsis standing for values left out of a sequence. It elides, it does not
 ; splice, and the row it sits on is the whole thought.
+
 @label=score_run
 c$EC62 LD A,(HL)      ; A run scores 10, 20, 30 ... up to 250.
  $EC64 RET            ;
 
-; The ALARM siren, 7 frames of 12 cycles each, with the period computed as
-; 2*counter + 10 and held flat within each frame.
+; ALARM siren
+;
+; Seven frames of 12 cycles each, with the period computed as 2 × counter + 10
+; and held flat within each frame.
 ; #AUDIO(alarm-siren)
 @label=sfx_alarm
 c$EC66 LD D,$14       ; Step the pitch down once per poll.
@@ -130,34 +150,43 @@ c$EC66 LD D,$14       ; Step the pitch down once per poll.
 
 ; The same shape, written the way it should be. It renders the clip and says what
 ; the sound is and what fires it, so nothing here is the clip read back.
+
+; Door-opened blip
+;
+; The blip a door makes as it slides open.
 ; #AUDIO(door-opened)
 @label=sfx_door
-c$EC6A LD D,$28       ; The blip a door makes as it slides open.
+c$EC6A LD D,$28       ; Play it once per opened door.
  $EC6C RET            ;
 
+; Unused bytes
+;
 ; Undetermined tail of the state block; no reader found in the image, and the
 ; only writer is the level-setup clear, whose fill stops seven bytes in, so
 ; nothing fixes a stride here and the size is the whole claim.
 @label=unused_tail
 u$EC6E DEFS $04
 
-; Unused. The loader's leftovers from the old BASIC area, kept because the image
-; runs contiguously into the table below.
+; Unused bytes
 @label=loader_residue
-u$EC72 DEFS $04
+u$EC72 DEFS $03
+
+; Unused bytes
+@label=unused_ec75
+u$EC75 DEFS $01       ; Unused
 
 ; Player sprite: normal player bitmap
 @label=player_sprite
-b$EC76 DEFB $30,$30   ; Two bytes per pixel row.
+b$EC76 DEFB $30,$30   ; Two bytes per pixel row
 
 ; Shot sprite bitmap
 ; #UDGARRAY2,7,3,2($EC7A;$EC7C)(shot_sprite)
 @label=shot_sprite
-b$EC7A DEFB $18,$18   ; Two bytes per pixel row.
+b$EC7A DEFB $18,$18   ; Two bytes per pixel row
 
 ; Sprite pointer table, one entry per sprite slot
 @label=sprite_pointers
-b$EC7E DEFW $EC76     ; The normal player.
+b$EC7E DEFW $EC76     ; The normal player
 
 ; Drone behavior handler (object type 12)
 ;
@@ -168,9 +197,9 @@ c$EC82 LD A,(HL)      ; Read its state.
 ; Object dispatch table, one handler per type
 ;
 ; Indexed by object type. A row that opens on its type repeats its position,
-; so DATA_ECHO reports it.
+; so the data-row check reports it.
 @label=dispatch_table
-b$EC86 DEFW $EC82     ; Type 12, the drone.
+b$EC86 DEFW $EC82     ; Type 12, the drone
 
 ; Enemy state machine
 ;
@@ -203,19 +232,27 @@ c$EC90 XOR $10        ; Toggle it.
 ; Indexed by door code. The first row quotes its own byte and is reported;
 ; the second says what it holds and is not.
 @label=door_attr
-b$EC92 DEFB $45      ; The steel door, bright cyan ($45).
- $EC93 DEFB $41      ; The KEY pickup door.
+b$EC92 DEFB $45      ; The steel door, bright cyan ($45)
+ $EC93 DEFB $41      ; The KEY pickup door
 
 ; Drift code
-;
-; A variable documents its encoding on its own row, and the byte is only the
-; value the snapshot caught, so naming $00 here is not an echo.
 @label=drift_code
-g$EC94 DEFB $00      ; $FF none, $00 hit moving right, $02 hit moving left.
+g$EC94 DEFB $00      ; $FF none, $00 hit moving right, $02 hit moving left
 
 ; Contact gap
 ;
 ; A noun-phrase row with no full stop, then an equation on its own identifier.
 @label=contact_gap
 c$EC95 LD A,D         ; No contact
- $EC96 SUB E          ; dy = top.Y - base.Y
+ $EC96 SUB E          ; dy = top.Y − base.Y
+
+; Horned mask handler
+;
+; The horned mask ($10) is in the scripts of levels 12, 27 and 33.
+@label=horned_mask
+c$EC9B RET            ; Sound on: restore the OUT ($FE),A write.
+
+; Fire test
+@label=fire_test
+c$ECA0 AND $10        ; Fire held
+ $ECA2 JR Z,$ECA6     ; otherwise keep the shot parked

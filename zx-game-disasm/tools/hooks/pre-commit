@@ -1,0 +1,17 @@
+#!/bin/sh
+# Refuse a commit unless a Challenger approved exactly the staged diff.
+#
+# The record is build/review/<diffhash>.json in the repo being committed, with
+# verdict COMMIT, written by `scripts/review_record.py write`. Any edit staged
+# after the review changes the hash, so the record stops matching.
+#
+# Installed by `core.hooksPath` pointing at this directory; `make hooks` sets it.
+here=$(cd "$(dirname "$0")" && pwd -P)
+script="$here/../../scripts/review_record.py"
+if [ ! -f "$script" ]; then
+    echo "pre-commit: $script is missing, so the review record cannot be checked. Commit refused." >&2
+    exit 1
+fi
+python3 "$script" verify || exit 1
+# A commit that deletes more than a few entries names each in the record's scope.
+python3 "$here/../../scripts/validate_deletion_scope.py" || exit 1

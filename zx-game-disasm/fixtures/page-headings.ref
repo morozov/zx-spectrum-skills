@@ -1,0 +1,10 @@
+; Headings on a reader-facing page. Expected, and nothing else:
+;   HEADING_JARGON at line 7 - storage vocabulary in a heading.
+;   HEADING_JARGON at line 8 - a heading counting its contents.
+; Silent: line 9 names what the reader browses, and line 10 is a level's name.
+[Page:Levels]
+[LevelsContent]
+<h2 class="ref-section" id="spawn">The spawn-cell record</h2>
+<h2 class="ref-section" id="all">The 100 records</h2>
+<h2 class="ref-section" id="cards">Level by level</h2>
+<h2 class="ref-section" id="l36">Level 36</h2>

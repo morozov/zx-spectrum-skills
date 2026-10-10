@@ -1,0 +1,125 @@
+; Page text with one bad line per defect, each beside its corrected form. Every
+; bad line is reported and no good line is. Lines starting with ';' are not
+; published, so this one may say "The iron shield ($2C) is in levels 3, 8, 14,
+; 20" freely.
+;
+; Bad, and the defect each one shows:
+;   a code beside a name, and a list of the levels holding it
+;   a code list, and facts about the level data
+;   a page heading in storage vocabulary that counts its contents
+;   a definition framed as progress
+;   a definition carrying the logic that changes the value
+;   a glossary entry for a category of program symbol
+;   a table cell ending a noun phrase in a full stop
+;   a dimension with ASCII x
+; One more, the same code in parentheses on four surfaces: a heading, a
+; paragraph, a table cell and a glossary title.
+[Page:Levels]
+PageContent=#INCLUDE(LevelsContent)
+
+[LevelsContent]
+<h2 class="ref-section" id="all">The 50 records</h2>
+
+<h2 class="ref-section" id="cards">Level by level</h2>
+
+<div class="paragraph">
+The iron shield ($2C) is in the scripts of levels 3, 8, 14, 20. Rock rain
+is in those of 41, 43, 47, 50, 58.
+</div>
+
+<div class="paragraph">
+The iron shield turns a shot back where it strikes.
+</div>
+
+<div class="paragraph">
+No level places $06, $1A or $3C.
+</div>
+
+<div class="paragraph">
+Level 50 has no empty cell.
+</div>
+
+<div class="paragraph">
+9 slots hold $00.
+</div>
+
+<div class="paragraph">
+Each card shows the level's room layout and the enemies its wave script can
+send.
+</div>
+
+<div class="paragraph">
+A 2x2-character block, a 16x16-pixel tile.
+</div>
+
+<div class="paragraph">
+A 2×2-character block, a 16×16-pixel tile.
+</div>
+
+#TABLE(default)
+{ =h Table | =h Record | =h What the record holds }
+{ #R$CC00 | 48 bytes | The 8×6 grid of room tile codes, row-major. }
+{ #R$CC30 | 48 bytes | The 8×6 grid of room tile codes, row-major }
+TABLE#
+
+<h2 class="ref-section" id="wall">Wall ($40–$7F)</h2>
+
+<div class="paragraph">
+A wall ($40–$7F) stands in a slot until a bomb clears it.
+</div>
+
+#TABLE(default)
+{ =h Thing | =h What it is }
+{ wall | A wall ($40–$7F) of any design }
+{ wall | A wall of any design }
+TABLE#
+
+[Page:Glossary]
+SectionPrefix=Term
+
+[Term:level_index:Level index]
+How far the player has got, 0 to 49. It wraps back to 0, so the level set
+repeats.
+
+[Term:level_index_2:Level index]
+After the fiftieth level it wraps back to 0, so the level set repeats.
+
+[Term:level_index_good:Level index]
+Which level is being played, counted from 0.
+
+[Term:constants:Constants]
+The names in operands. Each stands for one address or size.
+
+[Term:redraw_flag:Redraw flag]
+A flag on one screen cell saying its picture has changed since the screen was
+last drawn.
+
+[Term:wall:Wall ($40–$7F)]
+A block in the room that a bomb can break.
+
+[Poke:enemy_speed:Enemy speeds above 6]
+POKE 47904 ($BB20) with the new limit. The decimal is what the reader types.
+
+[Page:Tiles]
+[TilesContent]
+<div class="paragraph">
+Not a wall ($20–$3F, or $80 and up): passable. The tile map ($B200) holds codes.
+</div>
+
+[Page:Siblings]
+[SiblingsContent]
+<div class="paragraph">
+IDs $20–$3F are passable.
+</div>
+<div class="paragraph">
+Headings 0–3 move it 2 px left instead.
+</div>
+<div class="paragraph">
+The headings sit 45° apart.
+</div>
+<div class="paragraph">
+Test Y = sprite Y moved -2 px, upward.
+</div>
+<div class="paragraph">
+The drone skips the speed limit. Nine of the 50 wave scripts carry it.
+</div>

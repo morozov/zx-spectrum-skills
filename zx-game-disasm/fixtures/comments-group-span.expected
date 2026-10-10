@@ -1,67 +1,85 @@
-Found 19 comment defect(s):
+Found 24 comment defect(s):
 
 [BASE_ECHO] 1
-  group-span.skool:77: '$8A (138)' spells one value in both bases — the base is a notation, so the parenthetical is the operand read back. State the intent, or the derived fact the row cannot show
+  group-span.skool:91: '$8A (138)' spells one value in both bases — the base is a notation, so the parenthetical is the operand read back. State the intent, or the derived fact the row cannot show
     c$EC35 LD A,($FC00)   ; {Clamp the stored width to a maximum of $8A (138), then
 
 [CODE_ECHO] 4
-  group-span.skool:162: cites a number the player cannot see ('type 12'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays
+  group-span.skool:191: cites a number the player cannot see ('type 12'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays [AUD-4]
     Drone behavior handler (object type 12)
-  group-span.skool:164: cites a number the player cannot see ('Type-12'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays
+  group-span.skool:193: cites a number the player cannot see ('Type-12'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays [AUD-4]
     Type-12 enemy: the drone. Roams the play area until a shot destroys it.
-  group-span.skool:177: cites a number the player cannot see ('state 2'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays
+  group-span.skool:206: cites a number the player cannot see ('state 2'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays [AUD-4]
     On a hit the object enters state 2 and stops moving. A solid tile is a
-  group-span.skool:178: cites a number the player cannot see ('codes $21'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays
+  group-span.skool:207: cites a number the player cannot see ('codes $21'). Say what happens, not which code it is: 'starts to explode', not 'state 2'; 'the rocket', not 'type 17'; 'a wall or border', not a tile range. The #R reference already there is the reader's way to the encoding. A number the player meets — a score, a count, a duration — stays [AUD-4]
     wall/border (tile codes $21-$44).
 
+[CODE_PAREN] 3
+  group-span.skool:207: names a thing and then its code in parentheses ('(tile codes $21-$44)') – the code is implementation the reader cannot see, and the name already says which thing is meant; drop the code [AUD-4]
+    wall/border (tile codes $21-$44).
+  group-span.skool:235: names a thing and then its code in parentheses ('cyan ($45)') – the code is implementation the reader cannot see, and the name already says which thing is meant; drop the code [AUD-4]
+    b$EC92 DEFB $45      ; The steel door, bright cyan ($45)
+  group-span.skool:251: names a thing and then its code in parentheses ('mask ($10)') – the code is implementation the reader cannot see, and the name already says which thing is meant; drop the code [AUD-4]
+    The horned mask ($10) is in the scripts of levels 12, 27 and 33.
+
 [DATA_ECHO] 2
-  group-span.skool:173: a data row's comment repeats its index ("Type 12") - the row shows its bytes and its address is its position. Say what the row holds; state the index once, in the block description
-    b$EC86 DEFW $EC82     ; Type 12, the drone.
-  group-span.skool:206: a data row's comment repeats its own bytes ($45) - the row shows its bytes and its address is its position. Say what the row holds; state the index once, in the block description
-    b$EC92 DEFB $45      ; The steel door, bright cyan ($45).
+  group-span.skool:202: a data row's comment repeats its index ("Type 12") – the row shows its bytes and its address is its position. Say what the row holds; state the index once, in the block description [ROW-1]
+    b$EC86 DEFW $EC82     ; Type 12, the drone
+  group-span.skool:235: a data row's comment repeats its own bytes ($45) – the row shows its bytes and its address is its position. Say what the row holds; state the index once, in the block description [ROW-1]
+    b$EC92 DEFB $45      ; The steel door, bright cyan ($45)
 
 [ELLIPSIS] 2
-  group-span.skool:112: a '...'-spliced continuation — one thought spanning instructions is a '{ }' comment group, not chained fragments
+  group-span.skool:129: a '...'-spliced continuation — one thought spanning instructions is a '{ }' comment group, not chained fragments
     c$EC5C LD A,(DE)      ; {Copy one font row to the screen...
-  group-span.skool:114: a '...'-spliced continuation — one thought spanning instructions is a '{ }' comment group, not chained fragments
+  group-span.skool:131: a '...'-spliced continuation — one thought spanning instructions is a '{ }' comment group, not chained fragments
     *$EC5E LD (HL),A      ; {...stepping down one pixel row each time.
 
-[EULOGY] 1
-  group-span.skool:138: 39 words on bytes nothing uses. An unused block owes 'Unused.' and, if one exists, the single thing worth knowing about it — bytes that decode to a message, padding an alignment the next table needs. It does not owe the proof that it is unused: no census of readers, no account of which fill stops short, no note on why no stride could be found
-    Undetermined tail of the state block; no reader found in the image, and the
-
 [GROUP_ENTRY] 1
-  group-span.skool:62: a '{ }' comment group is entered at this row from outside its span ($EC2C) — a reader arriving by that jump is handed a sentence about instructions that never ran. Close the group before this row
+  group-span.skool:75: a '{ }' comment group is entered at this row from outside its span ($EC2C) — a reader arriving by that jump is handed a sentence about instructions that never ran. Close the group before this row
     *$EC22 LD A,$02       ;
 
 [GROUP_SKIP] 1
-  group-span.skool:83: a '{ }' comment group's own branch at $EC3A jumps forward over this row — on that path the rows below the branch do not run, so the sentence covers instructions the reader may never execute. Close the group at the branch
+  group-span.skool:97: a '{ }' comment group's own branch at $EC3A jumps forward over this row — on that path the rows below the branch do not run, so the sentence covers instructions the reader may never execute. Close the group at the branch
     *$EC40 LD HL,$FD00    ;
 
 [GROUP_SPLIT] 1
-  group-span.skool:41: a '{ }' comment group spans 'JR $EC0B' — control leaves the span here, so the rows below it are a second act carrying the first one's sentence. Close the group on this instruction and open the next one below it
+  group-span.skool:54: a '{ }' comment group spans 'JR $EC0B' — control leaves the span here, so the rows below it are a second act carrying the first one's sentence. Close the group on this instruction and open the next one below it
     $EC05 JR $EC0B       ;
 
 [LAYOUT_ECHO] 1
-  group-span.skool:91: cites a record's field offset ('+0/+1') in prose about code — the layout belongs at the record's own block, stated once; here, name what the field holds
+  group-span.skool:106: cites a record's field offset ('+0/+1') in prose about code — the layout belongs at the record's own block, stated once; here, name what the field holds
     c$EC47 LD HL,($FC10)  ; Read the slot's +0/+1 position word.
 
+[NUMBER_LIST] 1
+  group-span.skool:251: lists numbers ('levels 12, 27 and 33') – a list of the levels, slots or values that hold something restates the game's data, which the data tables show [HOME-3]
+    The horned mask ($10) is in the scripts of levels 12, 27 and 33.
+
 [OPERAND_ECHO] 1
-  group-span.skool:77: the comment quotes $8A, 138 — a value carried by an instruction inside its own span. Say what the span is for; the row below already shows the byte
+  group-span.skool:91: the comment quotes $8A, 138 — a value carried by an instruction inside its own span. Say what the span is for; the row below already shows the byte
     c$EC35 LD A,($FC00)   ; {Clamp the stored width to a maximum of $8A (138), then
 
 [PITCH] 1
-  group-span.skool:103: states a pitch ('~1.3 kHz') — the #AUDIO plays the pitch, so the figure is the clip read back in numbers. Name what the sound means and what fires it; the tone formula belongs once at the primitive
-    c$EC56 LD D,$64       ; The door-close click, ~1.3 kHz.
+  group-span.skool:119: states a pitch ('~1.3 kHz') — the #AUDIO plays the pitch, so the figure is the clip read back in numbers. Name what the sound means and what fires it; the tone formula belongs once at the primitive
+    c$EC56 LD D,$64       ; The door-close click, ~1.3 kHz
 
 [SPLICE] 1
-  group-span.skool:95: this comment finishes the sentence the previous unit left open ('Hold the slot while the fade settles,') — each comment describes its own rows, so a clause that only makes sense after the one above it belongs in that one, or in a sentence of its own that names what it refers to
+  group-span.skool:110: this comment finishes the sentence the previous unit left open ('Hold the slot while the fade settles,') — each comment describes its own rows, so a clause that only makes sense after the one above it belongs in that one, or in a sentence of its own that names what it refers to
     *$EC4E LD A,(HL)      ; {and release it once the fade has passed.
 
 [SYNTH_ECHO] 1
-  group-span.skool:124: describes how the tone is produced ('cycles') beside the #AUDIO that plays it — the clip is the synthesis, so the words owe what the sound means in play, the event that fires it and the routine. The period formula is a mechanism and belongs once, at the tone primitive that implements it
-    The ALARM siren, 7 frames of 12 cycles each, with the period computed as 2*counter + 10 and held flat within each frame.
+  group-span.skool:144: describes how the tone is produced ('cycles') beside the #AUDIO that plays it — the clip is the synthesis, so the words owe what the sound means in play, the event that fires it and the routine. The period formula is a mechanism and belongs once, at the tone primitive that implements it
+    Seven frames of 12 cycles each, with the period computed as 2 × counter + 10
+
+[TYPOGRAPHY] 1
+  group-span.skool:207: writes a range in ASCII ('$21-$44') – prose uses an en dash; quoted game text and macro parameters keep their bytes [TYPO-2]
+    wall/border (tile codes $21-$44).
 
 [UNRENDERED] 1
-  group-span.skool:149: the title says this block holds something the reader can see or hear, and the block does not show it. Render it here, from these bytes — #UDGARRAY for a sprite or a glyph, #FONT for a character set, #AUDIO for an effect. The catalog page is an index of everything at once; it is not the block
+  group-span.skool:178: the title says this block holds something the reader can see or hear, and the block does not show it. Render it here, from these bytes — #UDGARRAY for a sprite or a glyph, #FONT for a character set, #AUDIO for an effect. The catalog page is an index of everything at once; it is not the block
     Player sprite: normal player bitmap
+
+[UNUSED_TEXT] 1
+  group-span.skool:164: an unused entry carries text ('Undetermined tail of the state block; no reader found in the') – unused bytes are titled 'Unused bytes' and say nothing else: no reason, no neighbors, no guessed purpose. One unused byte inside a used table keeps its 'Unused' row [UNU-1]
+    Undetermined tail of the state block; no reader found in the image, and the
+
+  advisory, not gated: 1 RET  — run `lint_comments.py … --advisory` for the list
