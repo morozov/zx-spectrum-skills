@@ -541,11 +541,8 @@ td.comment-1 {
      they cross, so two translucent lines compound there and the crossing comes
      out brighter than either of them. Opaque, a crossing is one of the two. */
   --edge: color-mix(in srgb, #fff 10%, var(--bg));
-  --edge-soft: color-mix(in srgb, #fff 8%, var(--bg));
   color: var(--text);
   border-left: 1px solid color-mix(in srgb, #fff var(--lit), var(--edge));
-  border-top: 1px solid color-mix(in srgb, #fff var(--lit), var(--edge-soft));
-  border-bottom: 1px solid color-mix(in srgb, #fff var(--lit), var(--edge-soft));
   padding: 1px 14px;
   vertical-align: top;
   width: 45%;
@@ -554,14 +551,13 @@ td.comment-1 {
   line-height: 1.6;
 }
 
-/* SkoolKit puts a comment-1 cell on every row of an annotated entry, so rows with
-   nothing to say get one too, with no whitespace inside it. Keep the column's
-   background and left edge — they are the band, and a gap in it reads as a broken
-   table — but drop the rules that box a comment block, so a blank cell does not
-   read as a fourth annotation. theme.js keeps the hover off these rows. */
-td.comment-1:empty {
-  border-top: none;
-  border-bottom: none;
+/* A comment group opens with a rule across the whole listing, so the comment
+   column reads as a column of the listing rather than a box beside it. SkoolKit
+   puts a comment-1 cell on every row of an annotated entry, and a row with
+   nothing to say gets an empty one, so only a row whose cell holds a comment
+   starts a group. */
+table.disassembly tr:has(> td.comment-1:not(:empty)) > td {
+  border-top: 1px solid color-mix(in srgb, #fff var(--lit), color-mix(in srgb, #fff 8%, var(--bg)));
 }
 
 /* Every cell of the listing paints its own paper through the lamp, so the light
