@@ -612,9 +612,12 @@ table.output td {
   padding: 4px 12px;
 }
 
+/* Input and Output are separate tables, so an auto width would size each one's
+   register column to its own content and start the two description columns at
+   different offsets. A fixed width that fits a primed pair (HL') lines them up. */
 td.register {
   color: var(--cyan);
-  width: auto;
+  width: 4ch;
   text-align: left;
   white-space: nowrap;
 }
