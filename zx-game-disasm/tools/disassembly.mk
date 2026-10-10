@@ -27,6 +27,8 @@
 #   make lint-registers       Gate: one register per row, written as a lower-case phrase
 #   make lint-array-elements  Gate: every array record annotated individually
 #   make lint-images          Gate: every image macro put an image under html/
+#   make lint-comment-fit     Report: every listing comment longer than its code
+#                             rows, measured in headless Chrome; never fails
 #   make lint-prose           Advisory: Vale over the prose, carrying the Microsoft
 #                             and Google style guides; errors gate, the rest reports
 #   make lint-baseline        Re-record the gating checks' findings as the baseline
@@ -86,6 +88,7 @@ TOOLS_lint-data-structure := $(TOOLS_SNAPSHOT)
 TOOLS_lint-publication    := $(TOOLS_SKOOL)
 TOOLS_lint-label-namespace := $(TOOLS_SKOOL)
 TOOLS_lint-images         := $(TOOLS_html)
+TOOLS_lint-comment-fit    := $(TOOLS_html)
 TOOLS_lint-baseline       := $(TOOLS_html)
 
 # Goals that shell out to no tool at all: `clean` deletes, the .ctl-only linters
@@ -144,7 +147,7 @@ BIN_FIXED     = $(GAME).fixed.bin
 ASM_NON_FIXED = $(GAME).non-fixed.asm
 ASM_FIXED     = $(GAME).asm
 
-.PHONY: all gate tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-registers lint-images lint-baseline lint-array-elements lint-comments lint-prose coverage html
+.PHONY: all gate tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-registers lint-images lint-comment-fit lint-baseline lint-array-elements lint-comments lint-prose coverage html
 
 # A recipe that redirects into its own target has already created that target by
 # the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
@@ -167,7 +170,8 @@ BASELINE ?= lint-baseline.txt
 # `lint-images` is listed after `html` because it reads what the build produced:
 # it is the one check whose subject is a directory of files rather than a text
 # file. Its own prerequisite is html/.stamp, so the order holds under `-j` too.
-all: $(ASM_FIXED) $(Z80_FIXED) test test-checks lint html lint-images
+# `lint-comment-fit` reads the built site for the same reason.
+all: $(ASM_FIXED) $(Z80_FIXED) test test-checks lint html lint-images lint-comment-fit
 
 # The same gate, with a result that cannot be misread. Under `-j` the HTML branch
 # can print `touch html/.stamp` while the asm branch is failing, so the tail of a
@@ -292,7 +296,7 @@ gate:
 	  lintran=$$(grep -c '^LINT ' $(GATE_LOG)); \
 	  lintseen=$$(awk '/^LINT (PASS|FAIL): /{t+=$$5} END{print t+0}' $(GATE_LOG)); \
 	  buildfail=$$(awk '/: \*\*\* \[/{t=$$0; sub(/^.*\*\*\* \[/,"",t); sub(/\].*$$/,"",t); \
-	      sub(/^.*: /,"",t); if (t!="lint" && t!="lint-images" && !seen[t]++) \
+	      sub(/^.*: /,"",t); if (t!="lint" && t!="lint-images" && t!="lint-comment-fit" && !seen[t]++) \
 	      l=(l?l ", " t:t)} END{print l}' $(GATE_LOG)); \
 	  named=$$(grep -c ': \*\*\* \[' $(GATE_LOG)); \
 	  if [ $$s -ne 0 ] && [ -n "$$lintfail" ] && [ $$named -eq 0 ]; then \
@@ -421,11 +425,11 @@ LINT_CHECKS = address-order instruction-order lengths label-length identity \
               data-structure publication names byte-counts array-elements registers \
               comments label-namespace terms
 
-# Every check the gate holds a project to: the sweep's, plus the one that runs
-# after the site is built. The gate compares this against the number of checks the log
-# accounts for, so a run that could not reach one of them says so instead of
-# letting its count read as the whole of the distance to green.
-LINT_TOTAL := $(words $(LINT_CHECKS) images)
+# Every check the gate runs: the sweep's, plus the two that run after the site is
+# built. The gate compares this against the number of checks the log accounts
+# for, so a run that could not reach one of them says so instead of letting its
+# count read as the whole of the distance to green.
+LINT_TOTAL := $(words $(LINT_CHECKS) images comment-fit)
 
 # The sweep the gate runs its checks under: `lint_begin`, `lint_run <name>
 # <command…>`, `lint_report <checks swept>`, all in one shell. See
@@ -603,6 +607,18 @@ CHECK_images = $(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html
     --baseline $(BASELINE)
 lint-images: html/.stamp
 	@$(LINT_SWEEP); lint_begin; lint_run images $(CHECK_images); lint_report 1
+
+# A listing comment longer than the code rows beside it opens space under its
+# group's last instruction. Only a browser knows where a comment wraps, so this
+# loads every built entry page in headless Chrome and lists each group whose
+# rendered height runs past its rows, with the excess in pixels and a total.
+# It is a report: an overflowing note keeps its place beside the code, and the
+# list is the to-do list for the notes worth shortening. The script exits 0
+# whatever it finds, and says so when it skips for want of Chrome or of a
+# grouped listing, so this check is never red unless the script itself crashes.
+CHECK_comment-fit = $(SCRIPTS)/report_comment_fit.py html
+lint-comment-fit: html/.stamp
+	@$(LINT_SWEEP); lint_begin; lint_run comment-fit $(CHECK_comment-fit); lint_report 1
 
 # Re-record the gating checks' findings as the project's accepted baseline. Run it
 # when a fix clears a finding — the shrunk file is the evidence. It cannot do the
