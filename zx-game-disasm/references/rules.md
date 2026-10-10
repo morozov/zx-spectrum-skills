@@ -134,7 +134,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | ID | Rule | Enforcer | Question |
 | --- | --- | --- | --- |
 | NAME-1 | A thing has one name across labels, titles, descriptions, rows, `.ref` pages and the glossary. | lint-terms, TERM_LABEL, review | Does this unit name a thing by a word other than the one the rest of the project and the registry use? |
-| NAME-2 | A rename or reclassification changes every mention, labels included, in one commit, and lands its registry row in the same commit. | RENAME_UNREGISTERED, TERM_LABEL, lint-terms | |
+| NAME-2 | A rename or reclassification changes every mention of the thing, labels included, in one commit. The registry gets a row only when the old name is a synonym the project never uses for that thing, never for a word with a meaning of its own. | TERM_LABEL, lint-terms, review | Does this unit still call the renamed thing by its old name? |
 | NAME-3 | A new term passes the admission test: the game's word first, a word free in the project, a contrast the code holds, and a name for the thing itself. | review | Does this unit introduce a term that is not the game's own word or that implies a contrast the code does not hold? |
 | NAME-4 | A name asserts no classification the game lacks. | review | Does this unit classify things (as enemies, solid, hostile, active) in a way the code does not? |
 | NAME-5 | A label's prefix is the family that the project's `AGENTS.md` assigns to the region its address is in. | LABEL_FAMILY | |

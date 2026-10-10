@@ -451,7 +451,7 @@ LINT_CHECKS = address-order instruction-order lengths label-length identity \
 # >>> LINT_CHECKS slot: a new text check is one line here and one CHECK_<name>
 # definition below it, e.g. `LINT_CHECKS += foil` and `CHECK_foil = …`. A check
 # that reads the built site goes in LINT_HTML_CHECKS instead.
-LINT_CHECKS += label-family renames
+LINT_CHECKS += label-family
 AGENTS_FILE := $(wildcard AGENTS.md)
 CHECK_label-family = $(SCRIPTS)/validate_label_family.py $(CTL) --agents AGENTS.md --baseline $(BASELINE)
 lint-label-family: $(CTL)

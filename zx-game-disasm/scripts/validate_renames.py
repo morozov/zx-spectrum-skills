@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """
-Hold every rename in a `.ctl` diff to a registry row that lands with it.
+List the renames in a `.ctl` diff whose dropped words the registry does not hold.
 
-A rename retires a word. The registry in `glossary.ref` (a `Write | Not` table,
-read by `validate_glossary_terms.py`) is what holds every remaining mention of
-the retired word to the new one, so the row goes in with the rename and the
-terms check then fails until the sweep is complete.
+A by-hand report, outside the gate: a dropped word is a synonym only when the
+project never uses it for that thing, and that is a judgment (NAME-2). Use the
+list to check a synonym rename is registered in `glossary.ref`.
 
 Kinds:
 

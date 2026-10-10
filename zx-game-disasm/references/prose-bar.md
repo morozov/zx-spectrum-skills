@@ -33,7 +33,7 @@ Reuse also *amplifies*. Sites multiply. The term climbs from prose into the labe
 3. Does the code hold the contrast the word implies?
 4. Does it name the thing, or a property you inferred about it?
 
-**The registry is `glossary.ref`, and `make lint-terms` reads it.** Publish the pairs as a `#TABLE` under a `Write | Not` header — the left cell is what to write, the right cell the forms that must not appear — and the check holds every other file to it, labels included. A rename lands its registry row in the same commit, so the gate fails until every mention has changed (NAME-2).
+**The registry is `glossary.ref`, and `make lint-terms` reads it.** Publish the pairs as a `#TABLE` under a `Write | Not` header — the left cell is what to write, the right cell the forms that must not appear — and the check holds every other file to it, labels included. A row records a synonym, two names for one thing. A rename changes every mention of the thing in one commit (NAME-2), and it never bans a word that keeps a meaning of its own.
 
 A row qualified by grammatical role – "zeros **as the verb**" – is not decidable by pattern, so it is counted in the report and left to a hand pass. The entity-level rules T1 to T5 are NAME-1 to NAME-4 in `rules.md`.
 
