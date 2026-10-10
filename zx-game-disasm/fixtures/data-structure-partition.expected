@@ -1,0 +1,4 @@
+Found 1 data-block schema violation(s) in 5 data entry(ies):
+
+  Line 31: DIVISIBILITY — B $F0C0: 10 bytes is not a whole number of 4-byte elements (2 left over)
+    in b $F0C0 Ragged table

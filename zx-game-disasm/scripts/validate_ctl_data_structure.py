@@ -19,7 +19,8 @@ Five checks, all arithmetic over directives the .ctl already carries:
                declared a buffer — nothing checks a stride over zeros
   TILING       sub-directive lengths sum to the block size, contiguous from its
                address — no gaps, no overlaps, no leftovers
-  DIVISIBILITY len % sublen == 0; a list of 2-byte words cannot be 7 bytes long
+  DIVISIBILITY len % record == 0, the record being the whole sublength list; a
+               list that sums to len is laid out once and exempt
   POINTER      (needs --bin) a B span whose byte pairs land in-image at/above
                the relocatability floor is a pointer table typed as bytes
 
@@ -731,17 +732,36 @@ def check_tiling(block):
     return violations
 
 
+def is_partition(length, sublengths):
+    """
+    Whether a sublength list cuts its span once rather than repeating a record.
+
+    SkoolKit repeats a sublength list until it covers the span. A list of two or
+    more sizes that already sums to the span's length is laid out exactly once,
+    so it is a set of statement boundaries, not an element size: `S $F000,64,2,30,2,30`
+    is two `DEFB` pairs and two `DEFS` runs. No stride is claimed, so there is
+    nothing to divide and no records to index.
+    """
+    return len(sublengths) > 1 and sum(sublengths) == length
+
+
 def check_divisibility(block):
-    """Report a span whose length is not a whole number of its own elements."""
+    """Report a span whose length is not a whole number of its own elements.
+
+    The element is the whole sublength list, since SkoolKit repeats the list:
+    `B $F000,64,2,30` is two 32-byte records, not 2-byte or 30-byte ones.
+    """
     violations = []
     for span in block['spans']:
-        for sublength in span['sublengths']:
-            if sublength and span['length'] % sublength:
-                violations.append((span['line_number'], 'DIVISIBILITY',
-                                   f"{span['type']} ${span['address']:04X}: "
-                                   f"{span['length']} bytes is not a whole number of "
-                                   f"{sublength}-byte elements "
-                                   f"({span['length'] % sublength} left over)"))
+        if not span['sublengths'] or is_partition(span['length'], span['sublengths']):
+            continue
+        record = sum(span['sublengths'])
+        if span['length'] % record:
+            violations.append((span['line_number'], 'DIVISIBILITY',
+                               f"{span['type']} ${span['address']:04X}: "
+                               f"{span['length']} bytes is not a whole number of "
+                               f"{record}-byte elements "
+                               f"({span['length'] % record} left over)"))
     return violations
 
 

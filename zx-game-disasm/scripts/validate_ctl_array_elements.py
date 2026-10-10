@@ -228,6 +228,13 @@ def unannotated_arrays(lines, by_address=None,
             if shape is None:
                 continue
             length, stride = shape
+            parsed = schema.parse_sublengths(s.group(3).lstrip(","))
+            if parsed and parsed[1]:
+                if schema.is_partition(*parsed):
+                    # Statement boundaries, not a record size: nothing repeats.
+                    continue
+                # SkoolKit repeats the whole list, so the record is its sum.
+                stride = sum(parsed[1])
             start = parse_address(s.group(2))
             if covered.issuperset(range(start, start + length)):
                 # Drawn: the macro is this span's schema and the render is its

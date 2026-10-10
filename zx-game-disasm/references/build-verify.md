@@ -276,7 +276,7 @@ Five checks:
 - **UNTYPED** — a block with no sub-directives, a `B`/`W`/`T` span with no sublength, or the part of a block no render macro reaches, over the scalar threshold (8 bytes). *This is the first failing case and the one that matters*: the defect is a block with no sub-directives at all, so a rule written as "sub-directives must be typed" misses it entirely.
 - **ZEROFILL** — needs `--bin`: an all-zero span over the threshold that is enumerated as a stride rather than declared a buffer. Nothing checks a stride over zeros (`162 % 2 == 0` passes for any even length), so `B $x,162,2` renders 81 rows of `DEFB $00,$00` and verifies nothing; `S $x,162` is one `DEFS` and states the claim the image can settle. It is scoped to the *span*, so a per-byte scalar carrying its own comment is untouched — a listing line is earned by what it documents, not by the bytes it holds.
 - **TILING** — gaps, overlaps and leftovers against the block's size.
-- **DIVISIBILITY** — `len % sublen == 0`. A list of 2-byte words cannot be 7 bytes.
+- **DIVISIBILITY** — `len % record == 0`, where the record is the sum of the sublength list, because SkoolKit repeats the whole list. A list of 2-byte words cannot be 7 bytes. A list of two or more sizes that sums to the span's length is laid out once, so it states statement boundaries, not a stride, and is not checked.
 - **POINTER** — needs `--bin`: a `B` span whose byte pairs all resolve to declared addresses is a pointer table wearing the wrong type. `W` makes it relocate.
 
 A block drawn by an image or audio macro (`#UDGARRAY`, `#SCR`, `#FONT`, `#AUDIO`) is exempt from UNTYPED — the macro is the schema and the render proves it. Nobody should index 6144 screen pixels or 50 pitch periods to satisfy a linter.

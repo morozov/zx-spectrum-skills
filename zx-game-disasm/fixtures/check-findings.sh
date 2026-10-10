@@ -68,6 +68,10 @@ run instruction-order-decimal \
     scripts/validate_ctl_instruction_order.py fixtures/decimal-addresses.ctl
 run array-elements-unindexed \
     scripts/validate_ctl_array_elements.py fixtures/wide-comment-array.ctl
+run data-structure-partition \
+    scripts/validate_ctl_data_structure.py fixtures/sublength-partition.ctl
+run array-elements-partition \
+    scripts/validate_ctl_array_elements.py fixtures/sublength-partition.ctl
 run registers-rows \
     scripts/validate_ctl_registers.py fixtures/registers.ctl
 # A row at an entry that begins in data (a table in front of the code) belongs to

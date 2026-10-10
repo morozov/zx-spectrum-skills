@@ -1,0 +1,4 @@
+Found 1 unannotated array(s):
+
+  Line 36: UNINDEXED - one directive stands in for 20 records, 20 of them unannotated - give each record its own named line
+    B $F200,480,2,22
