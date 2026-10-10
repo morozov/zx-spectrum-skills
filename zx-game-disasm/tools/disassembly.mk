@@ -850,6 +850,11 @@ HTML_SUBS := $(SCRIPTS)/html_operand_subs.py
 # in the monospace face. It runs after skool2html, inside the html/.stamp recipe,
 # so no page ships without it and a rebuilt page is never left unwrapped.
 HTML_HEX := $(SCRIPTS)/html_hex_mono.py
+# Every label and constant name in the site's prose is wrapped in span.sym, so a
+# name without a link sets in the same face as a linked one. It runs after the
+# hex pass, in the same recipe; it reads the labels off the built pages and the
+# constants off the skool file's @equ directives.
+HTML_SYM := $(SCRIPTS)/html_sym_mono.py
 export SKOOL_HTML_SUB_MODE := $(if $(filter -r,$(ASM_FIXED_FLAGS)),3,$(if $(filter -s,$(ASM_FIXED_FLAGS)),2,1))
 
 # [Game] JavaScript is a single key, so a ref file that names theme.js owns the
@@ -866,9 +871,10 @@ HTML_JAVASCRIPT := theme.js$(if $(HTML_JS),;$(HTML_JS))
 
 html: html/.stamp
 
-html/.stamp: $(SKOOL) $(wildcard *.ref) $(wildcard *.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS) $(HTML_HEX)
+html/.stamp: $(SKOOL) $(wildcard *.ref) $(wildcard *.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS) $(HTML_HEX) $(HTML_SYM)
 	$(SKOOL2HTML) -d html -H -a -c "Config/InitModule=$(SCRIPTS):html_operand_subs" -c "Game/JavaScript=$(HTML_JAVASCRIPT)" --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
 	$(HTML_HEX) html
+	$(HTML_SYM) html $(SKOOL)
 	touch $@
 
 clean:

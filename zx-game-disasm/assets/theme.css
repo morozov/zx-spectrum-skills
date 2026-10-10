@@ -989,6 +989,15 @@ code {
 /* Inside a link into the listing the link's own size already applies. */
 a .hex { font-size: inherit; }
 
+/* A label named in running text without a link is set in the face its linked
+   mentions use, so a name reads as code whether or not it links.
+   html_sym_mono.py wraps the names after the site is built. */
+.sym {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  line-height: 1;
+}
+
 /* A link into the disassembly reads as code. Matching on the path is what
    SkoolKit's generated markup allows — it puts no class on a #R link — so the
    match is at least held to a site-relative href, and a third-party URL that
