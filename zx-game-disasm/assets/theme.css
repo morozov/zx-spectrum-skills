@@ -46,6 +46,10 @@
   --text-dim:    #7a8290;
   --border:      #2a2f3a;
 
+  /* The link ink, apart from the cyan that registers and map entries also
+     wear, so a project can move one without the other. */
+  --link:        var(--cyan);
+
   /* The tints and rules the components paint with. These are the same family as
      the palette above and are named for the same reason: a project that sets
      --bg to its own game's black and nothing else would otherwise get navy
@@ -86,7 +90,7 @@
   --type-micro:    12px;   /* table heads, labels, the header bar */
   /* Dim text on a raised surface - a card, a table head. --text-dim is
      tuned against the page background and measures under 4.5:1 there. */
-  --text-dim-raised: #93a695;
+  --text-dim-raised: #9aa1ad;
   --header-height: 80px;
 }
 
@@ -399,7 +403,7 @@ table.asm-navigation td {
 }
 
 table.asm-navigation a {
-  color: var(--cyan);
+  color: var(--link);
 }
 
 table.asm-navigation td.prev { width: 30%; text-align: left; }
@@ -834,7 +838,7 @@ ul.contents {
 ul.contents li a {
   font-family: var(--font-mono);
   font-size: var(--type-small);
-  color: var(--cyan);
+  color: var(--link);
   text-decoration: none;
   padding: 5px 11px;
   background: rgba(255, 255, 255, 0.045);
@@ -846,7 +850,7 @@ ul.contents li a {
 
 ul.contents li a:hover {
   background: var(--hover);
-  border-color: var(--cyan);
+  border-color: var(--link);
   color: var(--yellow);
 }
 
@@ -869,14 +873,14 @@ audio {
   max-width: 380px;
   height: 36px;
   margin: 10px 0;
-  accent-color: var(--cyan);
+  accent-color: var(--link);
   filter: var(--audio-filter);
 }
 
 /* ── Links ───────────────────────────────── */
 
 a {
-  color: var(--cyan);
+  color: var(--link);
   text-decoration: none;
   transition: color 0.1s;
 }
@@ -895,7 +899,7 @@ a {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
-  text-decoration-color: rgba(63, 214, 220, 0.4);
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
 }
 
 .page-content a:hover {
@@ -953,7 +957,7 @@ footer .release {
 }
 
 footer a {
-  color: var(--cyan);
+  color: var(--link);
 }
 
 footer a:hover {
