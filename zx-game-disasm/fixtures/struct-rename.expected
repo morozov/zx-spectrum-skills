@@ -1,8 +1,13 @@
 $ validate_renames.py game.ctl --base HEAD~1 --agents AGENTS.md
-Found 2 rename(s) with no registry row, against HEAD~1:
+Found 7 rename(s) with no registry row, against HEAD~1:
 
   Line 1: RENAME_UNREGISTERED – label at $EC4B: enemy_spark → guard_spark drops 'enemy', which no Not cell of the registry lists. Add the row with the rename, so the terms check holds every remaining mention
+  Line 17: RENAME_UNREGISTERED – label at $F300: enemy_saw → saw_update drops 'enemy', which no Not cell of the registry lists. Add the row with the rename, so the terms check holds every remaining mention
+  Line 19: RENAME_UNREGISTERED – label at $F500: enemy_ptrs → guard_ptrs drops 'enemy', which no Not cell of the registry lists. Add the row with the rename, so the terms check holds every remaining mention
+  Line 23: RENAME_UNREGISTERED – label at $F610: enemy_door_2 → guard_door_2 drops 'enemy', which no Not cell of the registry lists. Add the row with the rename, so the terms check holds every remaining mention
   Line 2: RENAME_UNREGISTERED – title at $EC4B: "Enemy spark update" → "Guard spark update" drops 'enemy', which no Not cell of the registry lists. Add the row with the rename, so the terms check holds every remaining mention
+  Line 14: RENAME_UNREGISTERED – title at $F100: "Enemy sprites" → "Guard sprites" drops 'enemy', which no Not cell of the registry lists. Add the row with the rename, so the terms check holds every remaining mention
+  Line 20: RENAME_UNREGISTERED – title at $F500: "Enemy handler addresses" → "Guard handler addresses" drops 'enemy', which no Not cell of the registry lists. Add the row with the rename, so the terms check holds every remaining mention
 
 exit 1
 

@@ -83,6 +83,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | ROW-7 | In a `.ref` `#TABLE`, a code appears only in a column of its own. | review | Does this table cell put a code beside a name in the same cell? |
 | ROW-8 | A sentence about a whole run sits in the entry description, and a row comment describes only its own row. | review | Does this row comment describe the whole run or block in place of its own row? |
 | ROW-9 | An array of records names or renders each record on its own line, by what the record holds. | lint-array-elements, review | |
+| ROW-10 | A table the code reads as words, such as addresses, is typed `W`. Typed as bytes or as text cut into pairs, it renders as numbers or letters. | POINTER | |
 
 ## UNU: unused bytes
 

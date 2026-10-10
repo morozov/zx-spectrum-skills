@@ -75,3 +75,7 @@ b $F0C4 Object speeds
 D $F0C4 One movement speed per object type, indexed by object type.
 B $F0C4,12,1
 c $F0D0 Read the player state
+t $F0E0 Row addresses typed as text
+T $F0E0,8,2 One address per row
+t $F0E8 Player tags
+T $F0E8,6,2 Two characters per player

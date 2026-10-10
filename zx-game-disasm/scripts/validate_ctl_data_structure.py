@@ -1043,6 +1043,22 @@ def check_pointers(block, image, origin, floor, targets):
     """
     violations = []
     for span in block['spans']:
+        # Text cut into 2-byte rows is pairs, and a pair the code reads as one
+        # value is a word: an address table typed as text renders as letters.
+        start = span['address'] - origin
+        in_image = 0 <= start and start + span['length'] <= len(image)
+        if (span['type'] == 'T' and span['sublengths'] == [2] and span['length'] >= 4
+                and in_image
+                and any((v & 0x7F) < 0x20 or (v & 0x7F) == 0x7F
+                        for v in image[start:start + span['length']])):
+            # Two printable characters, bit-7 terminator allowed, are text. A
+            # byte no character can be means the pairs are values.
+            violations.append((span['line_number'], 'POINTER',
+                               f"T ${span['address']:04X},{span['length']},2: text cut "
+                               f"into 2-byte rows holding a byte no character is, so a "
+                               f"table of words, such as screen addresses, typed as "
+                               f"text; W shows them as words"))
+            continue
         # A single 2-byte B counts: an enumerated table is one directive per
         # entry, and one pointer typed as bytes is already the defect.
         if span['type'] != 'B' or span['length'] < 2 or span['length'] % 2:

@@ -65,8 +65,8 @@ def parse_address(text):
 
 
 def names(lines):
-    """Return ({address: (label, line)}, {address: (title, line)}) for a .ctl's lines."""
-    labels, titles = {}, {}
+    """Return ({address: (label, line)}, {address: (title, line)}, {address: type})."""
+    labels, titles, types = {}, {}, {}
     for number, line in enumerate(lines, 1):
         match = LABEL_RE.match(line)
         if match:
@@ -75,7 +75,8 @@ def names(lines):
         entry = ENTRY_RE.match(line.rstrip())
         if entry:
             titles[parse_address(entry.group(2))] = ((entry.group(3) or '').strip(), number)
-    return labels, titles
+            types[parse_address(entry.group(2))] = entry.group(1)
+    return labels, titles, types
 
 
 # The names that reclassify bytes as unused, which rename no term.
@@ -134,12 +135,33 @@ def swapped(old_words, new_words, exempt):
 def check(before, after, registered, exempt):
     """Return (line_number, kind, message) findings for one .ctl's two versions."""
     findings = []
-    old_labels, old_titles = names(before)
-    new_labels, new_titles = names(after)
+    old_labels, old_titles, old_types = names(before)
+    new_labels, new_titles, new_types = names(after)
+
+    # Labels are unique, so a label standing at a second address is evidence
+    # that it moved there. A move renames nothing: splitting a block moves its
+    # label, and its title with it, to the new start.
+    old_at = {v[0]: a for a, v in old_labels.items()}
+    new_at = {v[0]: a for a, v in new_labels.items()}
+
+    def label_moved(address, old, new):
+        if new_at.get(old, address) != address:
+            return True                      # the old name now stands elsewhere
+        came_from = old_at.get(new, address)
+        new_entry = address in new_types and address not in old_types
+        return came_from != address and new_entry   # moved in to start a new entry
+
+    def title_moved(address, old):
+        label = old_labels.get(address, (None,))[0]
+        there = new_at.get(label)
+        return there is not None and there != address and \
+            new_titles.get(there, (None,))[0] == old
 
     for address in sorted(set(old_labels) & set(new_labels)):
         old, new = old_labels[address][0], new_labels[address][0]
         if old == new or UNUSED_LABEL_RE.match(new):
+            continue
+        if label_moved(address, old, new):
             continue
         for word in swapped(label_words(old), label_words(new), exempt):
             if word not in registered:
@@ -152,6 +174,8 @@ def check(before, after, registered, exempt):
     for address in sorted(set(old_titles) & set(new_titles)):
         old, new = old_titles[address][0], new_titles[address][0]
         if old == new or UNUSED_TITLE_RE.match(new):
+            continue
+        if title_moved(address, old):
             continue
         for word in swapped(title_words(old), title_words(new), exempt):
             if word not in registered:

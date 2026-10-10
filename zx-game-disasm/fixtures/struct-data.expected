@@ -1,4 +1,4 @@
-Found 5 data-block schema violation(s) in 15 data entry(ies):
+Found 6 data-block schema violation(s) in 17 data entry(ies):
 
   Line 17: ROW_WIDTH — B $F000,16,1 lists 16 one-byte rows, 0 of them a record the code addresses or the entry states. Cut the rows at the record the code walks, or 8 bytes per row when the bytes have no record
     in b $F000 Attribute ramp
@@ -14,6 +14,9 @@ Found 5 data-block schema violation(s) in 15 data entry(ies):
 
   Line 70: ROW_WIDTH — 4 one-byte B directives run from $F0C0, 0 of them a record the code addresses or the entry states. Join them into one span cut at the record the code walks, or 8 bytes per row when the bytes have no record
     in b $F0C0 Padded bytes
+
+  Line 79: POINTER — T $F0E0,8,2: text cut into 2-byte rows holding a byte no character is, so a table of words, such as screen addresses, typed as text; W shows them as words
+    in t $F0E0 Row addresses typed as text
 
 Advisory, not gated: 3 narrow sublength(s) over a render or a bitmap family. Keep each only when the code walks a record of that width:
 
