@@ -1,16 +1,9 @@
-# Prose gate for a SkoolKit disassembly. Copied to `.vale.ini` at the project
-# root by the skill's setup; `vale sync` fetches the packaged style guides.
-#
-# The disassembly's prose is not in a format Vale reads: a `.skool` is neither
-# Markdown nor one of the 23 languages whose comments Vale extracts. So the
-# Makefile runs `extract_prose.py` first, which lifts every prose unit into
-# `prose.md` with a line map, and `vale_report.py` translates Vale's positions
-# back to `.skool`/`.ctl`/`.ref` lines. Vale itself only ever sees Markdown.
+# Vale reads prose.md, which extract_prose.py lifts out of the .skool and .ref
+# files; vale_report.py maps Vale's positions back to their lines.
 
 StylesPath = styles
-# Suggestions are shown, never gated: SentenceLength is a suggestion, and it is
-# meant to be read, not obeyed. `vale_report.py --fail-on error` decides the exit
-# status, so the build fails on errors while the report still carries the rest.
+# vale_report.py --fail-on error sets the exit status; suggestions are reported
+# and never fail the build.
 MinAlertLevel = suggestion
 
 Packages = Microsoft, Google
@@ -18,71 +11,39 @@ Packages = Microsoft, Google
 [*.md]
 BasedOnStyles = Vale, Microsoft, ZXDisasm
 
-# Microsoft's guide is written for consumer-facing product documentation, and a
-# handful of its rules encode that voice rather than clarity. A disassembly is
-# reference material about a machine, so these come off:
-#
-#   Contractions  level:error, with an autofix - would rewrite "the routine does
-#                 not track the player" to "doesn't", across the whole listing.
-#   We            the disassembly has no "we"; it describes a program.
-#   FirstPerson   the header's one first-person paragraph is deliberate.
-#   UIVerbs       there is no UI to select, tap or swipe.
-#   Wordiness     tuned for marketing copy; it fires on "in order to" but also on
-#                 phrases a technical sentence needs. Re-enable after reading it.
+# Consumer-documentation voice rules. Contractions also autofixes "does not" to
+# "doesn't" across the listing.
 Microsoft.Contractions = NO
 Microsoft.We = NO
 Microsoft.FirstPerson = NO
 Microsoft.UIVerbs = NO
 
-# These fire on the domain rather than on the prose.
-#
-#   Vale.Repetition    "'NOP' is repeated!" over `$00,$00 (two NOPs)`. Assembly
-#                      mnemonics repeat because the code does.
-#   Microsoft.Spacing  reads a field reference - `slot_1.X` - as a sentence
-#                      that lost its space.
-#   Microsoft.Units    wants "3 pixels" for "three pixels". The disassembly's
-#                      own rule is that a number must earn its place, and a
-#                      spelled-out small number in prose is not a measurement.
-#   Microsoft.Negative wants an en dash on negative numbers. `-1` here is the
-#                      value in the register.
+# Rules that fire on the domain:
+#   Vale.Repetition    repeated mnemonics, as in "two NOPs"
+#   Microsoft.Spacing  a field reference such as slot_1.X
+#   Microsoft.Units    "three pixels" in prose
+#   Microsoft.Negative -1 as a register value
+#   Microsoft.Acronyms on-screen captions such as SCORE and PRESS
+#   Microsoft.Uppercase the same captions
+#   Microsoft.Jargon   "glyph", which the glossary defines
+#   Microsoft.QuestionMarks a question on a test, answered on the branch
+#   Microsoft.Vocab    a prompt to consult a word list
+#   Microsoft.Ellipses every ellipsis; make lint-comments checks splices
 Vale.Repetition = NO
 Microsoft.Spacing = NO
 Microsoft.Units = NO
 Microsoft.Negative = NO
-
-#   Microsoft.Acronyms    "'SCORE' has no definition" - a game prints SCORE,
-#                         PRESS and PLAY on screen, and quoting a caption is not
-#                         introducing an acronym.
-#   Microsoft.Uppercase   the same captions, read as emphasis.
-#   Microsoft.Jargon      "Consider using 'symbol' instead of 'glyph'" - glyph is
-#                         the right word here and the glossary defines it.
-#   Microsoft.QuestionMarks
-#                         "Use questions sparingly". The disassembly wants the
-#                         opposite: a question on the test and the answer on the
-#                         branch is the house form.
 Microsoft.Acronyms = NO
 Microsoft.Uppercase = NO
 Microsoft.Jargon = NO
 Microsoft.QuestionMarks = NO
-#   Microsoft.Vocab       "Verify your use of 'against' with the A-Z word list" -
-#                         a prompt to consult a list the reader does not have, so
-#                         there is nothing to act on.
 Microsoft.Vocab = NO
-#   Microsoft.Ellipses    a strict superset of the skill's own ELLIPSIS check, and
-#                         less precise: it reports every ellipsis, so it adds the
-#                         elided sequence ("a run scores 10, 20, 30 ... up to
-#                         250") to the splices that are the actual defect, and it
-#                         cannot say what to do instead. `make lint-comments`
-#                         owns this one.
 Microsoft.Ellipses = NO
 
-# Worth reading, not worth failing on: compound adjectives a disassembly coins
-# ("frame-skip counter") and quote punctuation around code-ish strings.
 Microsoft.Hyphens = suggestion
 Microsoft.Quotes = suggestion
 
-# Vale's own spelling check has no vocabulary for Z80 or for the game; the
-# project's terms live in styles/config/vocabularies/. Off until that is filled.
+# styles/config/vocabularies/ has no vocabulary for Z80 or the game.
 Vale.Spelling = NO
 
 # extract_prose.py writes no headings, so these rules have nothing to read.
