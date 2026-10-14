@@ -144,9 +144,11 @@ A frame caption names the object and the mode it is drawn in, and nothing about 
 
 Nothing in a project states its callers (HOME-4): no `Used by #FOREACH(EREF…)` note, no "called by" or "dispatched by" clause in a description, and no generated line. `skoolkit.ini` sets `ListRefs=0`, so `sna2skool` writes neither the entry-level "Used by" nor the "This entry point is used by …" line at an entry point. A routine can have any number of callers, the list is not what the page is about, and the toolchain tracks the references anyway. What a routine does at its callers' request is its own description. A variable's entry does not list its writers or readers either: what a routine does to the variable is said at the routine.
 
-## A rendered thing is not described in words
+## A picture or a sound is not described in words
 
 Where the page renders the artifact — an `#AUDIO` clip, a `#UDGARRAY` sprite, a `#FRAMES` animation — the render *is* the description. Prose beside it that says what the picture looks like, or what the sound sounds like, is the author doing by hand and badly the job the device does exactly.
+
+Where the page renders nothing, the same prose describes a thing the reader can neither see nor check. A loading screen retold in words on a page that never shows it is one. The entry owes what the thing is, the event that draws or plays it and the routine, or a render.
 
 For sound this has a second, sharper form: **prose that says how the tone is produced.** Frame counts, cycle counts, T-states, a period computed from a counter. That is the synthesis, and the clip *is* the synthesis. Writing it out is the same defect as listing the notes.
 
@@ -158,7 +160,7 @@ An entry beside a clip owes three things: **what the sound means in play, the ev
 
 The production method is not deleted, it is *placed*. The algorithm belongs in the routine's body, at the instructions that implement it, where a reader is reading code. The period formula belongs once, at the tone primitive that computes it, because every effect shares it. Both are "one home per fact"; the catalog is not that home.
 
-This is HOME-7. It reaches block prose and any `.ref` section that carries an `#AUDIO`. Instruction comments are where the algorithm belongs.
+This is HOME-7. It reaches block prose and every `.ref` section, whether or not the section carries the `#AUDIO`. Instruction comments are where the algorithm belongs.
 
 ## Unused bytes say nothing
 

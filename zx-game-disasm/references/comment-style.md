@@ -128,6 +128,8 @@ A rendered image is a claim about the bytes, not a fact about the game. The attr
 
 The render *is* how the artifact reaches the reader. The `#UDGARRAY` shows the sprite; the `#FRAMES` plays the animation; the `#AUDIO` plays the effect. Prose that says what the picture looks like or what the sound sounds like is the author doing by hand, badly, the job the device does exactly — and it is wrong in the same way whether or not the sentence is accurate.
 
+The rule holds where the page renders nothing. There the prose describes a picture or a sound the reader can neither see nor check, so it says what the thing is, the event that draws or plays it and the routine, and a render carries the rest or nothing does.
+
 The test is the **units**. A description written in the medium's own units is transcription and comes out. A description written in the *game's* units is the content, and no device can carry it.
 
 | Medium | Its own units — never in prose | The game's units — what the entry owes |
