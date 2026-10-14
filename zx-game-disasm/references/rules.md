@@ -177,6 +177,19 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | TYPO-2 | Prose uses × for dimensions (`8×8`) and products (`row × 32`), − for minus, → for arrows, ≥ ≤ ≠ for comparisons, ° for angles, ♭ and ♯ for notes, an en dash for ranges and a spaced en dash for a parenthetical dash. Quoted game text and macro parameters keep their bytes. | TYPOGRAPHY | |
 | TYPO-3 | Hex in prose has two or four digits. | review | |
 
+## STE: Simplified Technical English
+
+The writing rules of ASD-STE100, the controlled language of technical documentation. Its dictionary is not adopted. The terminology registry holds the project's words, and a word of a label or of a glossary term is a technical name.
+
+| ID | Rule | Enforcer | Question |
+| --- | --- | --- | --- |
+| STE-1 | A sentence holds at most 25 words. | STE_LENGTH | |
+| STE-2 | A verb is in the active voice. | review | Does this unit use the passive voice where an active verb with a stated actor would say the same thing? |
+| STE-3 | A verb is in the simple present, the simple past or the simple future tense. | review | Does this unit use a progressive, perfect or other compound tense? |
+| STE-4 | No -ing form appears, except in a technical name. | STE_ING | |
+| STE-5 | A noun cluster holds at most three nouns. | review | Does this unit stack four or more nouns in a row? |
+| STE-6 | A paragraph holds at most six sentences. | STE_PARAGRAPH | |
+
 ## VIS: renders, layout and color
 
 | ID | Rule | Enforcer | Question |
@@ -223,13 +236,13 @@ Apply the listed rules before writing.
 | Task | Rules |
 | --- | --- |
 | A data row comment or sub-block | ROW-1 to ROW-9, PROSE-9, HOME-5, AUD-4, TYPO-1, TYPO-2 |
-| A routine description (`D`/`N`) or instruction comment | ENT-6 to ENT-8, HOME-1, HOME-2, HOME-4 to HOME-6, HOME-9, HOME-11, HOME-12, PROSE-1 to PROSE-9, AUD-3, AUD-4, REG-3, TYPO-1, TYPO-2 |
+| A routine description (`D`/`N`) or instruction comment | ENT-6 to ENT-8, HOME-1, HOME-2, HOME-4 to HOME-6, HOME-9, HOME-11, HOME-12, PROSE-1 to PROSE-9, STE-1 to STE-6, AUD-3, AUD-4, REG-3, TYPO-1, TYPO-2 |
 | A variable or table definition | DEF-1 to DEF-5, PROSE-9, HOME-2, HOME-4, HOME-12, ENT-4, ENT-5, UNU-1 to UNU-3 |
 | A glossary entry | DEF-1 to DEF-6, NAME-1, NAME-3, NAME-6 |
 | An entry title or page heading | HEAD-1 to HEAD-4, NAME-6, AUD-1, HOME-10, TYPO-1 |
 | A sprite, glyph or sound entry | GFX-1 to GFX-9, HOME-7, VIS-1, EVID-3 |
 | A label, term or classification change | NAME-1 to NAME-11, WORK-1 |
-| `.ref` page prose | HOME-1 to HOME-3, HOME-10, HOME-13, AUD-1, AUD-3, AUD-4, ROW-7, VIS-1, TYPO-1, TYPO-2 |
+| `.ref` page prose | HOME-1 to HOME-3, HOME-10, HOME-13, STE-1 to STE-6, AUD-1, AUD-3, AUD-4, ROW-7, VIS-1, TYPO-1, TYPO-2 |
 | CSS, theme or layout | VIS-2 to VIS-8, and the owner decisions in the project's `AGENTS.md` |
 | An owner call-out | WORK-7, WORK-1, WORK-9 |
 | A gate finding | WORK-2 |

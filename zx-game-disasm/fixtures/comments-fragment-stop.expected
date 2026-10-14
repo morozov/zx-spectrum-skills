@@ -1,4 +1,4 @@
-Found 35 comment defect(s):
+Found 118 comment defect(s):
 
 [FRAGMENT_STOP] 35
   fragment-stop.skool:23: ends a noun phrase with a full stop ('Fading lamp palette.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
@@ -71,3 +71,173 @@ Found 35 comment defect(s):
     $EC21 DEFB $00      ; One of the four facings 90° apart – up, down, left and right.
   fragment-stop.skool:57: ends a noun phrase with a full stop ('circle, shaded at the upper left.') – a full stop ends a sentence. A row, caption, title or cell that names a thing takes none [TYPO-1]
     $EC22 DEFB $00      ; The key (#R$F110): a hollow circle, shaded at the upper left.
+
+[STE_ING] 77
+  fragment-stop.skool:23: 'Fading' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    b$EC00 DEFB $00      ; Fading lamp palette.
+  fragment-stop.skool:33: 'waking' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EC0A DEFB $00      ; The sound of a guard waking.
+  fragment-stop.skool:34: 'starting' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EC0B DEFB $00      ; The sound of a lift starting, a 9-step sequence.
+  fragment-stop.skool:35: 'slipping' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EC0C DEFB $00      ; The sound of the player slipping, a 40-step sequence.
+  fragment-stop.skool:36: 'losing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EC0D DEFB $00      ; The sound of the guard losing the lamp it carried.
+  fragment-stop.skool:37: 'striking' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EC0E DEFB $00      ; The sound of a key striking the floor.
+  fragment-stop.skool:38: 'hitting' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EC0F DEFB $00      ; The chirp of a coin hitting the floor.
+  fragment-stop.skool:40: 'shattering' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EC11 DEFB $00      ; The sound of a vase shattering, a 5-step sequence.
+  fragment-stop.skool:71: 'printing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED0A DEFB $00      ; The banner is wiped by printing blanks (#R$F210) over the same cells.
+  fragment-stop.skool:80: 'matching' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED13 DEFB $00      ; Paints the outer frame into the room map and the attribute cells matching it.
+  fragment-stop.skool:83: 'sealing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED16 DEFB $00      ; Paints the far end wall, sealing the room on the side the player faces.
+  fragment-stop.skool:91: 'leaving' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED1E DEFB $00      ; Removes the gate from the doorway, leaving its cells blank and plain cyan.
+  fragment-stop.skool:92: 'writing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED1F DEFB $00      ; Visits the rows #R$F270 visits, writing the blank cell code into each.
+  fragment-stop.skool:96: 'covering' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED23 DEFB $00      ; The plan is 10×5 panels, each 3×4 characters, covering the room.
+  fragment-stop.skool:108: 'crossing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED2F DEFB $00      ; The pointer returns in the same column a row lower, crossing into the next third of the display.
+  fragment-stop.skool:114: 'tracking' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED35 DEFB $00      ; Two checks can cancel the climb, and the step tracking the guard #R$F2F0 runs even then.
+  fragment-stop.skool:117: 'reusing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED38 DEFB $00      ; Lowers the player's frame by the step, reusing the code of #R$F310.
+  fragment-stop.skool:119: 'stopping' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED3A DEFB $00      ; Climb ramp: converts the hold counter #R$F330 into the player's step per frame, stopping at 3 px.
+  fragment-stop.skool:128: 'facing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED43 DEFB $00      ; Works out the thrown key's step lengths and directions from its facing code, through #R$F3D0.
+  fragment-stop.skool:129: 'shifting' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED44 DEFB $00      ; Steps the thrown key one frame, shifting its frame by the pixels its sub-step counters accumulate.
+  fragment-stop.skool:130: 'moving' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED45 DEFB $00      ; A zero step length keeps that axis from moving.
+  fragment-stop.skool:131: 'facing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED46 DEFB $00      ; Lists the facing each blocked axis falls back to, indexed by the axis code.
+  fragment-stop.skool:132: 'facing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED47 DEFB $00      ; Every four-byte entry stores a horizontal deflect code, a vertical deflect code, and the facing a 
+  fragment-stop.skool:133: 'saving' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED48 DEFB $00      ; Deflects the thrown key from the first solid cell it meets, saving the new facing for the next fra
+  fragment-stop.skool:136: 'facing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED4B DEFB $00      ; Gives the facing a key leaves the gate with, indexed by where it strikes the gate.
+  fragment-stop.skool:137: 'facing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED4C DEFB $00      ; Gives the facing a key leaves the wide gate with, indexed by where it strikes the gate.
+  fragment-stop.skool:142: 'ascending' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED51 DEFB $00      ; Address words lead the table, one per rank in ascending order, and the sequences follow them.
+  fragment-stop.skool:143: 'halting' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED52 DEFB $00      ; Ticks the lift's chime timer #R$F3F0 once per frame, halting itself after 12.
+  fragment-stop.skool:144: 'ending' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED53 DEFB $00      ; Grants the pickup the player has just collected, ending any pickup still active.
+  fragment-stop.skool:147: 'wrapping' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED56 DEFB $00      ; Moves the initials cursor one letter back along the letter row #R$F430, wrapping from A to Z.
+  fragment-stop.skool:148: 'heading' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED57 DEFB $00      ; Repaints the entire best-times screen: the heading and all six entries (#R$F450) in tall text.
+  fragment-stop.skool:151: 'lengthening' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED5A DEFB $00      ; Feeds a burst of square-wave cycles to the beeper through #R$F4B0, lengthening the period by one e
+  fragment-stop.skool:157: 'making' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED60 DEFB $00      ; The QUIET menu option #R$F530 silences every tone by making this routine exit straight away.
+  fragment-stop.skool:163: 'reading' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED66 DEFB $00      ; Waits until no key is down – a check made before reading a fresh key on the menu screens.
+  fragment-stop.skool:165: 'restarting' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED68 DEFB $00      ; Test the Q key (quit), then step the menu jingle by one note, restarting it at the end marker.
+  fragment-stop.skool:174: 'remaining' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED71 DEFB $00      ; Fill every remaining free guard slot with a new sentry, each placed 12 pixels right of the last.
+  fragment-stop.skool:187: 'zeroing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED7E DEFB $00      ; The deflection then resets the pace through #R$F6D0, zeroing the counters, so the key stays trappe
+  fragment-stop.skool:191: 'passing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED82 DEFB $00      ; With the player at the top the corner is the player's own exit, and a key passing it leaves the ro
+  fragment-stop.skool:196: 'holding' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED87 DEFB $00      ; The catch delay and the alarm delay leave HL holding whatever the guard step #R$F730 last used, an
+  fragment-stop.skool:198: 'tracking' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED89 DEFB $00      ; Drifts down while tracking the player's floor, and drops traps.
+  fragment-stop.skool:201: 'turning' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED8C DEFB $00      ; Runs along a straight path, turning only at doors.
+  fragment-stop.skool:202: 'weaving' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED8D DEFB $00      ; Rebounds from walls and ledges, weaving left and right as it goes.
+  fragment-stop.skool:204: 'touching' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $ED8F DEFB $00      ; Nothing else about the sentry differs: touching the player still removes it, and it still scores 5
+  fragment-stop.skool:208: 'facing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    b$EE00 DEFB $00      ; Which walls the key's flight struck, and the facing each produced.
+  fragment-stop.skool:213: 'remaining' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE05 DEFB $00      ; Lever frame, copied from #R$F7B0, up to the end of the page; the frame's remaining lines continue 
+  fragment-stop.skool:220: 'being' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE0C DEFB $00      ; The floor being explored and the count of lives remaining.
+  fragment-stop.skool:222: 'vanishing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE0E DEFB $00      ; Frame addresses for the puff every vanishing guard shows, indexed by pose.
+  fragment-stop.skool:223: 'heading' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE0F DEFB $00      ; Like #R$F8B0 but twice as tall (16 pixels high) – the big heading text.
+  fragment-stop.skool:226: 'holding' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE12 DEFB $00      ; Per-guard state for all six guards, two bytes each, holding a caught guard's pending puff.
+  fragment-stop.skool:229: 'limiting' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE15 DEFB $00      ; A constant pause in the initials loop (#R$F8F0), limiting how quickly a held key repeats.
+  fragment-stop.skool:232: 'vanishing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE18 DEFB $00      ; The sound of anything in the room vanishing: a guard caught, the player fainting on a lost life, t
+  fragment-stop.skool:234: 'dropping' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE1A DEFB $00      ; The sound of a catch that leaves the guard free: a ranked guard, or a sentry dropping a rank.
+  fragment-stop.skool:235: 'sliding' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE1B DEFB $00      ; The wide gate sliding shut.
+  fragment-stop.skool:240: 'approaching' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE20 DEFB $00      ; The room-map cell an approaching guard is checking.
+  fragment-stop.skool:241: 'holding' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE21 DEFB $00      ; Temporary slot holding the room-map pointer of the cell #R$F910 is examining.
+  fragment-stop.skool:242: 'facing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE22 DEFB $00      ; Each guard kind's initial facing, in the facing code of #R$F930, indexed by guard kind.
+  fragment-stop.skool:245: 'being' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE25 DEFB $00      ; Pointer to the next note of the jingle being sounded.
+  fragment-stop.skool:247: 'including' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE27 DEFB $00      ; The jingle heard after the CAUGHT banner, 39 bytes including its end marker.
+  fragment-stop.skool:249: 'including' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE29 DEFB $00      ; The three-note jingle heard when the player collects a pickup, 4 bytes including its end marker.
+  fragment-stop.skool:253: 'vanishing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE2D DEFB $00      ; Puff frames for a vanishing guard, animated by #R$F9B0.
+  fragment-stop.skool:254: 'arriving' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE2E DEFB $00      ; Smoke-ring frames for an arriving guard.
+  fragment-stop.skool:255: 'flickering' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE2F DEFB $00      ; Phantom frames in motion: a flickering veil, animated by #R$F9D0.
+  fragment-stop.skool:258: 'swaying' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE32 DEFB $00      ; Lantern swaying: its row of flames flickering, animated by #R$FA10.
+  fragment-stop.skool:259: 'breaking' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE33 DEFB $00      ; Lantern shatter burst: the glass breaking apart, animated by #R$FA30.
+  fragment-stop.skool:264: 'tracking' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE38 DEFB $00      ; Hound tracking the player.
+  fragment-stop.skool:269: 'Swinging' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE3D DEFB $00      ; Swinging-rope frames, animated by #R$FB10.
+  fragment-stop.skool:275: 'counting' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE43 DEFB $00      ; A cell's position in the room as one number, 0 to 79, counting row by row.
+  fragment-stop.skool:277: 'saying' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE45 DEFB $00      ; A bit on one display cell saying its contents have changed since the last frame.
+  fragment-stop.skool:278: 'being' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE46 DEFB $00      ; How a guard copes with being caught: how many catches it shrugs off, and what it drops when it giv
+  fragment-stop.skool:279: 'flying' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE47 DEFB $00      ; Which way a key is flying, as one of 16 facings around the compass.
+  fragment-stop.skool:280: 'walking' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE48 DEFB $00      ; Which way a guard is walking, as one of the four directions.
+  fragment-stop.skool:281: 'being' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE49 DEFB $00      ; The number of the floor being explored, counted from 1.
+  fragment-stop.skool:282: 'facing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE4A DEFB $00      ; A guard's patrol state: its facing, its pace and its current pose.
+  fragment-stop.skool:284: 'holding' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE4C DEFB $00      ; The six slots holding all the things the game animates.
+  fragment-stop.skool:287: 'flagging' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE4F DEFB $00      ; A byte flagging the end of a list that carries no length.
+  fragment-stop.skool:296: 'waking' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE58 DEFB $00      ; A guard waking.
+  fragment-stop.skool:297: 'fleeing' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    $EE59 DEFB $00      ; A guard fleeing.
+
+[STE_LENGTH] 6
+  fragment-stop.skool:159: a sentence of 29 words ('A shifted line spans three bytes …') – a sentence holds at most 25 words; split it at its ideas [STE-1]
+    $ED62 DEFB $00      ; A shifted line spans three bytes: a first byte whose left pixels are empty, a full middle byte, an
+  fragment-stop.skool:164: a sentence of 26 words ('Confirm the selected entry keep the …') – a sentence holds at most 25 words; split it at its ideas [STE-1]
+    $ED67 DEFB $00      ; Confirm the selected entry: keep the entry's color address for the highlight, store the key layout
+  fragment-stop.skool:173: a sentence of 29 words ('Common entry for any patrol slot …') – a sentence holds at most 25 words; split it at its ideas [STE-1]
+    $ED70 DEFB $00      ; Common entry for any patrol slot other than 1: refuse a repeated solo guard, take a free guard rec
+  fragment-stop.skool:185: a sentence of 28 words ('One cell code per screen position …') – a sentence holds at most 25 words; split it at its ideas [STE-1]
+    $ED7C DEFB $00      ; One cell code per screen position, in the order of the attribute file: the cell in row R and colum
+  fragment-stop.skool:196: a sentence of 32 words ('The catch delay and the alarm …') – a sentence holds at most 25 words; split it at its ideas [STE-1]
+    $ED87 DEFB $00      ; The catch delay and the alarm delay leave HL holding whatever the guard step #R$F730 last used, an
+  fragment-stop.skool:232: a sentence of 32 words ('The sound of anything in the …') – a sentence holds at most 25 words; split it at its ideas [STE-1]
+    $EE18 DEFB $00      ; The sound of anything in the room vanishing: a guard caught, the player fainting on a lost life, t

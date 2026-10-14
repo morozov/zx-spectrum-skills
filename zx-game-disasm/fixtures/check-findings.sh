@@ -114,6 +114,10 @@ run comments-samp-game-text \
 # reported; the rewritten rows and branch labels are not.
 run comments-definitions \
     scripts/lint_comments.py fixtures/definitions.skool
+# ASD-STE100's checked writing rules: a long sentence, an -ing form and a long
+# paragraph are reported, and the same facts written short are not.
+run comments-ste \
+    scripts/lint_comments.py fixtures/no-code.skool fixtures/ste.ref
 # FRAGMENT_STOP over noun phrases, padded noun phrases, and full sentences,
 # which keep their full stop.
 run comments-fragment-stop \

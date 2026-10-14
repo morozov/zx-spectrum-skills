@@ -1,4 +1,4 @@
-Found 49 comment defect(s):
+Found 57 comment defect(s):
 
 [BARE_VALUE] 1
   units-session.skool:57: values run into their meanings ('0 a shot, 1 a') – join each value to its meaning with a word: '0 for the left door, 1 for the right door', '1 if the key is held' [PROSE-9]
@@ -107,6 +107,26 @@ Found 49 comment defect(s):
     The iron shield ($2C) is in the scripts of levels 3, 8, 14, 20. Rock rain
   units-session.ref:27: lists numbers ('41, 43, 47, 50, 58') – a list of the levels, slots or values that hold something restates the game's data, which the data tables show [HOME-3]
     is in those of 41, 43, 47, 50, 58.
+
+[STE_ING] 6
+  units-session.skool:46: 'setting' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    ; (#R$A050 setting 1 or 2).
+  units-session.skool:147: 'wandering' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    Frame handler for the ghost. Instead of wandering it homes on
+  units-session.skool:207: 'starting' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    drawn at the starting point.
+  units-session.skool:213: 'starting' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    The player in its plain form, drawn at the starting point.
+  units-session.ref:88: 'being' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    Which level is being played, counted from 0.
+  units-session.ref:94: 'saying' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    A flag on one screen cell saying its picture has changed since the screen was
+
+[STE_LENGTH] 2
+  units-session.skool:38: a sentence of 28 words ('A heavy shot such as the …') – a sentence holds at most 25 words; split it at its ideas [STE-1]
+    ; #R$A020. A heavy shot such as the LASER bolt
+  units-session.skool:104: a sentence of 37 words ('The address routine #R$A311 packs the …') – a sentence holds at most 25 words; split it at its ideas [STE-1]
+    The page is also used as a bit field. The address routine #R$A311 packs the
 
 [TYPOGRAPHY] 11
   units-session.skool:69: writes a range in ASCII ('$70-$78') – prose uses an en dash; quoted game text and macro parameters keep their bytes [TYPO-2]

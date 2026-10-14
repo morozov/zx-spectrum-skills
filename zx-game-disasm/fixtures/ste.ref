@@ -1,0 +1,28 @@
+; ASD-STE100's checked writing rules. Each bad line is reported and no good line
+; is. A word of a label is a technical name: the .skool beside this page labels
+; nothing, so only the built-in non-verb words pass as -ing words here.
+;
+; Bad:  15  a sentence of 29 words (STE_LENGTH)
+;       19  an -ing form (STE_ING)
+;       23  a paragraph of seven sentences (STE_PARAGRAPH)
+; Good: 27  the same facts in short sentences, simple tenses, no -ing form,
+;           and a quoted game text whose words are not counted or checked
+[Page:Rules]
+PageContent=#INCLUDE(RulesContent)
+
+[RulesContent]
+<div class="paragraph">
+The shot leaves the gun at its current angle and then crosses the field until it meets a door, a wall or the guard on the far side again.
+</div>
+
+<div class="paragraph">
+The player keeps moving while the key stays down.
+</div>
+
+<div class="paragraph">
+The shot flies. It hits a crate. The crate breaks. A key falls. The player catches it. The key opens a door. The level goes on.
+</div>
+
+<div class="paragraph">
+The shot leaves the gun. It crosses the field to a door, a wall or the guard. Nothing stops it. The menu shows "PRESS FIRE TO START PLAYING THE GAME NOW OR WAIT FOR THE DEMO TO RUN AGAIN".
+</div>

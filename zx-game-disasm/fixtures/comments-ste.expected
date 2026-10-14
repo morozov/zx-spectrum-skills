@@ -1,0 +1,13 @@
+Found 3 comment defect(s):
+
+[STE_ING] 1
+  ste.ref:19: 'moving' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    The player keeps moving while the key stays down.
+
+[STE_LENGTH] 1
+  ste.ref:15: a sentence of 29 words ('The shot leaves the gun at …') – a sentence holds at most 25 words; split it at its ideas [STE-1]
+    The shot leaves the gun at its current angle and then crosses the field until it meets a door, a wall or the guard on th
+
+[STE_PARAGRAPH] 1
+  ste.ref:23: a paragraph of 7 sentences – a paragraph holds at most 6 sentences; give each topic its own [STE-6]
+    The shot flies. It hits a crate. The crate breaks. A key falls. The player catches it. The key opens a door. The level g

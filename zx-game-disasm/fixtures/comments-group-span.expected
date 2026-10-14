@@ -1,4 +1,4 @@
-Found 25 comment defect(s):
+Found 29 comment defect(s):
 
 [BARE_VALUE] 1
   group-span.skool:240: values run into their meanings ('$FF none') – join each value to its meaning with a word: '0 for the left door, 1 for the right door', '1 if the key is held' [PROSE-9]
@@ -69,6 +69,18 @@ Found 25 comment defect(s):
 [SPLICE] 1
   group-span.skool:110: this comment finishes the sentence the previous unit left open ('Hold the slot while the fade settles,') — each comment describes its own rows, so a clause that only makes sense after the one above it belongs in that one, or in a sentence of its own that names what it refers to
     *$EC4E LD A,(HL)      ; {and release it once the fade has passed.
+
+[STE_ING] 3
+  group-span.skool:131: 'stepping' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    *$EC5E LD (HL),A      ; {...stepping down one pixel row each time.
+  group-span.skool:206: 'moving' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    On a hit the object enters state 2 and stops moving. A solid tile is a
+  group-span.skool:240: 'moving' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
+    g$EC94 DEFB $00      ; $FF none, $00 hit moving right, $02 hit moving left
+
+[STE_LENGTH] 1
+  group-span.skool:164: a sentence of 39 words ('Undetermined tail of the state block …') – a sentence holds at most 25 words; split it at its ideas [STE-1]
+    Undetermined tail of the state block; no reader found in the image, and the
 
 [SYNTH_ECHO] 1
   group-span.skool:144: describes how the tone is produced ('cycles') beside the #AUDIO that plays it — the clip is the synthesis, so the words owe what the sound means in play, the event that fires it and the routine. The period formula is a mechanism and belongs once, at the tone primitive that implements it

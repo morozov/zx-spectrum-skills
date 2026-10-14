@@ -111,6 +111,11 @@ ones a reviewer would otherwise flag by hand:
                    the values it holds (DEF-1)
   - BARE_VALUE     values run into their meanings, "0 left door, 1 right door"
                    (PROSE-9)
+  - STE_LENGTH     a sentence of more than 25 words (STE-1)
+  - STE_ING        an -ing form outside a technical name; a word of one of the
+                   project's labels or glossary term titles is a technical
+                   name (STE-4)
+  - STE_PARAGRAPH  a paragraph of more than six sentences (STE-6)
   - INLINE_RENDER  a render macro inside a sentence, a row comment or a table
                    cell with three or more words of prose beside it, outside a
                    #UDGTABLE (VIS-1)
@@ -214,7 +219,8 @@ GATING_KINDS = frozenset((
     'HEADING_JARGON', 'IDENT_IN_PROSE', 'GLOSSARY_DEF', 'GLOSSARY_IDENT',
     'CALLERS', 'TYPOGRAPHY', 'FRAGMENT_STOP', 'FOIL', 'UNUSED_TEXT',
     'LABEL_ECHO', 'WORDY_VARIABLE', 'DEIXIS', 'FOREIGN_LOGIC', 'INLINE_RENDER',
-    'BARE_VALUE', 'NON_ZERO', 'LABEL_PAIR',
+    'STE_LENGTH', 'STE_ING', 'STE_PARAGRAPH', 'BARE_VALUE', 'NON_ZERO',
+    'LABEL_PAIR',
 ))
 
 # The finding's own row carries its address, so the baseline key is that address
@@ -1661,6 +1667,31 @@ def check_label_echo(unit):
         yield 0, cite(LABEL_ECHO_DETAIL.format(unit.text.strip()), 'HOME-5')
 
 
+# STE-1, STE-4 and STE-6. The writing rules of ASD-STE100, Simplified
+# Technical English, that a pattern can decide. Quoted game text is blanked
+# first: the game's own words keep their length and their forms.
+STE_MAX_WORDS = 25
+STE_MAX_SENTENCES = 6
+STE_WORD_RE = re.compile(r"[A-Za-z0-9$#][A-Za-z0-9$#'’-]*")
+STE_ING_RE = re.compile(r"\b([A-Za-z]{2,}ing)\b")
+# Words ending in -ing that are no form of a verb.
+STE_NOT_ING = frozenset((
+    'thing', 'nothing', 'something', 'anything', 'everything', 'string',
+    'during', 'king', 'ring', 'spring', 'wing', 'ceiling', 'morning', 'evening',
+    'sibling', 'sting', 'bring',
+    # The noun for a disassembly's assembly text, not a form of a verb.
+    'listing'))
+STE_LENGTH_DETAIL = (
+    "a sentence of {} words ('{}') – a sentence holds at most "
+    f"{STE_MAX_WORDS} words; split it at its ideas")
+STE_ING_DETAIL = (
+    "'{}' is an -ing form – write the verb in a simple tense, or the noun it "
+    "names. A word of a label is a technical name and may keep its -ing")
+STE_PARAGRAPH_DETAIL = (
+    "a paragraph of {} sentences – a paragraph holds at most "
+    f"{STE_MAX_SENTENCES} sentences; give each topic its own")
+
+
 # PROSE-9. A value and its meaning are joined by a word. "0 left door, 1 right
 # door" runs each number into its meaning, and so does a lone "Phase: 0 idle";
 # "0 for the left door, 1 for the right door" does not.
@@ -1704,6 +1735,57 @@ def check_non_zero(unit):
         yield m.start(), cite(NON_ZERO_DETAIL.format(m.group(0)), 'DEF-1')
 
 
+TERM_TITLE_RE = re.compile(r'^\[Term:[^:\]]*:([^\]]*)\]', re.M)
+
+
+def read_term_words(paths):
+    """The words of every glossary term title among `paths`: technical names."""
+    words = set()
+    for path in paths:
+        if path.endswith('.ref') and os.path.exists(path):
+            text = open(path, encoding='utf-8').read()
+            for title in TERM_TITLE_RE.findall(text):
+                words |= set(re.findall(r'[a-z]+', title.lower()))
+    ENV['term_words'] = frozenset(words)
+
+
+def ste_names():
+    """The -ing words STE treats as technical names: words of labels and glossary terms."""
+    names = ENV.get('ste_names')
+    if names is None:
+        names = frozenset(w for label in ENV['labels'].values()
+                          for w in label.lower().split('_') if w.endswith('ing'))
+        names |= {w for w in ENV.get('term_words', ()) if w.endswith('ing')}
+        ENV['ste_names'] = names
+    return names
+
+
+def check_ste_length(unit):
+    text = unquoted(unit.text)
+    for offset, sentence in sentences(text):
+        words = STE_WORD_RE.findall(sentence)
+        if len(words) > STE_MAX_WORDS:
+            yield offset, cite(STE_LENGTH_DETAIL.format(
+                len(words), ' '.join(words[:6]) + ' …'), 'STE-1')
+            return
+
+
+def check_ste_ing(unit):
+    text = unquoted(unit.text)
+    for m in STE_ING_RE.finditer(text):
+        word = m.group(1).lower()
+        if word in STE_NOT_ING or word in ste_names():
+            continue
+        yield m.start(), cite(STE_ING_DETAIL.format(m.group(1)), 'STE-4')
+        return
+
+
+def check_ste_paragraph(unit):
+    count = sum(1 for _, s in sentences(unquoted(unit.text)) if s.strip())
+    if count > STE_MAX_SENTENCES:
+        yield 0, cite(STE_PARAGRAPH_DETAIL.format(count), 'STE-6')
+
+
 # Every unit check: its kind, the surfaces it reads, and the file types it reads
 # them in (None for every type).
 UNIT_CHECKS = (
@@ -1739,6 +1821,11 @@ UNIT_CHECKS = (
     ('LABEL_ECHO', frozenset(('row', 'data-row')), ('.skool',), check_label_echo),
     ('BARE_VALUE', ALL_SURFACES, None, check_bare_value),
     ('NON_ZERO', frozenset(('data-row', 'block')), ('.skool',), check_non_zero),
+    # A register row is one noun phrase (REG-2), never a sentence to split.
+    ('STE_LENGTH', NOT_REGISTER, None, check_ste_length),
+    ('STE_ING', ALL_SURFACES, None, check_ste_ing),
+    ('STE_PARAGRAPH', frozenset(('block', 'ref-para', 'term-body')), None,
+     check_ste_paragraph),
 )
 
 
@@ -2183,6 +2270,7 @@ def main():
         for prefix, _, _ in validate_label_family.read_families(args.families) or [])
 
     findings = []
+    read_term_words(args.paths)
     for path in args.paths:
         try:
             scanned = scan(path) if path.endswith('.skool') else scan_prose(path)
