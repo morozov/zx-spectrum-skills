@@ -92,6 +92,7 @@ REF_ARG_RE = re.compile(r'(\$[0-9A-Fa-f]+|\d+)(@[\w-]+)?(#[\w-]+)?')
 NUM_ARG_RE = re.compile(r'(\$[0-9A-Fa-f]+|\d+)(?:,[^\s()]*)?')
 GENERIC_PARAM_RE = re.compile(r'[^\s()\[\]{}|]*')
 TAG_RE = re.compile(r'</?[A-Za-z][^>]*>')
+SAMP_TAG_RE = re.compile(r'</?samp\b', re.I)
 ENTITY_RE = re.compile(r'&(?:#\d+|#x[0-9A-Fa-f]+|[A-Za-z]+);')
 
 
@@ -219,7 +220,9 @@ def scrub(s):
         if c == '<':
             tm = TAG_RE.match(s, i)
             if tm:
-                emit(' ', i)
+                # A <samp> element holds the game's own text, so it reads as
+                # quoted game text, which keeps its bytes (TYPO-2).
+                emit('"' if SAMP_TAG_RE.match(tm.group(0)) else ' ', i)
                 i = tm.end()
                 continue
         if c == '&':

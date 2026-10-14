@@ -1,0 +1,18 @@
+; Game text set in a <samp> element keeps its bytes, as quoted game text does
+; (TYPO-2). The bad line is prose writing a dash in ASCII; the good line is the
+; game's own title text, hyphens included, set as a text diff in <samp>.
+;
+; Bad:  12  an ASCII dash in prose
+; Good: 17  the same hyphen inside <samp>, which is reported by nothing
+[Page:Release]
+PageContent=#INCLUDE(ReleaseContent)
+
+[ReleaseContent]
+<div class="paragraph">
+The title screen names the author - and then the artist.
+</div>
+
+#TABLE(default,centre)
+{ =h Text | =h Change }
+{ The title text | <div class="text-diff"><samp class="text-del">SAMPLE GAME - WRITTEN BY A. CODER</samp><samp class="text-ins">SAMPLE GAME 2 - EXTRA LIVES EDITION</samp></div> }
+TABLE#

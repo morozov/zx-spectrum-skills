@@ -102,6 +102,10 @@ run comments-page-headings \
 # no good line is.
 run comments-units-session \
     scripts/lint_comments.py fixtures/units-session.skool fixtures/units-session.ref
+# Game text set in <samp> keeps its bytes, as quoted game text does: the ASCII
+# dash in prose is reported and the one in the game's credits is not.
+run comments-samp-game-text \
+    scripts/lint_comments.py fixtures/no-code.skool fixtures/samp-game-text.ref
 # FRAGMENT_STOP over noun phrases, padded noun phrases, and full sentences,
 # which keep their full stop.
 run comments-fragment-stop \

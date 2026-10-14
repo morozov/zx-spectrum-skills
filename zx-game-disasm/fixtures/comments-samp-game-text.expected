@@ -1,0 +1,5 @@
+Found 1 comment defect(s):
+
+[TYPOGRAPHY] 1
+  samp-game-text.ref:12: writes a dash or a minus in ASCII ('-') – prose uses a spaced en dash, or − for minus; quoted game text and macro parameters keep their bytes [TYPO-2]
+    The title screen names the author - and then the artist.
