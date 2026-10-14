@@ -25,6 +25,9 @@
 
 set -u
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 2
+# A fixture reads only its own canned review records. `make gate-index` points
+# REVIEW_RECORD_DIR at the project's records, so it is cleared here.
+unset REVIEW_RECORD_DIR
 
 record=0
 [ "${1-}" = '--record' ] && record=1
