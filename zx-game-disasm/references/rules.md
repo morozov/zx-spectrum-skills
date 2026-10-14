@@ -58,6 +58,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | HOME-10 | A link note, intro, caption or heading carries no count of what a list or page holds. | HEADING_JARGON, review | Does this unit count the items of a list, page or table? |
 | HOME-11 | A routine's title and description carry the size of what it processes only when its behavior changes with that size. | review | Does this routine title or description state the size of the data it processes? |
 | HOME-12 | Before an encoding is cut from a caller's comment, the variable's own entry states it. | review | |
+| HOME-13 | Reader-facing text describes the program, and nothing about how its image was acquired: a distribution tape's blocks, its loader and how they are decoded live in the build files that load them (`.t2s`, `Makefile`). Code inside the image that loads data is the program, and is described. | review | Does this unit describe a distribution tape's blocks, its loader, or how the program's image was loaded or decoded from it? |
 
 ## DEF: definitions of variables, tables and glossary terms
 
@@ -227,7 +228,7 @@ Apply the listed rules before writing.
 | An entry title or page heading | HEAD-1 to HEAD-4, NAME-6, AUD-1, HOME-10, TYPO-1 |
 | A sprite, glyph or sound entry | GFX-1 to GFX-9, HOME-7, VIS-1, EVID-3 |
 | A label, term or classification change | NAME-1 to NAME-11, WORK-1 |
-| `.ref` page prose | HOME-1 to HOME-3, HOME-10, AUD-1, AUD-3, AUD-4, ROW-7, VIS-1, TYPO-1, TYPO-2 |
+| `.ref` page prose | HOME-1 to HOME-3, HOME-10, HOME-13, AUD-1, AUD-3, AUD-4, ROW-7, VIS-1, TYPO-1, TYPO-2 |
 | CSS, theme or layout | VIS-2 to VIS-8, and the owner decisions in the project's `AGENTS.md` |
 | An owner call-out | WORK-7, WORK-1, WORK-9 |
 | A gate finding | WORK-2 |
