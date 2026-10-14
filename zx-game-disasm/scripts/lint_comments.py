@@ -105,6 +105,12 @@ ones a reviewer would otherwise flag by hand:
   - FOREIGN_LOGIC  a data entry's description stating a routine's logic: a
                    sentence holding a link to code and a verb such as "derives",
                    "masks" or "adds" (HOME-2)
+  - LABEL_PAIR     a `_hi`/`_high` label whose low byte does not carry the
+                   matching `_lo`/`_low` label on the same stem (NAME-7)
+  - NON_ZERO       a variable or data definition saying "non-zero" in place of
+                   the values it holds (DEF-1)
+  - BARE_VALUE     values run into their meanings, "0 left door, 1 right door"
+                   (PROSE-9)
   - INLINE_RENDER  a render macro inside a sentence, a row comment or a table
                    cell with three or more words of prose beside it, outside a
                    #UDGTABLE (VIS-1)
@@ -208,6 +214,7 @@ GATING_KINDS = frozenset((
     'HEADING_JARGON', 'IDENT_IN_PROSE', 'GLOSSARY_DEF', 'GLOSSARY_IDENT',
     'CALLERS', 'TYPOGRAPHY', 'FRAGMENT_STOP', 'FOIL', 'UNUSED_TEXT',
     'LABEL_ECHO', 'WORDY_VARIABLE', 'DEIXIS', 'FOREIGN_LOGIC', 'INLINE_RENDER',
+    'BARE_VALUE', 'NON_ZERO', 'LABEL_PAIR',
 ))
 
 # The finding's own row carries its address, so the baseline key is that address
@@ -1654,6 +1661,49 @@ def check_label_echo(unit):
         yield 0, cite(LABEL_ECHO_DETAIL.format(unit.text.strip()), 'HOME-5')
 
 
+# PROSE-9. A value and its meaning are joined by a word. "0 left door, 1 right
+# door" runs each number into its meaning, and so does a lone "Phase: 0 idle";
+# "0 for the left door, 1 for the right door" does not.
+BARE_GLUE = (r'(?:if|when|for|to|while|otherwise|or|and|bytes?|bits?|px|pixels?|'
+             r'frames?|game|times|of|per|cells?|rows?|columns?|hits?|points?|steps?|'
+             r'words?|lives|seconds?|degrees?|more|less|as|at|is|means?|by|in|x|'
+             r'characters?|tiles?|slots?|entries|entry|levels?|notes?|cycles?|'
+             r'digits?|records?|sprites?|codes?|values?|'
+             r'kinds?|types?|stages?|ticks?|units?|sweeps?|laps?|ms|set|clear|'
+             r'glyph|bitmaps?|above|below|belong)')
+BARE_ITEM = (rf'(?:\$[0-9A-F]{{2,4}}|\b\d+)\s+(?!{BARE_GLUE}\b)(?!on\s+[a-z])[a-z]')
+BARE_VALUE_RE = re.compile(rf'{BARE_ITEM}[^,;.()]*,\s+{BARE_ITEM}'
+                           rf'|(?:^|[:,;]\s+)(?:\$[0-9A-F]{{2,4}}|\b\d+)\s+(?!{BARE_GLUE}\b)'
+                           rf'[a-z][a-z-]*(?=\s*(?:$|[,;]|\bto\b))')
+BARE_VALUE_DETAIL = (
+    "values run into their meanings ('{}') – join each value to its meaning "
+    "with a word: '0 for the left door, 1 for the right door', '1 if the key "
+    "is held'")
+
+
+def check_bare_value(unit):
+    m = BARE_VALUE_RE.search(unquoted(unit.text))
+    if m:
+        yield m.start(), cite(BARE_VALUE_DETAIL.format(m.group(0)[:40]), 'PROSE-9')
+
+
+# DEF-1. A definition states the values it holds. "Non-zero while X" names no
+# value: a flag says what it holds when set, and a counter its range.
+NON_ZERO_RE = re.compile(r'(?i)\bnon-?zero\b')
+NON_ZERO_DETAIL = (
+    "'{}' names no value – say what the variable holds: '1 while the player "
+    "is stunned, 0 otherwise', or a counter's range and what 0 means")
+
+
+def check_non_zero(unit):
+    e = entry_of(unit)
+    if unit.surface == 'block' and (e is None or e.type not in ('g', 'b', 's')):
+        return
+    m = NON_ZERO_RE.search(unquoted(unit.text))
+    if m:
+        yield m.start(), cite(NON_ZERO_DETAIL.format(m.group(0)), 'DEF-1')
+
+
 # Every unit check: its kind, the surfaces it reads, and the file types it reads
 # them in (None for every type).
 UNIT_CHECKS = (
@@ -1687,6 +1737,8 @@ UNIT_CHECKS = (
                                  'list-item', 'table-cell')), None, check_inline_render),
     ('DATA_ECHO', frozenset(('table-cell',)), None, check_cell_index),
     ('LABEL_ECHO', frozenset(('row', 'data-row')), ('.skool',), check_label_echo),
+    ('BARE_VALUE', ALL_SURFACES, None, check_bare_value),
+    ('NON_ZERO', frozenset(('data-row', 'block')), ('.skool',), check_non_zero),
 )
 
 
@@ -1772,6 +1824,39 @@ def scan_prose(path):
     return violations
 
 
+# NAME-7. A byte pair is one family: its high byte's `_hi` or `_high` label has
+# a low byte labeled on the same stem with `_lo` or `_low`, one or two bytes
+# below. `door_timer` beside `door_timer_hi` names the pair as if the low
+# byte were the whole value.
+LABEL_PAIR_SUFFIXES = (('_hi', '_lo'), ('_high', '_low'))
+LABEL_PAIR_DETAIL = (
+    "'{}' has no low-byte twin – label the byte below it '{}', so both halves "
+    "carry the pair's one naming scheme")
+
+
+def label_pairs(lines):
+    """Yield (lineno, label, wanted) for each high-byte label with no matching low byte."""
+    placed, pending = [], None
+    for lineno, raw in enumerate(lines, 1):
+        m = LABEL_RE.match(raw.rstrip('\n'))
+        if m:
+            pending = (lineno, m.group('label'))
+            continue
+        im = INSTR_RE.match(raw.rstrip('\n'))
+        if im and pending:
+            # A code label's _lo and _hi name branches, not the halves of a value.
+            if re.search(r'\bDEF[BW]\b', raw):
+                placed.append((pending[0], pending[1], int(im.group('addr'), 16)))
+            pending = None
+    by_addr = {addr: label for _, label, addr in placed}
+    for lineno, label, addr in placed:
+        for hi, lo in LABEL_PAIR_SUFFIXES:
+            if label.endswith(hi):
+                wanted = label[:-len(hi)] + lo
+                if wanted not in (by_addr.get(addr - 1), by_addr.get(addr - 2)):
+                    yield lineno, label, wanted
+
+
 def scan(path):
     with open(path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
@@ -1787,6 +1872,10 @@ def scan(path):
     for lineno, text, what in data_echoes(lines):
         violations_pending.append((lineno, 'DATA_ECHO', text,
                                    cite(DATA_ECHO_DETAIL.format(what), 'ROW-1')))
+
+    for lineno, label, wanted in label_pairs(lines):
+        violations_pending.append((lineno, 'LABEL_PAIR', label,
+                                   cite(LABEL_PAIR_DETAIL.format(label, wanted), 'NAME-7')))
 
     for lineno, title in unrendered_elements(lines):
         violations_pending.append((lineno, 'UNRENDERED', title, UNRENDERED_DETAIL))

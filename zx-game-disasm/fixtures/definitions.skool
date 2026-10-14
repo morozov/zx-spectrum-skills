@@ -1,0 +1,45 @@
+; Variable definitions that say what they hold. Each check reads the bad rows,
+; and the corrected rows beside them.
+;
+; Bad, each reported:
+;   NON_ZERO    "non-zero" in place of the values a variable holds
+;   BARE_VALUE  numbers run into their meanings: "0 a shot, 1 an enemy",
+;               "0 door A, 1 door B", and a lone "0 idle"
+;   LABEL_PAIR  a high byte labeled _hi beside a low byte with no _lo
+;
+; Good, none reported: the same rows rewritten, a byte pair labeled _lo and
+; _hi, and code labels whose _lo and _hi name branches.
+
+; Bad rows
+@label=lamp_glow
+g$EC00 DEFB $00      ; Non-zero while a lamp glow plays
+@label=hit_kind
+ $EC01 DEFB $00      ; 0 a shot, 1 an enemy, 2 the blast
+@label=door_index
+ $EC04 DEFB $00      ; 0 door A, 1 door B
+@label=lamp_phase
+ $EC05 DEFB $00      ; ALARM lamp phase, 0 idle to 4
+@label=stun_timer
+ $EC02 DEFB $00      ; Stun timer, low byte first
+@label=stun_timer_hi
+ $EC03 DEFB $00      ; Stun timer, high byte
+
+; Good rows
+@label=lamp_glow_step
+g$EC10 DEFB $00      ; Lamp glow step: 0 when the lamp is dark, otherwise the glow step, 1 to 15
+@label=hit_source
+ $EC11 DEFB $00      ; 0 for a shot, 1 for an enemy, 2 for the blast
+@label=door_index_b
+ $EC14 DEFB $00      ; 0 for door A, 1 for door B
+@label=lamp_phase_b
+ $EC15 DEFB $00      ; ALARM lamp phase: 0 for no alarm, 1 when the alarm is set, 2 while it sounds
+@label=pause_timer_lo
+ $EC12 DEFB $00      ; Pause timer, low byte first: how many frames the pause has lasted, 0 to 600
+@label=pause_timer_hi
+ $EC13 DEFB $00      ;
+
+; Code labels whose _lo and _hi mark branches
+@label=step_lo
+c$EC20 LD A,$01      ; Take the low branch.
+@label=step_hi
+ $EC22 RET           ;

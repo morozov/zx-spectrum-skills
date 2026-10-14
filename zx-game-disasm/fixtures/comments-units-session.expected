@@ -1,4 +1,8 @@
-Found 48 comment defect(s):
+Found 49 comment defect(s):
+
+[BARE_VALUE] 1
+  units-session.skool:57: values run into their meanings ('0 a shot, 1 a') – join each value to its meaning with a word: '0 for the left door, 1 for the right door', '1 if the key is held' [PROSE-9]
+    g$D012 DEFB $00      ; 0 a shot, 1 an enemy, 2 the bomb
 
 [CALLERS] 2
   units-session.skool:36: lists the code that reads, writes or calls the thing ('read by #R$') – the listing's links already carry who touches what; say what the thing is [HOME-4]

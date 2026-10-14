@@ -109,6 +109,11 @@ run comments-units-session \
 # dash in prose is reported and the one in the game's credits is not.
 run comments-samp-game-text \
     scripts/lint_comments.py fixtures/no-code.skool fixtures/samp-game-text.ref
+# Definitions that say what they hold: "non-zero" in place of a value, numbers
+# run into their meanings, and a byte pair whose halves are labeled unevenly are
+# reported; the rewritten rows and branch labels are not.
+run comments-definitions \
+    scripts/lint_comments.py fixtures/definitions.skool
 # FRAGMENT_STOP over noun phrases, padded noun phrases, and full sentences,
 # which keep their full stop.
 run comments-fragment-stop \
