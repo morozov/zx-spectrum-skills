@@ -2,9 +2,9 @@
 
 Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` holds.
 
-The annotated `.ctl` documents the game routine by routine. The behavior specification (a "porting spec") is the synthesis: a subsystem-by-subsystem description of *how the game behaves*, lifted out of the code into language a reader can act on without reading Z80 at all. It is the capstone deliverable of stage 3, and it is what serves both documentation goals:
+The annotated `.ctl` documents the game routine by routine. The behavior specification is the synthesis: a subsystem-by-subsystem description of *how the game behaves*, lifted out of the code into language a reader can act on without reading Z80 at all. It is the capstone deliverable of stage 3, and it is what serves both documentation goals:
 
-- **A human porter** rewrites the game in another language straight from the spec.
+- **A reader** learns how the game behaves without reading the Z80.
 - **An ML-agent trainer** reads the Markov decision process out of it — state, actions, dynamics, reward.
 
 The spec is a set of Markdown files (one per subsystem, plus an index). It can live in the disassembly repo or in a sibling rewrite repo, but it is *derived from* the `.ctl` and references the disassembly by label name, so the two stay anchored to each other.
@@ -28,7 +28,7 @@ Concretely, a spec section:
 - States behavior, not implementation: "the player moves 2 pixels per frame while a direction is held", not "`move_player_left` does `LD A,(player_x) / SUB 2`".
 - Commits to numbers the code commits to (speeds, periods, thresholds, point values), with units.
 - Cross-references the routines and variables that implement it, by label, so a reader can drop from the spec into the disassembly.
-- Notes quirks and dead code where they affect behavior — a branch that looks live but never runs is a fact a porter needs.
+- Notes quirks and dead code where they affect behavior — a branch that looks live but never runs is a fact the reader needs.
 
 ## Organize by subsystem
 
@@ -65,7 +65,7 @@ The texture to aim for, from an invented platform game's spec:
 - *Energy:* "Energy drops by 1 every 25 frames and by 8 on contact with an enemy. It starts at 100. At 0 the player loses a life."
 - *Scoring:* a table — Key 50, Gem 100, Door opened 250 — plus "an extra life at 10,000 points."
 
-Every one of those is a fact an agent's reward function or a porter's code needs, and none is visible from a single instruction. Each traces back to a labeled routine or variable in the `.ctl`.
+Every one of those is a fact an agent's reward function needs, and none is visible from a single instruction. Each traces back to a labeled routine or variable in the `.ctl`.
 
 ## The MDP lens for agent training
 
@@ -78,7 +78,7 @@ For the agent-training goal, make sure the spec pins down the four parts of the 
 
 ## Control questions to answer
 
-Before calling the spec complete, confirm it answers the concrete questions a policy or a port depends on — the ones easy to leave vague:
+Before calling the spec complete, confirm it answers the concrete questions a policy depends on — the ones easy to leave vague:
 
 - At what speed (pixels/frame) does the player move at each setting?
 - What is each projectile's trajectory, frame by frame?
@@ -88,7 +88,7 @@ Before calling the spec complete, confirm it answers the concrete questions a po
 - How is each level's starting state laid out in data?
 - What exactly triggers a life loss and a game over?
 
-Any question the spec cannot answer is a documentation gap to close back in the `.ctl`, not a detail to omit. These are precisely the facts an agent needs and a human porter can otherwise hand-wave past.
+Any question the spec cannot answer is a documentation gap to close back in the `.ctl`, not a detail to omit. These are precisely the facts an agent needs.
 
 ## Keeping the spec honest
 
@@ -105,4 +105,4 @@ Runtime is not a source here either. A number the spec commits to must come out 
 Two tests tell you the spec is actually done, not merely written:
 
 - **The plain-language test.** Can you describe each subsystem in plain prose, without falling back to "it does what the code does"? If a behavior can only be restated as Z80, it is not yet understood — keep digging until it reads as game logic. This is the difference between a transcription and a spec.
-- **The reimplementation test.** Could someone build a working port from this spec alone — every variable named with its address and invariants; every data format decoded to exact byte layout; every transition rule in concrete units? You cannot port what you have not fully decoded, so "would this port?" is the strictest completeness check there is. The model for the State section is one consolidated context struct gathering every global with its address, purpose, and invariants — written so it doubles as a port's data structures and a live agent's observation map.
+- **The reimplementation test.** Could someone reimplement the game from this spec alone — every variable named with its address and invariants; every data format decoded to exact byte layout; every transition rule in concrete units? Nothing can be reimplemented that is not fully decoded, so this is the strictest completeness check there is. The model for the State section is one consolidated context struct gathering every global with its address, purpose, and invariants — written so it doubles as a reimplementation's data structures and a live agent's observation map.

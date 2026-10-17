@@ -42,8 +42,8 @@ entry declares - it is about whether the entry is the thing its heading says.
               them at all, which is that promise and more. `g` says the program
               writes here as it runs, and SkoolKit heads a `g` page "Game status
               buffer entry at", so the type is what the page tells the reader the
-              bytes are. It also decides what a porter initializes versus
-              allocates, and which addresses an agent-trainer treats as state.
+              bytes are. It also decides which addresses an agent-trainer treats
+              as state.
               `b $9B00 Game progress and option settings` over the level number
               and the lives count publishes as load-time data bytes the game
               writes.
@@ -580,8 +580,8 @@ def check_mutable(entries, stores, labels, path):
             f"{size} byte{'' if size == 1 else 's'} as {UNWRITTEN_PROMISE[entry['type']]}, and the "
             f"code stores to {scope}: {cited}. Bytes the program writes as it runs are `g`, the "
             f"page SkoolKit heads \"Game status buffer entry at\" — the type is what tells a "
-            f"reader whether a value survives a replay, a porter what to allocate rather than "
-            f"initialize, and an agent-trainer which addresses are state. {remedy}",
+            f"reader whether a value survives a replay, and an agent-trainer which addresses are "
+            f"state. {remedy}",
             path, entry['address']))
     return findings
 

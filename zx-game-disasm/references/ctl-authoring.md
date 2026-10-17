@@ -57,7 +57,7 @@ The dangerous boundary errors are the ones that *still reassemble*. If a block b
 
 `b` and `g` both render as `DEFB`. The letter is the only thing that distinguishes them, so it has to be the truth about the bytes.
 
-`b` says these bytes are what the program was loaded with and stay that way: a table, a glyph set, a constant. `g` says the program writes here as it runs, and SkoolKit heads its page "Game status buffer entry at". The distinction is not cosmetic. It tells a reader whether a value can be trusted across a replay, tells a porter what to allocate rather than initialize, and tells an agent-trainer which addresses are the state its policy observes. A bonus flag that the game sets and clears every level, published as `b`, tells all three of them the wrong thing.
+`b` says these bytes are what the program was loaded with and stay that way: a table, a glyph set, a constant. `g` says the program writes here as it runs, and SkoolKit heads its page "Game status buffer entry at". The distinction is not cosmetic. It tells a reader whether a value can be trusted across a replay, and tells an agent-trainer which addresses are the state its policy observes. A bonus flag that the game sets and clears every level, published as `b`, tells both of them the wrong thing.
 
 `u` is the third promise, and the strongest of them: nothing in the image reads this region and nothing writes it. It is for bytes that are in the address space because the loader left them there — a zero-fill tail, a gap between structures, whatever sat in RAM before boot — and SkoolKit heads its page "Unused RAM at". A store into a `u` region breaks that promise exactly as it breaks `b`'s, and the repair is the same letter: bytes the program writes are `g`.
 
@@ -273,7 +273,7 @@ TABLE#
 - each **field**'s offset within the record, its meaning, units, and range;
 - the **count** of records, and any **sentinel** that ends or empties an entry.
 
-Then a reader can decode any entry straight from the bytes, and a porter can rebuild the structure, without reverse-engineering the consumer. Derive the layout from the code that *indexes* the block — the stride is in its `ADD HL,DE` / `INC`-by-N step, the field offsets in its `(IX+n)` reads — never guess it by eye.
+Then a reader can decode any entry straight from the bytes without reverse-engineering the consumer. Derive the layout from the code that *indexes* the block — the stride is in its `ADD HL,DE` / `INC`-by-N step, the field offsets in its `(IX+n)` reads — never guess it by eye.
 
 And **lay the bytes out at that stride** so the structure is *visible*, not a flat `DEFB` run: a `B addr,len,stride` sub-directive (or `W` for word fields) renders one record per line, and **each record gets its own annotated sub-line naming it**. A stride directive alone documents the span, not the contents — the reader gets "96 bytes per room" and still cannot find room 12. `room_maps` is the model:
 
@@ -397,7 +397,7 @@ Describe a variable by *what its value represents* — physical meaning, units, 
 
 Hunt for a variable's readers and writers in the `.skool`/`.ctl`, where the address resolves to its label. `skool2asm --create-labels` auto-labels any referenced line-start, data bytes included, as `L<hex>`, so a referenced `$8E00` renders as `L8E00` and a grep for `$8E00` finds none of its readers. Before calling a variable unused, grep for the bare hex without the `$` (it matches both forms) or for the assigned label — better, label the variable yourself first so every reference renders through your name.
 
-The `g` block is also the agent-facing memory map: a live agent reads game state straight from these addresses. Documenting it richly serves both the human porter and the MDP described in `references/behavior-spec.md`.
+The `g` block is also the agent-facing memory map: a live agent reads game state straight from these addresses. Documenting it richly serves the reader and the MDP described in `references/behavior-spec.md`.
 
 ## One page per thing
 

@@ -26,6 +26,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | AUD-5 | Deterministic behavior is stated without frequency or probability words, and genuinely random behavior names its random source. | review | Does this unit describe deterministic behavior with "often", "usually", "chance", "%", "odds" or a similar frequency word? |
 | AUD-6 | Reader-facing text says what the code does and claims nothing about the original author's intent unless it marks the claim as an inference. | review | Does this unit state what the original author intended as a fact? |
 | AUD-7 | Uncertainty is typed at the claim with a trailing `?`, a `TODO:` line or `(unverified)`, and each marker carries an open dig-task. Prose hedges are absent. | DIARY, OPEN, review | Does this unit hedge with "apparently", "likely", "seems", "probably" or a similar word in place of a typed marker? |
+| AUD-9 | Reader-facing text mentions no port or rebuild of the game, and no sentence justifies itself by what a reader might build from it. | review | Does this unit mention porting or rebuilding the game, or justify itself by what such a project would need? |
 
 ## EVID: evidence
 

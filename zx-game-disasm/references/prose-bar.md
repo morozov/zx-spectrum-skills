@@ -8,7 +8,7 @@ Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` hol
 
 A person who likes this game and wants to know how it worked. They read pages, and they read them in the game's terms (AUD-1). Write for them.
 
-Two other readers exist and neither sets the register. A porter needs the format tables, and gets them from the same document. An agent-trainer needs the state addresses, and gets them from the behavior specification, which is written for them. Writing for either of those two produces exhaustive text nobody reads, because every rule written for a reader who greps can only ask for more.
+An agent-trainer also reads the project, and does not set the register. They need the state addresses, and get them from the behavior specification, which is written for them. Writing for them produces exhaustive text nobody reads, because every rule written for a reader who greps can only ask for more.
 
 ## One term per thing
 
@@ -83,7 +83,7 @@ Not a state index, not an object type, not a tile or slot code, not a bit positi
 
 The `#R` reference already in the sentence is the reader's way to the encoding. Repeating the code beside the name is noise they did not ask for, and it rots: reassign the codes and every sentence citing one is silently false without a word of it changing.
 
-**Keep a number the player meets, or a port must reproduce.** Scores, lives, speeds, durations, counts of things on screen. The shape tells them apart — an unobservable number is labeled by an *encoding* noun (`state 2`, `type 17`, `slot 1`), a kept one by a *domain* noun (`500 points`, `3 lives`, `250 frames`).
+**Keep a number the player meets.** Scores, lives, speeds, durations, counts of things on screen. The shape tells them apart — an unobservable number is labeled by an *encoding* noun (`state 2`, `type 17`, `slot 1`), a kept one by a *domain* noun (`500 points`, `3 lives`, `250 frames`).
 
 **Four exemptions, all structural.**
 
