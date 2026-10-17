@@ -60,6 +60,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | HOME-11 | A routine's title and description carry the size of what it processes only when its behavior changes with that size. | review | Does this routine title or description state the size of the data it processes? |
 | HOME-12 | Before an encoding is cut from a caller's comment, the variable's own entry states it. | review | |
 | HOME-13 | Reader-facing text describes the program, and nothing about how its image was acquired: a distribution tape's blocks, its loader and how they are decoded live in the build files that load them (`.t2s`, `Makefile`). Code inside the image that loads data is the program, and is described. | review | Does this unit describe a distribution tape's blocks, its loader, or how the program's image was loaded or decoded from it? |
+| HOME-14 | A defect's name says what goes wrong for the player, not how the code gets there. Its entry says what the player sees, what sets it off and why it lasts, in at most three short paragraphs, with the routine at fault linked. It carries no subsections, no RAM table, no step-by-step walk of the code and no fix. A fact several defects share is stated once, above them. | review | Does this defect title name the code's mechanism in place of what goes wrong for the player, or does this defect description walk the code step by step, list the state it leaves in memory, or propose a fix? |
 
 ## DEF: definitions of variables, tables and glossary terms
 
@@ -220,7 +221,7 @@ The writing rules of ASD-STE100, the controlled language of technical documentat
 | WORK-9 | A call-out is a defect to fix, and the fix is decided from the evidence and stated. | review | |
 | WORK-10 | A request to validate is answered by checking the claims and the gate, with no new analysis the task did not ask for. | review | |
 | WORK-12 | A tool built for the work is validated against cases with known answers before its output is trusted. | review | |
-| WORK-13 | A contribution taken over is brought to the standard of its neighbors: trigger, mechanism, why it persists, state and fix. | review | |
+| WORK-13 | A contribution taken over is brought to the standard of its neighbors. | review | |
 | WORK-14 | Every checkpoint passes the mechanical gate (`make`), with a byte-identical round-trip and zero `skool2asm` warnings, and its verdict line is reported whole. | review-record | |
 | WORK-15 | A project holds the disassembly, its game's inputs and the settings only that game needs. A tool, config or rule that holds for any game lives in the skill, which the build reads it from, and no project keeps a copy. | review | |
 
@@ -247,7 +248,7 @@ Apply the listed rules before writing.
 | An entry title or page heading | HEAD-1 to HEAD-4, NAME-6, AUD-1, HOME-10, TYPO-1 |
 | A sprite, glyph or sound entry | GFX-1 to GFX-9, HOME-7, VIS-1, EVID-3 |
 | A label, term or classification change | NAME-1 to NAME-12, WORK-1 |
-| `.ref` page prose | HOME-1 to HOME-3, HOME-10, HOME-13, STE-1 to STE-6, AUD-1, AUD-3, AUD-4, ROW-7, VIS-1, TYPO-1, TYPO-2, VIS-11 |
+| `.ref` page prose | HOME-1 to HOME-3, HOME-10, HOME-13, HOME-14, STE-1 to STE-6, AUD-1, AUD-3, AUD-4, ROW-7, VIS-1, TYPO-1, TYPO-2, VIS-11 |
 | CSS, theme or layout | VIS-2 to VIS-10 |
 | An owner call-out | WORK-7, WORK-1, WORK-9 |
 | A gate finding | WORK-2 |

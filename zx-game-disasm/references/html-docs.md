@@ -152,7 +152,21 @@ Bugs, quirks, and graphic glitches get catalog pages with one anchored section p
 [GraphicGlitch:enemiesTooLow:Front-facing enemies are drawn too low]
 ```
 
-Each entry pairs the claim with rendered evidence (the sprite showing the stray pixels, the misaligned mask), the root cause traced to its routine, and the fix address. A project that releases its documentation in versions can add a changelog page for the disassembly itself.
+Each entry is written for a player, not for someone who will patch the game. It gives a one-line deck, a clip or a render where one exists, and at most three short paragraphs. They say what the player sees, what sets it off and why it lasts, with the routine at fault linked. The entry has no subsections, no RAM table, no step-by-step walk of the code and no fix (HOME-14). A fact several defects share goes once in a short section above them. For example:
+
+```ini
+[Bug:bonusLostAtLevelEnd:A bonus taken as the level ends is lost]
+A bonus collected in the last frame of a level never reaches the score.
+
+A bonus waits in a holding counter until the next frame adds it to the score
+(#R$C410). When the level ends in that frame, the level change (#R$C5E2)
+clears the counter first, so the add finds nothing.
+
+The score stays short for the rest of the game. Nothing later adds the lost
+bonus back.
+```
+
+A project that releases its documentation in versions can add a changelog page for the disassembly itself.
 
 ## Styling
 
