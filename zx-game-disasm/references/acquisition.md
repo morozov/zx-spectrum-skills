@@ -21,10 +21,10 @@ These feed `tap2sna`/`bin2sna` and the Makefile. Get them wrong and the round-tr
 
 ## Toolchain
 
-The build runs SkoolKit (`tap2sna.py`, `sna2skool.py`, `skool2asm.py`, …) and `pasmo` from `PATH`. Install the Python packages in `requirements.txt` in any environment that puts them there.
+The build runs SkoolKit (`tap2sna.py`, `sna2skool.py`, `skool2asm.py`, …) and `pasmo` from `PATH`. Install the Python packages in `tools/requirements.txt` in any environment that puts them there.
 
 - **A missing tool stops the build before it starts.** `disassembly.mk` preflights the executables the requested goal can invoke and errors naming the ones it cannot find, whether or not every target is up to date.
-- Pin the SkoolKit version in `requirements.txt` for a reproducible build. `make gate`'s verdict names the version it ran under, so a PASS from a different one is visible.
+- Pin the SkoolKit version in `tools/requirements.txt` for a reproducible build. `make gate`'s verdict names the version it ran under, so a PASS from a different one is visible.
 - `pasmo` is a system binary, not a Python package. Goals that never assemble — `coverage`, the linters — do not require it.
 - `scripts/extract_bytes.py` does `import skoolkit`, so the `python3` first on `PATH` must have SkoolKit installed. Otherwise it fails with `ModuleNotFoundError`.
 
@@ -34,10 +34,10 @@ The build runs SkoolKit (`tap2sna.py`, `sna2skool.py`, `skool2asm.py`, …) and 
 
 `tap2sna.py` simulates a real tape load and writes a snapshot. This is the preferred path: it runs the game's own loader, so the result is exactly what the game expects in memory.
 
-Drive it from a `.t2s` config file (see `assets/game.t2s.template`) so the URL, checksum, and pokes live in one tracked place:
+Drive it from a `.t2s` config file (see `assets/game.t2s.template`) so the URL, checksum, and pokes live in one tracked place. The recipe is `src/{game}.t2s`, and it fetches the image from its URL:
 
 ```
-tap2sna.py @{game}.t2s --reg pc={PC} --reg sp={SP} {game}.pristine.z80
+tap2sna.py @src/{game}.t2s --reg pc={PC} --reg sp={SP} build/{game}.z80
 ```
 
 A `.t2s` names the tape source and any RAM setup the disassembly needs:

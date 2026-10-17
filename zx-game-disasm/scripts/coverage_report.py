@@ -27,18 +27,18 @@ Reports, from the generated .skool (plus the .ctl and .ref files when given):
   - PROSE          the lint_comments counts, over the .skool and over the .ref
                    catalogs and spec/*.md beside it. The kinds in
                    `lint_comments.GATING_KINDS` are precise detections of
-                   always-wrong patterns, so they gate the build; OPEN, among
-                   them, gates for the opposite reason — the marker is right
-                   where it stands, and it says the claim under it is not
-                   derived yet. STAMP / RET / RESTATE / REFPOINTER /
-                   PLACEHOLDER are advisory (a formula can be legitimate). This
-                   is how a project built under older requirements surfaces its
-                   gap to the current bar.
+                   always-wrong patterns, so they gate the build and the
+                   verdict; OPEN, among them, gates for the opposite reason —
+                   the marker is right where it stands, and it says the claim
+                   under it is not derived yet. STAMP / RET / RESTATE /
+                   REFPOINTER / PLACEHOLDER are advisory (a formula can be
+                   legitimate). This is how a project built under older
+                   requirements surfaces its gap to the current bar.
   - IMAGES         the files the image macros name, against the files the build
                    actually wrote under html/. Counting macros is only a proxy:
                    a macro can name a file the build never wrote.
   - BASELINE       the findings the gating linters hold against
-                   `lint-baseline.txt`. Every line is a defect the project has
+                   `lint-baseline.toml`. Every finding is a defect the project has
                    accepted for now, recorded so the gate can pass; none of them
                    is fixed.
 
@@ -296,31 +296,35 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('skool')
     ap.add_argument('--ctl')
+    ap.add_argument('--project',
+                    help='the project directory: src/ holds its .ref and .ctl files '
+                         '(default: the current directory)')
     ap.add_argument('--ref', action='append', default=[])
     ap.add_argument('--reloc-floor', type=lambda s: int(s, 0), default=0x5B00,
                     help='lowest game-owned address; raw operands at/above it must be labels (default $5B00)')
     ap.add_argument('--baseline',
                     help="the gating linters' known-failing baseline "
-                         '(default lint-baseline.txt beside the skool)')
+                         '(default tools/lint-baseline.toml in the project)')
     ap.add_argument('--html',
                     help='the built site, for the rendered-image outcome '
-                         '(default html/ beside the skool)')
+                         '(default build/html/ in the project)')
     args = ap.parse_args()
 
-    # Auto-discover the project's `.ref` and `.ctl` from the skool's directory, so
+    # Auto-discover the project's `.ref` and `.ctl` in its src/, so
     # the catalog/audio metrics never read as zero just because a caller forgot to
     # pass `graphics.ref`. Catalog content can live in *any* .ref file under any
     # name; scan them all. Explicit --ref/--ctl override the discovery.
     import glob
     import os
-    proj = os.path.dirname(os.path.abspath(args.skool)) or '.'
-    refs = args.ref or sorted(glob.glob(os.path.join(proj, '*.ref')))
+    proj = args.project or '.'
+    refs = args.ref or sorted(glob.glob(os.path.join(proj, 'src', '*.ref')))
     ctl = args.ctl
     if not ctl:
-        guess = os.path.splitext(args.skool)[0] + '.ctl'
+        stem = os.path.splitext(os.path.basename(args.skool))[0]
+        guess = os.path.join(proj, 'src', stem + '.ctl')
         ctl = guess if os.path.exists(guess) else None
-    baseline = args.baseline or os.path.join(proj, 'lint-baseline.txt')
-    html_dir = args.html or os.path.join(proj, 'html')
+    baseline = args.baseline or os.path.join(proj, 'tools', 'lint-baseline.toml')
+    html_dir = args.html or os.path.join(proj, 'build', 'html')
     print(f"Scanned: {os.path.basename(args.skool)}"
           + (f", {os.path.basename(ctl)}" if ctl else "")
           + (", " + ", ".join(os.path.basename(r) for r in refs) if refs else " (no .ref files found)"))
@@ -334,8 +338,8 @@ def main():
     baseline_present = os.path.exists(baseline)
     try:
         import ctl_baseline
-        for entry in ctl_baseline.read_entries(baseline):
-            check = entry.split(None, 1)[0]
+        for finding in ctl_baseline.read_findings(baseline):
+            check = finding['check']
             baseline_by_check[check] = baseline_by_check.get(check, 0) + 1
     except Exception as e:
         print(f"  (baseline unreadable: {e})")

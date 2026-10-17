@@ -43,7 +43,7 @@ def parse_address(text):
 
 def git(directory, *args):
     run = subprocess.run(['git', '-C', directory] + list(args),
-                         capture_output=True, text=True)
+                         capture_output=True, encoding='utf-8', errors='replace')
     if run.returncode != 0:
         raise SystemExit(f'diff_entries: git {" ".join(args)} failed: {run.stderr.strip()}')
     return run.stdout
@@ -101,7 +101,7 @@ def show(directory, revision, path):
     """Return a file's text at a revision (`:` for the index), or '' if absent."""
     spec = f':{path}' if revision == ':' else f'{revision}:{path}'
     run = subprocess.run(['git', '-C', directory, 'show', spec],
-                         capture_output=True, text=True)
+                         capture_output=True, encoding='utf-8', errors='replace')
     return run.stdout if run.returncode == 0 else ''
 
 

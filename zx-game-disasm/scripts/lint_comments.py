@@ -179,7 +179,7 @@ The catalogs and the behavior spec are the same deliverable, read by the same
 reader, so every unit check runs over them too. Pass the `.skool` first: its
 labels and entries resolve the `#R` references the other files carry.
 
-The gating kinds are held against the project's `lint-baseline.txt` like every
+The gating kinds are held against the project's `lint-baseline.toml` like every
 other gating check, so a mature project records the findings it starts with and
 the gate fails on a new one. The advisory kinds print and never fail.
 
@@ -202,7 +202,7 @@ CHECK = 'comments'
 
 # The kinds that gate. Each is a precise detection of an always-wrong pattern —
 # no judgment call sits between the finding and the defect — so each belongs in
-# the build's own lint sweep, held against `lint-baseline.txt` like every other
+# the build's own lint sweep, held against `lint-baseline.toml` like every other
 # gating check. The rest (RET, RESTATE, REFPOINTER, STAMP, PLACEHOLDER) are
 # prompts to review: a STAMP can be a legitimate formula over a genuinely
 # templated reality, and a RET note can carry a real return-state contract, so

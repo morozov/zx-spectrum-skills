@@ -15,15 +15,15 @@ instruction and label cells, an entry page's title bar (div.description),
 span.hex, and the head. Running it twice changes nothing, because text inside a
 span.sym is skipped.
 
-Usage: html_sym_mono.py <site-dir> <skool-file>
+Usage: sym_mono.py <site-dir> <skool-file>
 
-The framework runs it after html_hex_mono.py, in the html/.stamp recipe.
+The framework runs it after hex_mono.py, in the site stamp recipe.
 """
 import re
 import sys
 from pathlib import Path
 
-from html_hex_mono import CLASS, NAME, TOKEN, VOID
+from hex_mono import CLASS, NAME, TOKEN, VOID
 
 SKIP_TAGS = {'script', 'style', 'title', 'head', 'code', 'pre', 'textarea', 'a'}
 SKIP_CLASSES = {'instruction', 'asm-label', 'hex', 'sym', 'description'}
@@ -82,7 +82,7 @@ def main():
             if after != before:
                 f.write_text(after, encoding='utf-8')
                 changed += 1
-    print('html_sym_mono: %d page(s) rewritten' % changed)
+    print('sym_mono: %d page(s) rewritten' % changed)
 
 
 if __name__ == '__main__':

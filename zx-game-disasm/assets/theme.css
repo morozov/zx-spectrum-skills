@@ -976,7 +976,7 @@ code {
 
 /* A $-hex value in running text sets as inline code does: the monospace face, a
    lighter ground and a small rounded outline, in the prose's own color so it
-   marks the value without competing with it. html_hex_mono.py wraps the values after the site is built; the listing's
+   marks the value without competing with it. scripts/html/hex_mono.py wraps the values after the site is built; the listing's
    own instruction cells are left as they are. */
 .hex {
   font-family: var(--font-mono);
@@ -994,7 +994,7 @@ a .hex { font-size: inherit; }
 
 /* A label named in running text without a link is set in the face its linked
    mentions use, so a name reads as code whether or not it links.
-   html_sym_mono.py wraps the names after the site is built. */
+   scripts/html/sym_mono.py wraps the names after the site is built. */
 .sym {
   font-family: var(--font-mono);
   font-size: 0.88em;

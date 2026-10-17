@@ -1,2 +1,4 @@
 __pycache__/
 *.pyc
+/zx-game-disasm/assets/styles/*
+!/zx-game-disasm/assets/styles/ZXDisasm/

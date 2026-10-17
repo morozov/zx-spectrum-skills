@@ -6,9 +6,9 @@ after a dollar sign. Text already monospace is left alone: the listing's
 instruction and label cells, code and pre blocks, and the head. Running it twice
 changes nothing, because text inside a span.hex is skipped.
 
-Usage: html_hex_mono.py <site-dir>
+Usage: hex_mono.py <site-dir>
 
-The framework runs it after skool2html, in the html/.stamp recipe.
+The framework runs it after skool2html, in the site stamp recipe.
 """
 import re
 import sys
@@ -65,7 +65,7 @@ def main():
         if after != before:
             f.write_text(after, encoding='utf-8')
             changed += 1
-    print('html_hex_mono: %d page(s) rewritten' % changed)
+    print('hex_mono: %d page(s) rewritten' % changed)
 
 
 if __name__ == '__main__':

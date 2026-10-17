@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # Round-trip a Worker's per-routine .ctl fragment in isolation: splice it over its
 # own address range into a throwaway copy of the canonical .ctl, disassemble,
-# reassemble to a byte-identical program image, assemble the fixed source under
-# the project's own flags, and run the linters and both skool2asm warning gates —
-# touching no shared file. On success prints
-# `verify-frag: OK`, naming the fixed-asm flags it gated under; any failure exits
-# non-zero with the offending output.
+# render the source in @ssub mode, reassemble it to a byte-identical program
+# image, and run the linters — touching no shared file. On success prints
+# `verify-frag: OK`; any failure exits non-zero with the offending output.
 #
 # The round-trip is a chain — no .skool, no .asm, no image to compare — so it
 # halts at the first stage that fails, and says that no check ran. The .ctl checks
@@ -15,21 +13,12 @@
 # round-trips for what one run can tell them. The sweep itself is
 # `scripts/lint_sweep.sh`, shared with the gate's `lint`.
 #
-# Usage: verify_fragment.sh <base.ctl> <fragment.ctl> <pristine.z80> <pristine.bin>
+# Usage: verify_fragment.sh <base.ctl> <fragment.ctl> <game.z80> <game.bin>
 #                           <scripts-dir> <baseline> <org> <reloc-floor> <size>
-#                           [fixed-asm flag ...]
 set -euo pipefail
 
 CTL="$1"; FRAG="$2"; Z80="$3"; BIN="$4"; SCRIPTS="$5"
 BASELINE="$6"; ORG="$7"; RELOC_FLOOR="$8"; SIZE="$9"
-
-# Everything past the fixed nine is $(ASM_FIXED_FLAGS) — the flag list the
-# project's fixed-asm rule passes to skool2asm, `-s` by default and empty for a
-# project that has opted out of the strict gate. It is a list, so it goes last
-# and stays in "$@": an empty one then expands to no argument at all, and a
-# caller adding a flag never has to renumber a positional.
-shift 9
-FIXED_FLAGS="${*:-none}"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -129,38 +118,22 @@ if grep -qi 'warning\|overlap' "$tmp/sna.err"; then
     cat "$tmp/sna.err" >&2; abort "the disassembly"
 fi
 
-# Reassemble with label creation; a warning (e.g. an address not resolvable to a
-# label) is a hard failure, exactly as in the full build. This is the non-fixed
-# source, the one the round-trip cmp is taken over.
-skool2asm.py --create-labels "$tmp/game.skool" > "$tmp/game.asm" 2>"$tmp/asm.err" \
-  || { cat "$tmp/asm.err" >&2; abort "the non-fixed render"; }
+# Render the source as the build does, in @ssub mode with label creation; a
+# warning (e.g. an address not resolvable to a label) is a hard failure, exactly
+# as in the full build. A fragment that leaves an in-image operand raw fails here,
+# where its author can see it, instead of in the Manager's `make`.
+skool2asm.py --create-labels -s "$tmp/game.skool" > "$tmp/game.asm" 2>"$tmp/asm.err" \
+  || { cat "$tmp/asm.err" >&2; abort "the render"; }
 if grep -q WARNING "$tmp/asm.err"; then
-    cat "$tmp/asm.err" >&2; abort "the non-fixed render"
+    cat "$tmp/asm.err" >&2; abort "the render"
 fi
 
+# A clean render does not mean the source assembles: an `@ssub=LD (lbl+1),A`
+# naming a label that does not exist renders without a warning and fails only
+# here.
 pasmo --bin "$tmp/game.asm" "$tmp/game.bin" 2>"$tmp/pasmo.err" \
-  || { cat "$tmp/pasmo.err" >&2; abort "assembling the non-fixed source"; }
+  || { cat "$tmp/pasmo.err" >&2; abort "assembling the source"; }
 cmp "$tmp/game.bin" "$BIN" || abort "the round-trip cmp"
-
-# The fixed source, under the project's own flags. `-s` is the strict static
-# relocatability gate and is the default, so a fragment that leaves an in-image
-# operand raw fails here — where its author can see it — instead of in the
-# Manager's `make` over the integrated .ctl, attributed to nobody. A project that
-# has opted out passes no flag and is held to exactly what its build holds it to.
-# Nothing is compared to the image: @ofix/@isub make the fixed bytes differ from
-# the original by design, which is what the non-fixed cmp above is for.
-skool2asm.py --create-labels -f 1 "$@" "$tmp/game.skool" > "$tmp/fixed.asm" 2>"$tmp/fixed.err" \
-  || { cat "$tmp/fixed.err" >&2; abort "the fixed render"; }
-if grep -q WARNING "$tmp/fixed.err"; then
-    cat "$tmp/fixed.err" >&2; abort "the fixed render"
-fi
-
-# The build assembles that source too, and a clean render does not mean it
-# assembles: an `@ssub=LD (lbl+1),A` naming a label that does not exist renders
-# without a warning and fails only here. Assembling it is what makes the fragment
-# check gate on what `make` gates on.
-pasmo --bin "$tmp/fixed.asm" "$tmp/fixed.bin" 2>"$tmp/fixed-pasmo.err" \
-  || { cat "$tmp/fixed-pasmo.err" >&2; abort "assembling the fixed source"; }
 
 # Every .ctl linter that gates the real build, so a fragment cannot pass here and
 # fail the Manager's `make`. The content checks read the project's baseline: its
@@ -240,9 +213,10 @@ lint_run terms "$SCRIPTS/validate_glossary_terms.py" "$SPLICED" \
 # file did not, which is worse than saying so in words.
 lint_report 14
 
-echo "verify-frag: OK [fixed-asm flags: $FIXED_FLAGS] — every .ctl check the gate" \
-     "runs, except the checks that read the built site. A fragment builds no" \
-     "site, so those stay the Manager's \`make\` to settle."
+echo "verify-frag: OK — every .ctl check the gate" \
+     "runs, except lint-images, lint-html-layout and the comment-fit report." \
+     "Those read the built site, and a fragment builds none, so they stay the" \
+     "Manager's \`make\` to settle."
 echo "verify-frag: a clean sweep is not a round-trip. These are .ctl checks; that" \
      "the spliced source still assembles to the original bytes is the Manager's" \
      "\`make\`, and no linter here implies it."

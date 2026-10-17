@@ -130,14 +130,14 @@ Render composed graphics through their real indirection. A value that selects a 
 
 The top tier of expressiveness, past the built-in macros: a small **project-owned Python generator** that composes the game's *actual screens* — a whole level/room map assembled from its tile and layout tables, every character's full animatory-state gallery, a board mid-game — and writes them as image assets the documentation embeds. This is what separates a top-quality disassembly from a merely complete one; it shows the game as the game draws it, from the very tables the disassembly mapped.
 
-The mechanism is a standalone build-step script (it lives in the *project*, e.g. `utils/`, because it encodes that game's data layout — the one place project-owned code is right), using SkoolKit's own image library so the output matches the built-in renders:
+The mechanism is a standalone build-step script (it lives in the *project*'s `tools/`, because it encodes that game's data layout — the one place project-owned code is right), using SkoolKit's own image library so the output matches the built-in renders:
 
 ```python
 from skoolkit.image import ImageWriter
 from skoolkit.graphics import Udg, Frame
 from skoolkit.snapshot import get_snapshot
 
-snapshot = get_snapshot('game.pristine.z80')      # the bytes you already verify
+snapshot = get_snapshot('build/game.z80')          # the bytes you already verify
 # read the game's layout/tile tables out of `snapshot`, build the grid of Udgs
 # exactly as the drawing routine does (value -> cell table -> glyphs -> attr),
 udgs = [[Udg(attr, snapshot[a:a+8]) for ... ] for ... ]
@@ -190,7 +190,7 @@ Encode meaning into the source itself, not only the comments.
 
 ## Fix modes: express original vs corrected
 
-A disassembly can show the game *as shipped* and, separately, *as it should have been* — a powerful way to document bugs concretely. The fix directives carry the corrected form while the round-trip still reproduces the original bytes.
+A disassembly can show the game *as shipped* and, separately, *as it should have been* — a powerful way to document bugs concretely. The fix directives carry the corrected form while the round-trip still reproduces the original bytes. The framework builds no fix mode; a game that uses one adds the rules for its fixed source to its own Makefile.
 
 - **`@ofix`** (`-f 1`) — fix a faulty operand.
 - **`@bfix`** (`-f 2`) — fix a bug by replacing instructions without moving any entry points.

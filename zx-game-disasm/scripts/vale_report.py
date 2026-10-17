@@ -36,7 +36,7 @@ def run_vale(path, config):
             'vale_report: vale is not installed.\n'
             '  macOS:  brew install vale\n'
             '  other:  https://vale.sh/docs/install\n'
-            'Then run `vale sync` in the project root to fetch the style packages.')
+            'Then run `vale sync --config <skill>/assets/vale.ini` to fetch the style packages.')
     command = ['vale', '--output=JSON']
     if config:
         command += ['--config', config]

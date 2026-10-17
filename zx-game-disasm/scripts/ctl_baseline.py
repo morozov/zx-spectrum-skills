@@ -7,13 +7,17 @@ the defect ships; made blocking with no escape, it is switched off. The baseline
 is the third option: the project records what it already fails, the gate holds
 that line, and shrinking the file is how the debt clears.
 
-The file lists one accepted finding per line:
+The file is TOML. It lists each accepted finding as one `[[finding]]` table:
 
-    <check> <KIND> <$ADDRESS>  <the message as recorded>
+    [[finding]]
+    check = "identity"
+    kind = "UNTITLED_ENTRY"
+    at = "$F108"
+    message = "the message as recorded"
 
-The first three fields are the key; the rest is for the reader and is ignored by
-the comparison. Regenerating rewrites the section belonging to the check that
-runs and leaves every other check's lines untouched, so a message that has
+`check`, `kind` and `at` are the key; the message is for the reader and is
+ignored by the comparison. Regenerating rewrites the findings belonging to the
+check that runs and leaves every other check's untouched, so a message that has
 drifted shows up as a diff without failing anything.
 
 Four rules give the file its shape:
@@ -25,17 +29,17 @@ Four rules give the file its shape:
 - a key is only ever compared against the check that wrote it, so a project may
   baseline one check and gate another cleanly;
 - a key may repeat, and the count is part of the comparison. Two findings of one
-  kind at one address are two lines, and a third fails the gate.
+  kind at one address are two tables, and a third fails the gate.
 
 The key is the address on the directive the finding points at, never the line
 number: line numbers churn on every unrelated edit above them, and message text
 changes when a neighboring directive resizes. Counting repeats is what keeps
 that from swallowing a second finding at an address already listed - splitting
-one undescribed directive into two undescribed directives adds a line, so the
+one undescribed directive into two undescribed directives adds a table, so the
 gate sees it - while a directive that merely moves down the file does not.
 
-A check whose findings do not live on a directive supplies its own third field
-through `token_of`. A phrase in a `.ref` catalog has no address to key on, and
+A check whose findings do not live on a directive supplies its own `at` through
+`token_of`. A phrase in a `.ref` catalog has no address to key on, and
 the address of the `.ctl` line that happens to carry it is not its identity - the
 phrase is. Counting repeats then reads as "13 occurrences of this phrase are
 accepted", and the fourteenth fails the gate.
@@ -48,15 +52,17 @@ not debt inherited. A rewrite that only drops keys, or only carries a reworded
 message, writes and succeeds - message text is not part of a key.
 
 One growth is not debt taken on: a project adopting a check that has never run
-there, whose findings all predate it. That adoption is declared in the file's own
-header, one `# adopted:` line per declared entry, and `--adopt` writes the line:
+there, whose findings all predate it. That adoption is declared in the file's
+`adopted` list, one line per declared entry, and `--adopt` writes the entry:
 
-    # adopted: identity
-    # adopted: publication CONTRADICTED
+    adopted = [
+      "identity",
+      "publication CONTRADICTED",
+    ]
 
 The declaration is what the refusal reads, and it is why "has this check run
 here" stops being guessed at. Owning no lines does not answer it - a check owns
-no lines when it has never run here and equally when it ran and was clean - so
+no findings when it has never run here and equally when it ran and was clean - so
 going by ownership, a clean check would be adoptable and the forbidden sequence
 would work one flag deeper.
 A declared check is refused instead, whatever it owns, and every successful
@@ -73,45 +79,31 @@ leaves every other kind of the check refused.
 So the file states its own invariant, decidable without a history: for every
 declared entry the count is non-increasing, and the declared set grows only by a
 line a reviewer reads in the diff.
+
+The file also records the gate it was written under, in a `[gate]` table of its
+`generation` and `digest`. `write` keeps it; `make lint-baseline` sets it
+through `stamp`, and the gate reads it back through `gate`, which prints it as
+`<generation>/<digest>` the way the verdict names a gate:
+
+    ctl_baseline.py gate FILE
+    ctl_baseline.py stamp FILE GENERATION DIGEST
 """
 
 import argparse
 import collections
+import json
 import os
 import re
 import sys
+import tomllib
 
 # Every .ctl directive line names its address in one of two shapes: a directive
 # letter and the address (`b $F108`, `B $F108,1`, `@ $F108 label=`), or the
 # two-space line comment (`  $F108 text`).
 ADDRESS_RE = re.compile(r'^(?:[@A-Za-z] +|  )(\$?[0-9A-Fa-f]+)')
 
-HEADER = """\
-# Known-failing .ctl lint findings, accepted as this project's baseline.
-#
-# One accepted finding per line: `<check> <KIND> <$ADDRESS>  <message>`. The
-# first three fields are the key; the message is for the reader. A key may
-# repeat, and the count counts: two findings at one address are two lines.
-#
-# The gate fails on a finding that is not listed here, and on a line here that
-# its check no longer reports - so a fix must remove its line in the same commit,
-# and the file cannot become a permanent excuse. Shrinking it is how it goes away.
-#
-# Regenerate with `make lint-baseline`; a regeneration that would add a key
-# refuses to write and fails. Never add such a line by hand either: the baseline
-# records debt inherited by the check, not debt taken on after it.
-#
-# The `# adopted:` lines below name what this project has taken on: a check, or
-# one finding kind of a check. A declared entry may only shrink from here, so a
-# regeneration that would grow one refuses whatever the entry currently lists.
-# An entry the file has never declared is adoptable once, deliberately, with
-# `--adopt` or `--adopt-kind KIND` - see references/build-verify.md. Every line
-# here is that adoption, and it is meant to be read in the diff.
-"""
-
-# One `# adopted:` line per declared entry, so an adoption is a line a review
-# reads as an addition rather than a rewritten list.
-ADOPTED_PREFIX = '# adopted: '
+# The fields of one `[[finding]]` table, in the order the file writes them.
+FIELDS = ('check', 'kind', 'at', 'message')
 
 # The exit status `write` refuses with. `make lint-baseline` tells a refusal from
 # a check that crashed or was called wrongly by this status alone, and reports
@@ -159,15 +151,15 @@ def add_arguments(parser):
     parser.add_argument('--adopt', action=_Adopt, nargs=0, default=argparse.SUPPRESS,
                         help='let --write-baseline record this check\'s findings on a '
                              'project whose .ctl predates the check, and declare the '
-                             'check adopted in the baseline\'s header. Refused for a '
-                             'check the header already declares: a check is adopted '
-                             'once, and from there its section only shrinks')
+                             'check adopted in the baseline\'s adopted list. Refused for a '
+                             'check the baseline already declares: a check is adopted '
+                             'once, and from there its findings only shrink')
     parser.add_argument('--adopt-kind', metavar='KIND', action=_Adopt,
                         default=argparse.SUPPRESS,
                         help='the same, for one finding kind of a check this project '
                              'already adopted - a kind the check itself gained since, '
                              'whose findings predate it. Records that kind\'s findings '
-                             'only, and declares the kind in the header')
+                             'only, and declares the kind adopted')
     parser.add_argument('--ignore-stale', action='store_true',
                         help='do not fail on baseline entries this run no longer '
                              'reports; for a spliced fragment, whose .ctl is a '
@@ -202,51 +194,65 @@ def key_for(check, finding, lines, token_of=None):
     return f'{check} {finding[1]} {token_of(finding)}'
 
 
-def read_entries(path):
-    """Return the file's finding lines, stripped, without header or blanks."""
-    if not path or not os.path.exists(path):
-        return []
-    entries = []
-    with open(path, encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and len(line.split(None, 3)) >= 3:
-                entries.append(line)
-    return entries
+def read(path):
+    """Return the file as a dict of `gate`, `adopted` and `finding`; empty if absent."""
+    data = {}
+    if path and os.path.exists(path):
+        with open(path, 'rb') as f:
+            data = tomllib.load(f)
+    return {'gate': data.get('gate'),
+            'adopted': list(data.get('adopted', [])),
+            'finding': [{k: str(f.get(k, '')) for k in FIELDS} for f in data.get('finding', [])]}
+
+
+def dump(path, data):
+    """Write the file, with each adoption and each finding field on a line of its own."""
+    def q(text):
+        return json.dumps(text, ensure_ascii=False)  # a JSON string is a TOML basic string
+    out = []
+    if data['adopted']:
+        out.append('adopted = [')
+        out += [f'  {q(entry)},' for entry in sorted(data['adopted'])]
+        out.append(']')
+    if data.get('gate'):
+        generation, digest = data['gate']['generation'], data['gate']['digest']
+        out += ['', '[gate]',
+                f'generation = {generation if isinstance(generation, int) else q(generation)}',
+                f'digest = {q(digest)}']
+    for finding in sorted(data['finding'], key=lambda f: tuple(f[k] for k in FIELDS)):
+        out += ['', '[[finding]]'] + [f'{k} = {q(finding[k])}' for k in FIELDS]
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write('\n'.join(out).lstrip('\n') + '\n')
+
+
+def key_of(finding):
+    """Return a recorded finding's key, `check KIND at`."""
+    return f'{finding["check"]} {finding["kind"]} {finding["at"]}'
+
+
+def read_findings(path):
+    """Return the file's findings, as dicts of `check`, `kind`, `at` and `message`."""
+    return read(path)['finding']
 
 
 def read_adoptions(path):
-    """Return the entries the file's header declares adopted, as a set of strings."""
-    declared = set()
-    if not path or not os.path.exists(path):
-        return declared
-    with open(path, encoding='utf-8') as f:
-        for line in f:
-            if line.startswith(ADOPTED_PREFIX):
-                entry = line[len(ADOPTED_PREFIX):].strip()
-                if entry:
-                    declared.add(entry)
-    return declared
+    """Return the entries the file declares adopted, as a set of strings."""
+    return set(read(path)['adopted'])
 
 
 def load(path, check):
     """Return how many times each key is recorded for one check, as a Counter."""
-    keys = collections.Counter()
-    for entry in read_entries(path):
-        fields = entry.split(None, 3)
-        if fields[0] == check:
-            keys[' '.join(fields[:3])] += 1
-    return keys
+    return collections.Counter(key_of(f) for f in read_findings(path) if f['check'] == check)
 
 
 def _adoption_for(check, added, declared):
     """
     Return the entry an adoption flag would declare, or a refusal to print.
 
-    Exactly one of the two is a string: the entry to record in the header, or the
+    Exactly one of the two is a string: the entry to record as adopted, or the
     reason this rewrite is not an adoption. `--adopt` covers every kind the check
     reports and is the first adoption of that check; `--adopt-kind` covers one
-    kind of a check the header already declares.
+    kind of a check the file already declares.
     """
     kinds = sorted({key.split()[1] for key in added})
     named = sorted(e for e in declared if e == check or e.startswith(f'{check} '))
@@ -255,22 +261,22 @@ def _adoption_for(check, added, declared):
         if not named:
             return None, (f'If {check} has never run on this project, adopt it once, '
                           f'deliberately, by running this check with --adopt.')
-        return None, (f'The header declares {check} adopted, so its section only shrinks '
+        return None, (f'The file declares {check} adopted, so its findings only shrink '
                       f'from here and nothing re-adopts it.')
     if _ADOPT == ADOPT_CHECK:
         if named:
-            spelled = ', '.join(f'`{ADOPTED_PREFIX}{entry}`' for entry in named)
-            return None, (f'--adopt declares a check the header does not, and it carries '
-                          f'{spelled} already. A check is adopted once; after that its '
-                          f'section only shrinks, whatever it currently lists — including '
+            spelled = ', '.join(f'`"{entry}"`' for entry in named)
+            return None, (f'--adopt declares a check the file does not, and its adopted '
+                          f'list carries {spelled} already. A check is adopted once; after that its '
+                          f'findings only shrink, whatever it currently lists — including '
                           f'nothing.')
         return check, None
     if check not in declared:
         return None, (f'--adopt-kind declares one kind of a check this project has already '
-                      f'adopted, and the header does not declare {check} at all. Adopt the '
+                      f'adopted, and the file does not declare {check} at all. Adopt the '
                       f'check itself with --adopt.')
     if f'{check} {_ADOPT}' in declared:
-        return None, (f'`{check} {_ADOPT}` is declared in the header already, so that kind '
+        return None, (f'`{check} {_ADOPT}` is declared in the file already, so that kind '
                       f'only shrinks from here.')
     if kinds != [_ADOPT]:
         return None, (f'--adopt-kind {_ADOPT} records that kind alone, and these keys are '
@@ -304,15 +310,15 @@ def _guard_growth(path, check, added, declared):
 
 def write(path, check, findings, lines, token_of=None):
     """
-    Rewrite one check's lines in the baseline, leaving every other check's alone.
+    Rewrite one check's findings in the baseline, leaving every other check's alone.
 
     `findings` are (line_number, kind, message, ...) tuples. Returns
-    (recorded, added, dropped, adopted): how many lines this check now owns, the
+    (recorded, added, dropped, adopted): how many findings this check now owns, the
     keys that appeared and disappeared since the file was last written, and the
-    header entry this run declared, if it declared one.
+    adopted entry this run declared, if it declared one.
 
     Writes nothing and exits `REFUSED_EXIT` when the rewrite would add a key,
-    unless an adoption flag declares an entry the header does not carry yet. A
+    unless an adoption flag declares an entry the file does not carry yet. A
     rewrite that only drops keys, or that carries a message reworded since the
     file was written, is not growth: the message is not part of the key.
 
@@ -322,16 +328,18 @@ def write(path, check, findings, lines, token_of=None):
     would hold nothing: a project with no findings and no baseline keeps neither.
     """
     existed = bool(path) and os.path.exists(path)
+    data = read(path)
     previous = load(path, check)
-    declared = read_adoptions(path)
-    kept = [e for e in read_entries(path) if e.split(None, 1)[0] != check]
+    declared = set(data['adopted'])
+    kept = [f for f in data['finding'] if f['check'] != check]
 
     current = collections.Counter()
     recorded = []
     for finding in findings:
         key = key_for(check, finding, lines, token_of)
         current[key] += 1
-        recorded.append(f'{key}  {finding[2]}')
+        _, kind, at = key.split(' ', 2)
+        recorded.append({'check': check, 'kind': kind, 'at': at, 'message': finding[2]})
 
     added = sorted((current - previous).elements())
     adopted = _guard_growth(path, check, added, declared) if added else None
@@ -345,12 +353,7 @@ def write(path, check, findings, lines, token_of=None):
         adopted = adopted or check
         declared.add(check)
 
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(HEADER)
-        for entry in sorted(declared):
-            f.write(f'{ADOPTED_PREFIX}{entry}\n')
-        for entry in sorted(kept + recorded):
-            f.write(entry + '\n')
+    dump(path, {'gate': data['gate'], 'adopted': declared, 'finding': kept + recorded})
 
     return len(recorded), added, sorted((previous - current).elements()), adopted
 
@@ -392,7 +395,7 @@ def report_write(path, check, recorded, added, dropped, adopted=None):
 
     A regeneration that reaches here and added keys is an adoption - `write`
     refuses every other kind - so the added keys are this check's whole starting
-    debt, named once, in the commit that takes it on. `adopted` is the header
+    debt, named once, in the commit that takes it on. `adopted` is the
     entry it declared, which is the line that says the debt stops there.
     """
     if not os.path.exists(path):
@@ -401,7 +404,7 @@ def report_write(path, check, recorded, added, dropped, adopted=None):
         return
     print(f'{check}: recorded {recorded} finding(s) in {path}')
     if adopted:
-        print(f'{check}: declared adopted in {path} — `{ADOPTED_PREFIX}{adopted}`. '
+        print(f'{check}: declared adopted in {path} — `"{adopted}"`. '
               f'From here that entry only shrinks; nothing re-adopts it.')
     if added:
         print(f'{check}: adopted — {len(added)} key(s) recorded that {path} listed '
@@ -412,3 +415,30 @@ def report_write(path, check, recorded, added, dropped, adopted=None):
         print(f'{check}: {len(dropped)} key(s) dropped, now clean:')
         for key in dropped:
             print(f'  - {key}')
+
+
+def main():
+    """`gate FILE` prints the gate the file was recorded under; `stamp` sets it."""
+    parser = argparse.ArgumentParser(description='Read or set the gate a baseline was recorded under.')
+    sub = parser.add_subparsers(dest='command', required=True)
+    sub.add_parser('gate').add_argument('file')
+    stamp = sub.add_parser('stamp')
+    stamp.add_argument('file')
+    stamp.add_argument('generation')
+    stamp.add_argument('digest')
+    args = parser.parse_args()
+    if not os.path.exists(args.file):
+        return 0
+    data = read(args.file)
+    if args.command == 'gate':
+        if data['gate']:
+            print(f'{data["gate"]["generation"]}/{data["gate"]["digest"]}')
+        return 0
+    generation = int(args.generation) if args.generation.isdigit() else args.generation
+    data['gate'] = {'generation': generation, 'digest': args.digest}
+    dump(args.file, data)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

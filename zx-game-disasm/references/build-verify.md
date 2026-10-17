@@ -10,11 +10,11 @@ The chain, top to bottom:
 
 ```
 snapshot (.z80)
-  ├ extract_bytes.py → {game}.pristine.bin .............. the ground truth
+  ├ extract_bytes.py → {game}.bin ....................... the ground truth
   └ sna2skool.py  (+ {game}.ctl) → {game}.skool
-       └ skool2asm.py → {game}.asm
-            └ pasmo --bin → {game}.bin .................. the reassembled bytes
-cmp {game}.pristine.bin {game}.bin ....................... must be identical
+       └ skool2asm.py -s → {game}.asm
+            └ pasmo --bin → {game}.asm.bin .............. the reassembled bytes
+cmp {game}.bin {game}.asm.bin ............................ must be identical
 ```
 
 Two independent assemblers see the source: SkoolKit (`skool2bin`/`skool2asm`) and `pasmo`. Agreement between an extracted-from-snapshot binary and a reassembled-from-source binary is strong evidence the disassembly is faithful.
@@ -22,10 +22,10 @@ Two independent assemblers see the source: SkoolKit (`skool2bin`/`skool2asm`) an
 `scripts/extract_bytes.py` pulls the program region straight out of the snapshot:
 
 ```
-python3 scripts/extract_bytes.py {game}.pristine.z80 {ORG} {SIZE} {game}.pristine.bin
+python3 scripts/extract_bytes.py {game}.z80 {ORG} {SIZE} {game}.bin
 ```
 
-Then `cmp {game}.pristine.bin {game}.bin` must print nothing. Any difference is a real defect — chase it before documenting further, because every comment past it describes bytes that may be wrong.
+Then `cmp {game}.bin {game}.asm.bin` must print nothing. Any difference is a real defect — chase it before documenting further, because every comment past it describes bytes that may be wrong.
 
 **`make` is the mechanical gate.** A unit of work is green only when the full **`make`** (the default `all` target) passes. `make` drives every check: the round-trip `cmp`, the linters *and* the HTML build – and `skool2html` is the only step that reads the `.ref` catalogs and validates their content (the `#R` cross-references and the image/audio macros). It is not slow, so there is no separate "verify" target to run instead; a green `make` is the thing you can hand back at any moment for the user to build, boot, and steer. Run it after every small increment, and never report "green" or commit a checkpoint without it — a dangling `#R` in `sound.ref` or a malformed macro in `graphics.ref` only shows up in `make`, not in the round-trip alone.
 
@@ -96,11 +96,11 @@ make gate-index         # the same gate over the staged index, in a worktree und
 
 To gate a version other than the working tree – the staged index before a commit, another revision – run it in a worktree under `build/`, as `make gate-index` does. The working files are never swapped out and back to test another version: an interrupted swap leaves the tree in a state nobody chose (WORK-8).
 
-`make gate` runs the full mechanical gate into `build/make.log` (the ignored build directory), prints the last 40 lines plus an unmistakable verdict on failure, and exits with make's own status. Every verdict names the SkoolKit *and the gate* that produced it, and a passing one says **which** of two passing states it is:
+`make gate` runs the full mechanical gate into `build/gate.log` (the ignored build directory), prints the last 40 lines plus an unmistakable verdict on failure, and exits with make's own status. Every verdict names the SkoolKit *and the gate* that produced it, and a passing one says **which** of two passing states it is:
 
 ```
-CHECKS PASS, REBUILT [SkoolKit 10.1, gate 1/e70342a] – at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: build/make.log
-CHECKS PASS, NOTHING REBUILT [SkoolKit 10.1, gate 1/e70342a] – every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: build/make.log)
+CHECKS PASS, REBUILT [SkoolKit 10.1, gate 1/e70342a] – at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: build/gate.log
+CHECKS PASS, NOTHING REBUILT [SkoolKit 10.1, gate 1/e70342a] – every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: build/gate.log)
 ```
 
 Under the verdict line the gate prints a `REVIEW:` line, read by `scripts/review_record.py` from the Challenger's review record for the current diff:
@@ -114,18 +114,18 @@ Then comes `READY TO COMMIT` only after `CHECKS PASS` and `REVIEW: approved`, an
 
 The gate asks make (`make -q`) whether any generated file is out of date *before* it builds, and reports that answer. It is a real distinction: `all` depends on the phony `test`, `lint` and `html`, whose recipes run every time, so a green `make` always means the `cmp` and the linters passed — but it does not by itself mean the `.skool`, the `.asm` or the `.bin` under them came from the sources as they stand now.
 
-**`REBUILT` says "at least one", and that is all `-q` can say.** It is one bit over the whole artifact set, not a per-file answer: delete `$(GAME).fixed.z80` alone and the verdict is `REBUILT` while only `bin2sna.py` ran, the `.skool` never regenerated and `skool2html.py` never executed. Read the log for which files actually rebuilt; the verdict only tells you the tree was not entirely current.
+**`REBUILT` says "at least one", and that is all `-q` can say.** It is one bit over the whole artifact set, not a per-file answer: delete `$(GAME).asm.bin` alone and the verdict is `REBUILT` while only `pasmo` ran, the `.skool` never regenerated and `skool2html.py` never executed. Read the log for which files actually rebuilt; the verdict only tells you the tree was not entirely current.
 
 **`NOTHING REBUILT` is the weaker claim, and the one to read twice.** It is a legitimate and common state — you ran the gate twice, or changed only a file no target depends on. But it says the round-trip was re-checked over artifacts an *earlier* run produced, and a corrupted incremental state survives it. Make deletes a target whose own recipe fails, so a red build leaves nothing behind — but a file written outside make still can: a redirect run by hand that dies mid-write leaves a zero-byte `.skool` newer than the `.ctl`, which make calls current and which everything downstream then agrees with. Before reporting a checkpoint green off a `NOTHING REBUILT`, make the build do the work — `make clean`, or remove the `.skool` so everything under it regenerates — and read the `REBUILT` verdict over a log that shows the whole chain running.
 
-Also read the version. A gate that passed under a SkoolKit other than the one `requirements.txt` pins proved something about a toolchain the project does not ship.
+Also read the version. A gate that passed under a SkoolKit other than the one `tools/requirements.txt` pins proved something about a toolchain the project does not ship.
 
 #### A red verdict says how far from green, not just that it is red
 
 The `.ctl` checks all run whatever any one of them reports, and the verdict names every check that failed with its own finding count:
 
 ```
-CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] – 3 of 18 checks failed, 60 finding(s): lint-publication 30, lint-byte-counts 20, lint-array-elements 10. The log accounts for 17 of the gate's 18 checks – no sweep reports the other 1, so they did not run. That count is a floor, not the distance to green. Every finding is above in full, not tailed. Full log: build/make.log.
+CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] – 3 of 18 checks failed, 60 finding(s): lint-publication 30, lint-byte-counts 20, lint-array-elements 10. The log accounts for 17 of the gate's 18 checks – no sweep reports the other 1, so they did not run. That count is a floor, not the distance to green. Every finding is above in full, not tailed. Full log: build/gate.log.
 ```
 
 That is the line to quote and to store. `1 check failed, 30 findings` and `3 checks failed, 60 findings` are different amounts of work, and a bare RED, or a verdict naming only the first check make happened to reach, cannot tell them apart. Make halts at the first prerequisite that fails, which is why `lint` runs its checks in its own recipe rather than listing them as prerequisites: with them listed, the gate stops at the first check that fails, and the findings of every check after it never reach the verdict.
@@ -144,13 +144,13 @@ Four clauses appear when they apply, and each is there because its absence would
 A build failure reads as one, and it reads as one whether or not any check also went red. The round-trip `cmp` and the `.asm` come before the checks in `all`'s prerequisite list, so sequentially a failure in either stops the run before a check has started:
 
 ```
-CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] – the build failed before any check ran, so no check has a finding count and none of them is what failed; the build's last 40 log lines are above. Full log: build/make.log.
+CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] – the build failed before any check ran, so no check has a finding count and none of them is what failed; the build's last 40 log lines are above. Full log: build/gate.log.
 ```
 
 That order is a sequential order only. Under `-j` — which nobody has to type, an inherited `MAKEFLAGS=-j4` is enough — `test`, `lint` and `html` are siblings, so a full sweep of findings can complete after `cmp` has already failed. Both are then in the log, and the gate leads with the build:
 
 ```
-CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] – the build itself failed (test), which is what to fix first: a finding count is a distance to green only over a tree that builds. 1 of 18 checks failed, 3 finding(s): lint-label-length 3. The build's last 40 log lines are above, then every finding in full. Full log: build/make.log.
+CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] – the build itself failed (test), which is what to fix first: a finding count is a distance to green only over a tree that builds. 1 of 18 checks failed, 3 finding(s): lint-label-length 3. The build's last 40 log lines are above, then every finding in full. Full log: build/gate.log.
 ```
 
 `(test)` is the failing target make named. Read that clause first and stop planning against the counts after it: they were measured over a tree that does not build.
@@ -158,7 +158,7 @@ CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] – the build itself f
 A failure after the checks — the site will not build, a dangling `#R` or a malformed macro in a `.ref` does it — gets the third wording:
 
 ```
-CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] – every check that ran was clean, so this is the build failing rather than a finding; its last 40 log lines are above. Full log: build/make.log.
+CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 1/e70342a] – every check that ran was clean, so this is the build failing rather than a finding; its last 40 log lines are above. Full log: build/gate.log.
 ```
 
 This is deliberately narrower than `make -k`. `-k` continues past *any* failed target, so a broken round-trip stops stopping the build — and what it continues past differs between make versions. What has to survive a first failure is the set of independent checks, not the build. So the checks aggregate and the build still halts, and the verdict — not the halt — is what keeps a one-line `cmp` from arriving buried among findings when `-j` ran them side by side.
@@ -176,23 +176,23 @@ The digest is deliberately wider than the gate, and it errs on the safe side. It
 
 The digest is taken from file contents, never from `git rev-parse`. The skill is consumed through a symlink, a copy, or a checkout, and only the files are guaranteed: a copy is not a repo and has no revision to read, while a digest reads the same there as in the checkout it was copied from. Every part of the marker degrades to a word rather than to a failure — an unreadable `SKILL.md` gives `gate undeclared/…` and a machine with no `shasum`/`sha256sum` gives `…/unknown` — because a project whose marker cannot be read must still build.
 
-`lint-baseline.txt` carries the same marker in its header, written by `make lint-baseline`, and the gate compares the two. When they differ the verdict says so, on a pass and on a failure both:
+`lint-baseline.toml` carries the same marker in its `[gate]` table, written by `make lint-baseline`, and the gate compares the two. When they differ the verdict says so, on a pass and on a failure both:
 
 ```
-CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] – 1 of 18 checks failed, 4 finding(s): lint-array-elements 4. … Full log: build/make.log. lint-baseline.txt was recorded under gate 1/e70342a, so a finding this gate reports and that one did not is the gate moving, not this commit regressing – see the gate-boundary rule in references/build-verify.md.
+CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] – 1 of 18 checks failed, 4 finding(s): lint-array-elements 4. … Full log: build/gate.log. lint-baseline.toml was recorded under gate 1/e70342a, so a finding this gate reports and that one did not is the gate moving, not this commit regressing – see the gate-boundary rule in references/build-verify.md.
 ```
 
-A tree with **no** `lint-baseline.txt` gets its own clause, on a failure only — a commit that predates the baseline fails that way, and on a pass the absence is the right default for a new disassembly rather than something worth saying:
+A tree with **no** `lint-baseline.toml` gets its own clause, on a failure only — a commit that predates the baseline fails that way, and on a pass the absence is the right default for a new disassembly rather than something worth saying:
 
 ```
-CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] – 4 of 18 checks failed, 50 finding(s): lint-data-structure 10, lint-publication 20, lint-names 10, lint-byte-counts 10. … Full log: build/make.log. There is no lint-baseline.txt in this tree, so this run accepted nothing – a commit that predates the project's baseline fails a gating check the way a regression does; see the gate-boundary rule in references/build-verify.md.
+CHECKS FAIL (make exit 2) [SkoolKit 10.1, gate 2/3f19c04] – 4 of 18 checks failed, 50 finding(s): lint-data-structure 10, lint-publication 20, lint-names 10, lint-byte-counts 10. … Full log: build/gate.log. There is no lint-baseline.toml in this tree, so this run accepted nothing – a commit that predates the project's baseline fails a gating check the way a regression does; see the gate-boundary rule in references/build-verify.md.
 ```
 
 That clause is the difference between a red gate you investigate and one you can place in a sentence. Read it before reading the findings: **a red gate whose baseline was recorded under a different gate, or which has no baseline where the project has one, is not evidence about the commit.** It is also what makes the wrong fix unattractive — regenerating the baseline so the live gate passes bakes a different gate's checks into this project's accepted debt.
 
 Two traps make the eyeball check wrong:
 
-- **Parallel branches finish out of order.** Under `-j` the HTML branch can print `touch html/.stamp` while the asm branch is failing, so the *tail* of the output — the natural place to look, since the log is long and full of `pasmo`'s `WARNING: Var … never used` notes — shows a success line for a red build. A `#R` to an unlabeled sub-block address makes `skool2asm` warn (`Could not convert address $7C0D to label`) and fail the `.asm`, and nothing in the tail says so.
+- **Parallel branches finish out of order.** Under `-j` the HTML branch can print `touch $(HTML_DIR)/.stamp` while the asm branch is failing, so the *tail* of the output — the natural place to look, since the log is long and full of `pasmo`'s `WARNING: Var … never used` notes — shows a success line for a red build. A `#R` to an unlabeled sub-block address makes `skool2asm` warn (`Could not convert address $7C0D to label`) and fail the `.asm`, and nothing in the tail says so.
 - **A pipeline hides the status.** After `make | grep … | tail`, `$?` is *tail's* (bash's `PIPESTATUS` holds the rest). A scripted check through a pipe reports the wrong process. Redirect to a file and grep the file, or use `make gate`.
 
 ### Proving a range of commits green
@@ -220,23 +220,18 @@ The `${verdict:-…}` default covers the worst case, which is the one the loop m
 
 #### The gate-boundary rule
 
-The loop runs *today's* gate against every commit, and the commits were made under the gates of their own day. Where those differ the loop is not measuring the commits at all. A commit made before the project added `lint-baseline.txt` fails a newly-gating check with no baseline to accept its findings, and a bare RED does not distinguish "this commit is broken" from "this commit predates the check".
+The loop runs *today's* gate against every commit, and the commits were made under the gates of their own day. Where those differ the loop is not measuring the commits at all. A commit made before the project added `lint-baseline.toml` fails a newly-gating check with no baseline to accept its findings, and a bare RED does not distinguish "this commit is broken" from "this commit predates the check".
 
-So before reading a single verdict, find the boundary: compare the gate the run reports against the marker each commit's `lint-baseline.txt` carries. A commit whose baseline records a different gate is on the far side of one.
+So before reading a single verdict, find the boundary: compare the gate the run reports against the marker each commit's `lint-baseline.toml` carries. A commit whose baseline records a different gate is on the far side of one.
 
-- **Run the range from the adoption commit forward.** A check enters a project at the commit that declares it — `# adopted: identity` in the baseline's header — so `git log -S'# adopted: identity' -- lint-baseline.txt` names the first commit that can be held to it. Everything earlier is out of scope by construction, not by diagnosis. This is the cheap answer and the one to reach for.
+- **Run the range from the adoption commit forward.** A check enters a project at the commit that declares it — `"identity",` in the baseline's `adopted` list — so `git log -S'"identity",' -- tools/lint-baseline.toml` names the first commit that can be held to it. Everything earlier is out of scope by construction, not by diagnosis. This is the cheap answer and the one to reach for.
 - **Or give each sha its contemporaneous debt.** In the throwaway worktree, after the checkout, run `make lint-baseline` before `make gate`; for a check the commit predates, that regeneration is a first adoption and needs the check's own `--adopt` (see "Adopting a check for the first time"). Nothing is committed — the worktree is deleted at the end — and the question it answers is "did this commit hold the line it had", which is the one "green at every commit" is actually claiming.
 
 **Never report a bare RED across a gate boundary.** Report the verdict line, whose marker carries the gate, or say that the range spans a gate change and which commits are on which side. A loop that cries wolf gets ignored, and the next real red goes with it.
 
 ## When the bytes legitimately differ
 
-Occasionally the *ideal* source and the *original* bytes disagree for a defensible reason — the original has a corrupted sprite byte, or you want the source to read correctly while still reproducing a quirky original. SkoolKit's fix directives let the source carry the clean form while the round-trip still matches:
-
-- **`@isub`** — substitution applied when assembling (`-f 1` and up). Use it for the symbolic-constant substitutions of stage 3.
-- **`@ofix`** — an original fix: the byte SkoolKit should emit to match the original even though the disassembly shows something else.
-
-The framework builds *two* variants to keep this honest: a `non-fixed` source whose bytes must already match the original (proving no accidental drift), and a `fixed` source that applies the intended `@isub`/`@ofix` directives. Both must round-trip. If you only ever build the fixed variant you can hide a real mismatch behind a fix directive — so verify the non-fixed binary against the pristine one too.
+The framework builds one source, in `@ssub` mode, and holds it to the game's bytes. It builds no fix mode (`@ofix`, `@bfix`, `@rfix`): a game that carries fixes adds its own rules for the fixed source, beside the round-trip.
 
 ## The linters
 
@@ -445,36 +440,48 @@ make lint-baseline        # re-records the current findings; it can only shrink
                           # the file, and fails without writing on growth
 ```
 
-`lint-baseline.txt` lists one accepted finding per line, as `<check> <KIND> <$ADDRESS>  <message>`. The first three fields are the key; the message is for the reader. Four rules give it its shape:
+`lint-baseline.toml` is TOML. It lists each accepted finding as one table:
+
+```toml
+[[finding]]
+check = "identity"
+kind = "UNDESCRIBED"
+at = "$7E04"
+message = "…"
+```
+
+`check`, `kind` and `at` are the key; the message is for the reader. Four rules give it its shape:
 
 - a finding whose key the file does not list **fails the build** — that is the new defect, and it is the whole point;
-- a line the file lists that its check no longer reports **fails the build too**, so a fix takes its baseline entry with it in the same commit and the file cannot rot into a permanent excuse;
+- a finding the file lists that its check no longer reports **fails the build too**, so a fix takes its baseline entry with it in the same commit and the file cannot rot into a permanent excuse;
 - a key is only compared against the check that wrote it, so a project may baseline one check and gate another cleanly;
-- a key may repeat, and the count is part of the comparison: two findings of one kind at one address are two lines, and a third fails the build.
+- a key may repeat, and the count is part of the comparison: two findings of one kind at one address are two tables, and a third fails the build.
 
-The key is the *address on the directive the finding points at* — never the line number, which churns on every unrelated edit above it, and never the message, which changes when a neighboring directive resizes. Counting repeats is what stops that address-only key from swallowing a second finding where one is already listed. Splitting an undescribed `M $7E04,2` into `M $7E04,2` plus `B $7E04,1` leaves two findings at `$7E04` against one accepted line, and the build fails — while a directive that merely moves down the file keeps its key and its count.
+The key is the *address on the directive the finding points at* — never the line number, which churns on every unrelated edit above it, and never the message, which changes when a neighboring directive resizes. Counting repeats is what stops that address-only key from swallowing a second finding where one is already listed. Splitting an undescribed `M $7E04,2` into `M $7E04,2` plus `B $7E04,1` leaves two findings at `$7E04` against one accepted finding, and the build fails — while a directive that merely moves down the file keeps its key and its count.
 
 Two checks key on something other than an address, because their findings do not live on a directive: `prose-names` keys on `<file>:<phrase>` and `images` on the file or frame name. A phrase in a `.ref` catalog has no address, and the address of whatever `.ctl` line happens to carry it is not its identity. Counting repeats then reads as "thirteen occurrences of this phrase in this file are accepted", and the fourteenth fails the gate — but the *location* it prints is one of the thirteen, not necessarily the new one, and the report says so. Every occurrence is the same finding and takes the same fix.
 
 `verify-frag` splices a Worker's fragment into a copy of the `.ctl` under the project's own filename, so those keys still match; a throwaway name would make every inherited finding look new.
 
-The header records the gate the file was written under, one line beside the `# adopted:` declarations:
+The file records the gate it was written under, beside the `adopted` declarations:
 
-```
-# gate: 1/e70342a
+```toml
+[gate]
+generation = 1
+digest = "e70342a"
 ```
 
-`make lint-baseline` writes it — on a run where every check recorded, so a refusal leaves the older stamp standing rather than claiming a recording that did not happen. A baseline is a statement about findings *a particular gate* reports, so without it a file that predates a check is indistinguishable from one that accepts it. The gate reads the line back and reports a mismatch in its verdict; see "The marker" above.
+`make lint-baseline` writes it — on a run where every check recorded, so a refusal leaves the older stamp standing rather than claiming a recording that did not happen. A baseline is a statement about findings *a particular gate* reports, so without it a file that predates a check is indistinguishable from one that accepts it. The gate reads the value back and reports a mismatch in its verdict; see "The marker" above.
 
 A check adopted by hand with `--adopt` rewrites the file through the check's own script, which does not stamp — re-run `make lint-baseline` afterwards, and the stamp comes back with the adoption in it. Until then the verdict says the baseline records no gate.
 
 **The file only ever shrinks, and the tool holds that.** Regenerate it when a fix clears a finding — the shrunk file is the evidence, and the diff is how the debt is visible in review. Each check rewrites only its own lines, so re-recording one leaves the other's alone. A run that would add a key writes nothing, names the keys and exits non-zero, and `make lint-baseline` fails with it:
 
 ```
-byte-counts: REFUSED to write lint-baseline.txt — 1 key(s) it does not list, and a
+byte-counts: REFUSED to write lint-baseline.toml — 1 key(s) it does not list, and a
 key this file gains is debt taken on, not debt inherited:
   + byte-counts BYTE_SPAN $9861
-lint-baseline.txt is unchanged, so the gate still fails on them. Fix the finding,
+lint-baseline.toml is unchanged, so the gate still fails on them. Fix the finding,
 then re-run.
 ```
 
@@ -488,37 +495,39 @@ Never hand-edit the file to silence something you introduced either — the diff
 
 #### Adopting a check for the first time
 
-A project with no `lint-baseline.txt` is gated on everything, which is the right default for a new disassembly. The baseline is for a project that predates a check: its findings are debt the check inherited, and recording them is the one growth that is legitimate.
+A project with no `lint-baseline.toml` is gated on everything, which is the right default for a new disassembly. The baseline is for a project that predates a check: its findings are debt the check inherited, and recording them is the one growth that is legitimate.
 
 It is deliberately not reachable from `make lint-baseline`, which can only shrink. Adopt one check at a time, by running that check's own command with `--adopt`. `make -n lint-baseline` prints each command line as the project configures it, with the paths this project actually uses; copy the one you are adopting and append the flag:
 
 ```
 $SKILL/scripts/validate_ctl_byte_counts.py src/{game}.ctl \
-    --baseline lint-baseline.txt --write-baseline --adopt
+    --baseline tools/lint-baseline.toml --write-baseline --adopt
 ```
 
-The adoption is recorded in the file's own header, one line per adopted entry:
+The adoption is recorded in the file's `adopted` list, one line per adopted entry:
 
-```
-# adopted: byte-counts
-# adopted: identity
+```toml
+adopted = [
+  "byte-counts",
+  "identity",
+]
 ```
 
-Those lines are what the refusal reads, and they are the point of the design. Owning no lines cannot tell "this check has never run here" from "this check ran and came back clean", so if adoption were inferred from the lines, `--adopt` would walk a new finding straight into a clean check's section — the forbidden sequence, one flag deeper. A declared entry is refused whatever it currently lists, including nothing, and every successful regeneration declares the check it rewrote, because a check that regenerates here has run here.
+Those entries are what the refusal reads, and they are the point of the design. Owning no findings cannot tell "this check has never run here" from "this check ran and came back clean", so if adoption were inferred from the findings, `--adopt` would walk a new finding straight into a clean check's section — the forbidden sequence, one flag deeper. A declared entry is refused whatever it currently lists, including nothing, and every successful regeneration declares the check it rewrote, because a check that regenerates here has run here.
 
 So the file states its own invariant, and a reader needs no history to check it: **for every declared entry the count is non-increasing, and the declared set grows only by a line you can read in the diff.**
 
-One case needs the second granularity. A check that gains a new finding kind reports, on a mature project, debt that predates the kind — the `.ctl` was written before it existed — but it arrives under a check name the header already declares. Without a route it would be unadoptable, and the rational move would be to pin the skill version, which is the failure the baseline exists to prevent. `--adopt-kind` is that route, and it names the kind:
+One case needs the second granularity. A check that gains a new finding kind reports, on a mature project, debt that predates the kind — the `.ctl` was written before it existed — but it arrives under a check name the file already declares. Without a route it would be unadoptable, and the rational move would be to pin the skill version, which is the failure the baseline exists to prevent. `--adopt-kind` is that route, and it names the kind:
 
 ```
 $SKILL/scripts/validate_ctl_publication.py src/{game}.ctl \
     --org <org> --size <size> --skool build/{game}.skool \
-    --baseline lint-baseline.txt --write-baseline --adopt-kind CONTRADICTED
+    --baseline tools/lint-baseline.toml --write-baseline --adopt-kind CONTRADICTED
 ```
 
-It records that kind's findings and nothing else — a key of any other kind in the same rewrite is refused — and it writes `# adopted: publication CONTRADICTED`. The tool cannot tell a kind the check has just gained from one it has always had, so this is the point where the diff line is the check: adopting a kind that is not new is visible in review, and it is the only growth review has to look at.
+It records that kind's findings and nothing else — a key of any other kind in the same rewrite is refused — and it adds `"publication CONTRADICTED"` to `adopted`. The tool cannot tell a kind the check has just gained from one it has always had, so this is the point where the diff line is the check: adopting a kind that is not new is visible in review, and it is the only growth review has to look at.
 
-`fixtures/baseline-monotonic.sh` is the regression: it adopts two checks, introduces a finding at a new address and a second finding at an address the file already lists, and asserts both are refused with the file untouched; it rewords a message and clears the finding and asserts both are accepted; then it clears the check's last line and asserts that `--adopt` on that now-empty section is still refused, which is the case the header exists for.
+`fixtures/baseline-monotonic.sh` is the regression: it adopts two checks, introduces a finding at a new address and a second finding at an address the file already lists, and asserts both are refused with the file untouched; it rewords a message and clears the finding and asserts both are accepted; then it clears the check's last finding and asserts that `--adopt` on that now-empty section is still refused, which is the case the `adopted` list exists for.
 
 ### What a clean fragment sweep does not prove
 
@@ -528,15 +537,15 @@ It records that kind's findings and nothing else — a key of any other kind in 
 
 ### The prose check
 
-`make lint-prose` runs the sentence-level bar in `references/prose-bar.md`. It does not reimplement it. Vale is the prose linter technical writing already uses, and it ships the Microsoft and Google style guides as executable rules; the project adds only the handful of rules this domain needs.
+`make lint-prose` runs the sentence-level bar in `references/prose-bar.md`. It does not reimplement it. Vale is the prose linter technical writing already uses, and it ships the Microsoft and Google style guides as executable rules; the skill adds only the handful of rules this domain needs.
 
-**Setup, once per project.** Install Vale (`brew install vale`, or https://vale.sh/docs/install). Copy `assets/vale.ini.template` to `.vale.ini` and `assets/styles/ZXDisasm/` to `styles/ZXDisasm/` at the project root. Run `vale sync` to fetch the packages. Add `/styles/Microsoft/`, `/styles/Google/` and `/.prose/` to `.gitignore` — those are fetched and generated, and only `styles/ZXDisasm/` is the project's own.
+**Setup.** The config is the skill's `assets/vale.ini` and the domain rules are its `assets/styles/ZXDisasm/`. The gate passes the config to Vale, and a project holds no copy of either. Install Vale (`brew install vale`, or https://vale.sh/docs/install) and run `vale sync --config assets/vale.ini` once in the skill to fetch the packages. The extracted prose is written under `build/prose/`, which the project ignores with the rest of `build/`.
 
 **Why there is a shim.** Vale reads Markdown and the comments of the programming languages it knows. Assembly is not one of them, and `.vale.ini`'s `[formats]` section only renames an extension, so pointing it at a `.skool` would lint the Z80 listing as prose. So `scripts/extract_prose.py` lifts every block comment, instruction comment, `.ctl` annotation and `.ref` paragraph into one Markdown file with a line map, and `scripts/vale_report.py` translates the findings back onto real source lines. Nothing but Markdown reaches Vale. Both halves are held by fixtures (`prose-extract`, `prose-extract-map`), because a regression in an extractor presents as a check that quietly stops reporting.
 
 **What gates.** Errors fail the target; warnings and suggestions report. `Microsoft.SentenceLength` is a suggestion by design — it is meant to be read, not obeyed, and a hard cap on a sentence is satisfiable by splicing one long sentence into two badly joined short ones.
 
-**The filter is part of the check.** The Microsoft guide is written for consumer-facing product documentation, and a set of its rules encode that voice or fire on the domain rather than on the prose: `Contractions` would rewrite "does not track the map" as an error, `QuestionMarks` advises using questions sparingly where this skill asks for them, `Acronyms` reads the game's own on-screen captions as undefined, and `Repetition` reports `NOP` twice because the code says it twice. `.vale.ini` switches each off with its reason. Read those before adding to the list; the filter is how the real errors stay visible instead of sitting under findings about a machine.
+**The filter is part of the check.** The Microsoft guide is written for consumer-facing product documentation, and a set of its rules encode that voice or fire on the domain rather than on the prose: `Contractions` would rewrite "does not track the map" as an error, `QuestionMarks` advises using questions sparingly where this skill asks for them, `Acronyms` reads the game's own on-screen captions as undefined, and `Repetition` reports `NOP` twice because the code says it twice. `assets/vale.ini` switches each off with its reason. Read those before adding to the list; the filter is how the real errors stay visible instead of sitting under findings about a machine.
 
 `Microsoft.Ellipses` is off for a different reason: it is a strict superset of `lint-comments`' own `ELLIPSIS` kind and less precise, reporting elided sequences ("a run scores 10, 20, 30 ... up to 250") alongside the splices that are the defect, and it cannot say what to write instead.
 
@@ -544,7 +553,7 @@ It records that kind's findings and nothing else — a key of any other kind in 
 
 `make lint-comments` runs `scripts/lint_comments.py` over the generated `.skool` and flags the mechanical comment defects a green build never catches: a comment on a bare `RET`, a comment that only restates the instruction, a placeholder label (`work_b`, `helper_8e3a`, `L5B50`), and a `{ }` group whose span crosses an act boundary (`GROUP_SPLIT`, `GROUP_ENTRY` — below).
 
-**Its precise kinds gate**, in the `make` sweep, held against `lint-baseline.txt` like every other gating check. `references/rules.md` names each kind beside the rule it enforces, and `scripts/lint_comments.py` lists them. The judgment-call kinds – `RET`, `RESTATE`, `PLACEHOLDER`, `REFPOINTER`, `STAMP` — print a one-line tally and never fail; `--advisory` lists them, which is what the standalone target passes.
+**Its precise kinds gate**, in the `make` sweep, held against `lint-baseline.toml` like every other gating check. `references/rules.md` names each kind beside the rule it enforces, and `scripts/lint_comments.py` lists them. The judgment-call kinds – `RET`, `RESTATE`, `PLACEHOLDER`, `REFPOINTER`, `STAMP` — print a one-line tally and never fail; `--advisory` lists them, which is what the standalone target passes.
 
 It gates because an advisory check is one nothing runs, and the claim of compliance is then made by a gate that never looked at it. Adopting it on a mature project is the documented one-time step — `make lint-baseline` after a `--adopt`, see "Adopting a check for the first time" — and from there the recorded entry only shrinks. The same command takes the `.ref` catalogs and `spec/*.md` and sweeps them for investigation and emulator vocabulary ("verified live", "under emulation", "not fully pinned") — those pages reach the same reader as the `.skool`, and an unswept one is where a claim sourced from a run survives. It also counts `OPEN`: the typed uncertainty markers (`(unverified)`, `TODO:`) that are *correct* where they stand and say the work behind them is unfinished — `make coverage` keeps a project short of the bar while any remain. A flag from an advisory kind is a prompt to review, not a defect: a `RET` note occasionally carries a real return-state contract that an expert keeps. The Challenger reads those and decides.
 
@@ -582,21 +591,21 @@ A gauge that reaches "at or near the bar" from its own counts alone, while the g
 
 So the gauge reads the gate's own inputs, both auto-discovered beside the skool and overridable with `--baseline` and `--html`:
 
-- **BASELINE** — every finding recorded in `lint-baseline.txt`, per check. A recorded finding is unfinished work by construction: the gate passes because the project accepted it, not because it is fixed. Any non-empty baseline holds the verdict at NOT at the bar.
+- **BASELINE** — every finding recorded in `lint-baseline.toml`, per check. A recorded finding is unfinished work by construction: the gate passes because the project accepted it, not because it is fixed. Any non-empty baseline holds the verdict at NOT at the bar.
 - **IMAGES** — the files the image macros name against the files the build wrote, the same survey `lint-images` gates on. The `INLINE GFX` line counts macros in the source, labeled as what it is: where the macros live, not what they produced. Only the findings the baseline does not already hold weigh on the verdict; a recorded one weighs once, under BASELINE.
 
 Both appear in the verdict's reason list, not only in the report body:
 
 ```
-BASELINE     : 100 known-failing finding(s) held by lint-baseline.txt
+BASELINE     : 100 known-failing finding(s) held by lint-baseline.toml
                (data-structure 40, identity 30, images 20, prose-names 10)
                — each one a defect the gate is passing on credit
 
-VERDICT: NOT at the bar — 100 finding(s) recorded in lint-baseline.txt — the gate
+VERDICT: NOT at the bar — 100 finding(s) recorded in lint-baseline.toml — the gate
 passes because the project accepted them, not because they are fixed.
 ```
 
-A *missing* `lint-baseline.txt` is not a clean one, and the report says so rather than reading zero findings as the gate passing on its own terms.
+A *missing* `lint-baseline.toml` is not a clean one, and the report says so rather than reading zero findings as the gate passing on its own terms.
 
 Shrinking the baseline to nothing is therefore part of reaching the bar, which is the only reading under which "at or near the bar" means anything.
 
@@ -636,9 +645,9 @@ Splitting a block works when the target byte *can* become a line-start. Some can
 
   renders `LD (enemy_handler_call+1),A`, now relocatable. `@ssub` is a *safe substitution* — byte-identical by SkoolKit's definition — so it reassembles to the exact original bytes.
 
-**`@ssub` only renders under `skool2asm -s`.** The default `--create-labels` build ignores it, so the operand still reads raw in the deliverable `.asm` the gauge sees. `-s` (ssub mode) is also a **strict static relocatability gate**: it fails on *every* unresolved in-image address. The framework builds the fixed asm with `-s` **by default** (`ASM_FIXED_FLAGS ?= -s`), so the relocatability gate is the standard, not a per-project opt-in. But it fails while the map is still raw, so a project in the breadth/labeling sweep opts **out** — sets `ASM_FIXED_FLAGS =` (empty) in its Makefile — and runs the whole sweep (data splits, `@equ`, `@ssub`) under the default build first. When no raw in-image reference remains, it removes that line to restore the standard `-s` gate. (`-s` checks instruction operands; an absolute pointer baked in a *data table* still slips past it — see the dynamic check below.)
+**`@ssub` only renders under `skool2asm -s`.** The default `--create-labels` build ignores it, so the operand still reads raw in the deliverable `.asm` the gauge sees. `-s` (ssub mode) is also a **strict static relocatability gate**: it fails on *every* unresolved in-image address. The framework renders the `.asm` with `-s`, so the gate fails while the map is still raw. (`-s` checks instruction operands; an absolute pointer baked in a *data table* still slips past it — see the dynamic check below.)
 
-`ASM_FIXED_FLAGS` is the only place those flags are stated, and `verify-frag` reads the same variable: a Worker's self-check renders the fixed source with the project's flags and assembles it, so a fragment that leaves an in-image operand raw is red where its author can see it, and a project that has opted out is not held to a gate its own build does not run. Assembling matters on its own: an `@ssub=LD (lbl+1),A` whose label does not exist renders without a warning and fails only at `pasmo`. `fixtures/verify-frag-flags.sh` exercises both directions and that case.
+`verify-frag` renders and assembles a fragment the same way, so a fragment that leaves an in-image operand raw is red where its author can see it. Assembling matters on its own: an `@ssub=LD (lbl+1),A` whose label does not exist renders without a warning and fails only at `pasmo`. `fixtures/verify-frag-flags.sh` exercises both cases.
 
 `scripts/coverage_report.py` reports the static signals — `L####` auto-labels (unnamed blocks) and raw operands at/above the game floor. But a label-clean source is **still not proven relocatable**. The gauge counts *operands*, and four things hide from it:
 
@@ -670,6 +679,21 @@ Count only spans the map declares surplus, and read each *span's* own annotation
 **A floor is not enough: name the fixed-placement regions.** Some work areas are alignment-constrained and must be pinned with their own `org`, exactly like the screen — their addresses are computed from their own page, so moving them breaks the arithmetic that finds them. A pinned region above `RELOC_FLOOR` is one the floor alone calls movable. List them explicitly; pinning one is correct annotation, not a defect.
 
 **Check that the oracle can fail.** Drive both images under `zx-fuse-driver` against an oracle of fixed-address state below the moved region — never state that moves with the code, such as an RNG seed in the moved region. Then sabotage a single operand back to a raw absolute address and confirm the oracle diverges. An oracle that stays identical under that control proves nothing.
+
+**The tools.** The project keeps only its settings, in a TOML file: each `[permute.NAME]` (the label to `move` and the line it lands `before`), the `[control]` operand swap, the oracle's `regions` and its key `[scripts]`. The skill's scripts do the rest:
+
+- `scripts/reloc/permute.py` builds the permuted image and checks it: the baseline reassembles, the size holds, nothing below the floor changes, every label moves by exactly what the permute predicts, and outside the permuted span only re-resolved operands differ. `--control` builds the negative control.
+- `scripts/reloc/oracle.py` runs a snapshot under libfusex and dumps the regions and a screen digest every frame.
+- `scripts/reloc/compare.py` diffs two dumps and names every address that differs.
+
+The build half is one `permute.py` run per variant, given the gated `.asm`, the image it reassembles to and the permuted image to write:
+
+```
+$SKILL/scripts/reloc/permute.py ASM BASELINE OUT --config TOML --permute NAME \
+    --floor ADDR --org ORG [--control]
+```
+
+The runtime half makes a snapshot of each image with `bin2sna.py`, runs the oracle on each, and compares each variant's dump with the baseline's.
 
 ### When it fails: bisect what moves, not how far
 

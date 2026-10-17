@@ -69,9 +69,9 @@ def directives_above(lines, index, addr):
 
     Backing up over `label=` alone would leave every other directive at the
     next header's address inside the *previous* block's span, so a splice would
-    delete it and the fixed asm would then warn about an unreplaced address — a
-    red gate two steps from the edit, naming the wrong file. Every directive at
-    an address belongs to the block that address starts, and there can be more
+    delete it and the .asm would then warn about an unreplaced address — a red
+    gate two steps from the edit, naming the wrong file. Every directive at an
+    address belongs to the block that address starts, and there can be more
     than one.
     """
     first = index

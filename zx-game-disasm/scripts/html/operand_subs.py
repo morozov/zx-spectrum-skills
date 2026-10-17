@@ -17,28 +17,16 @@ entry sizes and the reference graph are all computed before this runs and are
 left as they were, so nothing here can change what the disassembly assembles to
 or what the image macros read.
 
-The second parse applies the sub directives and no `@ofix`/`@bfix`/`@rfix`: a sub
-directive restates an instruction, a fix directive replaces it. The pages show
-the bytes of the game as it shipped, so an operand on them must be another
-spelling of those bytes and never a correction to them.
-
-`SKOOL_HTML_SUB_MODE` in the environment picks which sub directives, and the
-`html` target in `tools/disassembly.mk` sets it from the flags the project's
-fixed `.asm` is rendered with.
+The second parse is in @ssub mode, the mode the build renders the `.asm` in.
 """
 
 import html as _html
-import os
 
 from skoolkit import skool2html
 from skoolkit.skoolparser import SkoolParser
 
-# The mode to parse in: 1 for @isub, 2 for @ssub, 3 for @rsub, as skool2asm's
-# default, -s and -r. A project renders its fixed .asm in one of them, and the
-# page has to agree with the file it ships beside, so the build states which.
-# The default is @ssub, what `skool2asm -s` renders and what the framework
-# builds the fixed source with.
-SUB_MODE = int(os.environ.get('SKOOL_HTML_SUB_MODE') or 2)
+# SkoolParser's asm_mode for @ssub, the mode `skool2asm -s` renders in.
+SSUB_MODE = 2
 
 
 def asm_operations(skoolfile, case, base, create_labels, asm_labels, label_fmt, variables):
@@ -48,7 +36,7 @@ def asm_operations(skoolfile, case, base, create_labels, asm_labels, label_fmt, 
     that inserts or overwrites instructions makes the two parses disagree about
     what lives at that address, and there is then no one operand to copy.
     """
-    parser = SkoolParser(skoolfile, case=case, base=base, asm_mode=SUB_MODE,
+    parser = SkoolParser(skoolfile, case=case, base=base, asm_mode=SSUB_MODE,
                          create_labels=create_labels, asm_labels=asm_labels,
                          label_fmt=label_fmt, variables=variables)
     operations = {}

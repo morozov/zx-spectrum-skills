@@ -1,9 +1,10 @@
-; tap2sna.py config for {Game Title}. Build the pristine snapshot with:
+; tap2sna.py config for {Game Title}. Build the snapshot with:
 ;
-;   tap2sna.py @game.t2s --reg pc={PC} --reg sp={SP} game.pristine.z80
+;   tap2sna.py @src/game.t2s --reg pc={PC} --reg sp={SP} build/game.z80
 ;
-; The tape source can be a local file or a URL. Pin it with --tape-sum so the
-; build fails loudly if the dump ever changes.
+; The tape source is the image's download URL, from which the build fetches the
+; image. Pin it with --tape-sum so the build fails loudly if the dump ever
+; changes.
 
 https://example.net/Some%20Game.tzx
 --tape-sum 00000000000000000000000000000000

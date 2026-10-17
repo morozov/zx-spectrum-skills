@@ -8,7 +8,17 @@
 #   make gate     The same gate, logged, ending in one verdict line
 #   make coverage The "is it done?" gauge
 #   make html     Build the HTML site (needs the .ref files)
-#   make clean    Remove all generated files
+#   make clean    Remove all generated files (build/)
+#
+# A rule that renders a site file from the image writes into $(SITE_RENDERS) and
+# keeps its stamp in $(BUILD)/stamps/, for example:
+#
+#   RENDERS = $(BUILD)/stamps/renders.stamp
+#   $(RENDERS): tools/render.py $(BIN)
+#   	@mkdir -p $(dir $@)
+#   	python3 tools/render.py $(BIN) $(SITE_RENDERS)/renders
+#   	@touch $@
+#   $(HTML_DIR)/.stamp: $(RENDERS)
 
 GAME = game
 

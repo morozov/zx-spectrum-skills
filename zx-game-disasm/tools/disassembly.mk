@@ -42,10 +42,10 @@
 #                             and Google style guides; errors gate, the rest reports
 #   make lint-baseline        Re-record the gating checks' findings as the baseline
 #                             (it can only shrink the file; it fails on growth) and
-#                             stamp the gate it was recorded under into its header
+#                             record in it the gate it ran under
 #   make verify-frag FRAG=…  Round-trip one Worker fragment in isolation
-#   make tap      A loadable .tap of the fixed build — the disassembly as a
-#                 playable rebuild, not only a byte-check
+#   make tap      A loadable .tap of what the .asm assembles to — the disassembly
+#                 as a playable rebuild, not only a byte-check
 #   make clean    Remove all generated files
 #
 # The default `make` builds everything — the disassembly, the verified round-trip,
@@ -69,7 +69,6 @@ TAP2SNA    := tap2sna.py
 SNA2SKOOL  := sna2skool.py
 SKOOL2ASM  := skool2asm.py
 SKOOL2HTML := skool2html.py
-BIN2SNA    := bin2sna.py
 BIN2TAP    := bin2tap.py
 PASMO      := pasmo
 
@@ -82,7 +81,7 @@ TOOLS_BIN      := $(TOOLS_ASM) pasmo
 # What each goal can reach, so a goal is held to the tools it actually invokes.
 # `coverage` and the .ctl linters run on SkoolKit alone and build on a machine
 # with no assembler at all; `bin2tap.py` belongs to `tap` and to nothing else.
-TOOLS_all                 := $(TOOLS_BIN) bin2sna.py skool2html.py
+TOOLS_all                 := $(TOOLS_BIN) skool2html.py
 TOOLS_test                := $(TOOLS_BIN)
 TOOLS_tap                 := $(TOOLS_BIN) bin2tap.py
 TOOLS_verify-frag         := $(TOOLS_BIN)
@@ -128,7 +127,7 @@ MISSING_TOOLS := $(strip $(foreach t,$(REQUIRED_TOOLS),\
     $(if $(shell command -v '$(t)' 2>/dev/null),,$(t))))
 ifneq ($(MISSING_TOOLS),)
 $(error toolchain incomplete — not executable on PATH: $(MISSING_TOOLS). \
-The SkoolKit tools come from the packages in requirements.txt)
+The SkoolKit tools come from the packages in tools/requirements.txt)
 endif
 endif
 
@@ -136,11 +135,16 @@ endif
 # label (below is ROM/screen, fixed). Per-game; override in the game Makefile.
 RELOC_FLOOR ?= 0x5B00
 
+SRC       ?= src
+BUILD     ?= build
+# Where a project's make rules write the site files they render from the image.
+SITE_RENDERS ?= $(BUILD)/resources
+
 # Source files (hand-edited)
-CTL = $(GAME).ctl
-T2S = $(GAME).t2s
+CTL = $(SRC)/$(GAME).ctl
+T2S = $(SRC)/$(GAME).t2s
 INI = skoolkit.ini
-REF = $(GAME).ref
+REF = $(SRC)/$(GAME).ref
 
 # Further .ctl files the disassembly is built from, if the project generates any
 # (a build script's sprite masks, say). Set it in the game Makefile as a plain
@@ -150,14 +154,12 @@ REF = $(GAME).ref
 CTL_EXTRA ?=
 
 # Generated files
-SKOOL         = $(GAME).skool
-Z80_PRISTINE  = $(GAME).pristine.z80
-Z80_FIXED     = $(GAME).fixed.z80
-BIN_PRISTINE  = $(GAME).pristine.bin
-BIN_NON_FIXED = $(GAME).non-fixed.bin
-BIN_FIXED     = $(GAME).fixed.bin
-ASM_NON_FIXED = $(GAME).non-fixed.asm
-ASM_FIXED     = $(GAME).asm
+SKOOL         = $(BUILD)/$(GAME).skool
+Z80           = $(BUILD)/$(GAME).z80
+BIN           = $(BUILD)/$(GAME).bin
+ASM           = $(BUILD)/$(GAME).asm
+ASM_BIN       = $(BUILD)/$(GAME).asm.bin
+HTML_DIR      = $(BUILD)/html
 
 .PHONY: lint-label-family lint-renames lint-deletion-scope diff-entries all gate gate-index hooks visual-review lint-html lint-html-layout tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-registers lint-images lint-comment-fit lint-baseline lint-array-elements lint-comments lint-prose coverage html
 
@@ -174,16 +176,16 @@ ASM_FIXED     = $(GAME).asm
 # checks below hold this line: a finding it does not list fails the build, and a
 # line it lists that the check no longer reports fails the build too, so a fix
 # takes its baseline entry with it. See `scripts/ctl_baseline.py`.
-BASELINE ?= lint-baseline.txt
+BASELINE ?= tools/lint-baseline.toml
 
 # `make` (the default) is the one verification gate: it drives the round-trip cmp,
 # the .ctl linters, and the HTML build (the only step that validates the .ref
 # catalogs). It is not slow, so there is no separate "verify" — use `make`.
 # `lint-html` is listed after `html` because its checks read what the build
 # produced: their subject is a directory of files rather than a text file. Its
-# own prerequisite is html/.stamp, so the order holds under `-j` too.
+# own prerequisite is $(HTML_DIR)/.stamp, so the order holds under `-j` too.
 # `lint-comment-fit` reads the built site for the same reason.
-all: $(ASM_FIXED) $(Z80_FIXED) test test-checks lint html lint-html lint-comment-fit
+all: $(ASM) test test-checks lint html lint-html lint-comment-fit
 
 # The same gate, with a result that cannot be misread.
 #
@@ -194,12 +196,12 @@ all: $(ASM_FIXED) $(Z80_FIXED) test test-checks lint html lint-html lint-comment
 # prints only when the checks pass and the review is approved. The exit status
 # stays the checks' own, so a build is never red for want of a review; the
 # pre-commit hook in tools/hooks is what refuses the commit. Under `-j` the HTML branch
-# can print `touch html/.stamp` while the asm branch is failing, so the tail of a
+# can print `touch $(HTML_DIR)/.stamp` while the asm branch is failing, so the tail of a
 # parallel build shows a success line for a red build; and a piped `make | tail`
 # hands the reader the pipeline's status, not make's. This runs the gate into a
 # log and ends with one verdict line, then exits with make's own status. Judge a
 # build by that status — never by what the output looks like.
-GATE_LOG = build/make.log
+GATE_LOG = $(BUILD)/gate.log
 
 # The generated files the gate would rebuild. `all` also depends on the phony
 # `test`, `lint` and `html`, whose recipes run on every invocation, so asking make
@@ -211,8 +213,7 @@ GATE_LOG = build/make.log
 # not say which of them rebuilt, so REBUILT claims no more than "at least one",
 # and the log is where a reader finds out which. Deleting one leaf artifact
 # rebuilds that leaf and nothing else, and REBUILT covers that case too.
-GATE_ARTIFACTS = $(Z80_PRISTINE) $(BIN_PRISTINE) $(SKOOL) $(ASM_NON_FIXED) \
-                 $(BIN_NON_FIXED) $(ASM_FIXED) $(BIN_FIXED) $(Z80_FIXED) html/.stamp
+GATE_ARTIFACTS = $(Z80) $(BIN) $(SKOOL) $(ASM) $(ASM_BIN) $(HTML_DIR)/.stamp
 
 # --- Which gate produced the verdict ------------------------------------------
 #
@@ -251,35 +252,32 @@ GATE_ARTIFACTS = $(Z80_PRISTINE) $(BIN_PRISTINE) $(SKOOL) $(ASM_NON_FIXED) \
 # disassembly rather than something to say.
 SKILL_HOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 
-# Prints `<declared>/<digest>` — the verdict adds the word `gate`, the baseline
-# header writes it as `# gate: `. The digest hashes the list of per-file hashes,
-# taken from inside $(SKILL_HOME) so the paths that go into it are relative and a
-# copy elsewhere on disk digests identically.
+# Prints the declared generation and the digest through the printf format $(1).
+# GATE_ID is `<declared>/<digest>`, which the verdict prints after the word
+# `gate`; the baseline stamp takes the two as separate arguments. The digest
+# hashes the list of per-file hashes, taken from inside $(SKILL_HOME) so the
+# paths that go into it are relative and a copy elsewhere on disk digests
+# identically.
 #
 # The file list travels NUL-separated end to end. A skill file whose name holds a
 # space splits into two arguments under a newline-separated `xargs`, both of them
 # unreadable, and `2>/dev/null` swallows the error — so the digest reads the same
 # before and after that file lands, which is the one thing it exists not to do.
-GATE_ID = { \
+gate_id = { \
       v=$$(awk '/^metadata:/{m=1;next} m&&/^[^ ]/{m=0} m&&$$1=="gate:"{print $$2;exit}' \
           '$(SKILL_HOME)/SKILL.md' 2>/dev/null); \
       sha=$$(command -v shasum >/dev/null 2>&1 && echo 'shasum -a 256' || echo 'sha256sum'); \
       d=$$(cd '$(SKILL_HOME)' 2>/dev/null && find tools scripts assets -type f ! -name '*.pyc' -print0 2>/dev/null \
           | LC_ALL=C sort -z | xargs -0 $$sha 2>/dev/null | $$sha 2>/dev/null | cut -c1-7); \
-      echo "$${v:-undeclared}/$${d:-unknown}"; }
+      printf '$(1)' "$${v:-undeclared}" "$${d:-unknown}"; }
+GATE_ID = $(call gate_id,%s/%s\n)
 
-# Record the gate a baseline was written under, in the baseline's own header,
-# beside the `# adopted:` declarations a reviewer already reads. That is what
-# makes an inherited baseline detectably stale instead of silently wrong: the gate
-# compares this line against the gate running now, and the verdict says so. The
-# line goes in ahead of the first finding, and a rewrite replaces it rather than
-# accumulating; a baseline that lists nothing yet gets it at the end.
-#
-# Every `#` in the awk program is escaped: an unescaped one in a variable
-# definition opens a make comment, and the program is then truncated mid-quote.
-stamp_baseline_gate = [ -f $(BASELINE) ] || exit 0; id=$$($(GATE_ID)); \
-      awk -v id="$$id" '/^\# gate: /{next} !stamped && !/^\#/{print "\# gate: " id; stamped=1} {print} END{if (!stamped) print "\# gate: " id}' \
-        $(BASELINE) > $(BASELINE).tmp && mv $(BASELINE).tmp $(BASELINE)
+# Record the gate a baseline was written under, in the baseline itself, beside
+# the `adopted` declarations a reviewer already reads. That is what makes an
+# inherited baseline detectably stale instead of silently wrong: the gate compares
+# this value against the gate running now, and the verdict says so.
+stamp_baseline_gate = [ -f $(BASELINE) ] || exit 0; \
+      $(SCRIPTS)/ctl_baseline.py stamp $(BASELINE) $$($(call gate_id,%s %s))
 
 # --- What a red verdict leads with --------------------------------------------
 #
@@ -329,7 +327,7 @@ gate:
 	  if [ -n "$$lintfail" ] && [ $$lintseen -lt $(LINT_TOTAL) ]; then \
 	    lintfail="$$lintfail The log accounts for $$lintseen of the gate's $(LINT_TOTAL) checks — no sweep reports the other $$(($(LINT_TOTAL)-lintseen)), so they did not run. That count is a floor, not the distance to green."; \
 	  fi; \
-	  was=$$(sed -n 's/^# gate: *//p' $(BASELINE) 2>/dev/null | head -1); \
+	  was=$$($(SCRIPTS)/ctl_baseline.py gate $(BASELINE) 2>/dev/null); \
 	  drift=''; absent=''; \
 	  if [ ! -f $(BASELINE) ]; then \
 	    absent=" There is no $(BASELINE) in this tree, so this run accepted nothing — a commit that predates the project's baseline fails a gating check the way a regression does; see the gate-boundary rule in references/build-verify.md."; \
@@ -366,37 +364,33 @@ gate:
 # so a Worker can self-check before reporting; the Manager still proves the
 # integrated result with the full `make`. The multi-step logic lives in the script
 # so this recipe stays one line. Usage: make verify-frag FRAG=build/frags/my.ctl
-#
-# $(ASM_FIXED_FLAGS) goes last and unquoted: it is the same flag list the
-# fixed-asm rule below passes, so the fragment check gates on exactly what the
-# Manager's `make` will, and a project that has opted out (empty) expands to no
-# argument here just as it does there.
-verify-frag: $(Z80_PRISTINE) $(BIN_PRISTINE)
-	@$(SCRIPTS)/verify_fragment.sh "$(CTL)" "$(FRAG)" "$(Z80_PRISTINE)" "$(BIN_PRISTINE)" "$(SCRIPTS)" "$(BASELINE)" "$(ORG)" "$(RELOC_FLOOR)" "$(SIZE)" $(ASM_FIXED_FLAGS)
+verify-frag: $(Z80) $(BIN)
+	@$(SCRIPTS)/verify_fragment.sh "$(CTL)" "$(FRAG)" "$(Z80)" "$(BIN)" "$(SCRIPTS)" "$(BASELINE)" "$(ORG)" "$(RELOC_FLOOR)" "$(SIZE)"
 
-# Download and convert the original tape to the pristine snapshot.
-$(Z80_PRISTINE): $(T2S)
-	$(TAP2SNA) @$(T2S) --reg pc=$(PC) --reg sp=$(SP) $(Z80_PRISTINE)
+# Load the game from its tape into a snapshot.
+$(Z80): $(T2S)
+	@mkdir -p $(dir $@)
+	$(TAP2SNA) @$(T2S) --reg pc=$(PC) --reg sp=$(SP) $(Z80)
 
-# Extract the program bytes from the pristine snapshot (the ground truth).
-$(BIN_PRISTINE): $(Z80_PRISTINE)
-	$(SCRIPTS)/extract_bytes.py $(Z80_PRISTINE) $(ORG) $(SIZE) $@
+# Extract the program bytes from the snapshot (the ground truth).
+$(BIN): $(Z80)
+	$(SCRIPTS)/extract_bytes.py $(Z80) $(ORG) $(SIZE) $@
 
 # Disassemble the snapshot into skool, applying the control file.
 # sna2skool warns and continues when it cannot place a .ctl line — a hard-wrapped
 # directive loses every line after the first this way, and the truncated comment
 # then passes every downstream check, because from their point of view the text
 # simply is not there. Fail here instead, the way the asm render already does.
-$(SKOOL): $(Z80_PRISTINE) $(CTL) $(CTL_EXTRA)
-	@$(SNA2SKOOL) --hex $(Z80_PRISTINE) --ctl $(CTL) $(addprefix --ctl ,$(CTL_EXTRA)) \
+$(SKOOL): $(Z80) $(CTL) $(CTL_EXTRA)
+	@$(SNA2SKOOL) --hex $(Z80) --ctl $(CTL) $(addprefix --ctl ,$(CTL_EXTRA)) \
 	    > $@.tmp 2> $@.stderr; rc=$$?; \
 	if grep -q 'Ignoring line' $@.stderr; then rc=1; fi; \
 	if [ $$rc -ne 0 ]; then cat $@.stderr >&2; rm -f $@.tmp $@.stderr; exit $$rc; fi; \
 	cat $@.stderr; rm -f $@.stderr; mv $@.tmp $@
 
-# The round-trip: reassembled non-fixed bytes must equal the pristine bytes.
-test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
-	cmp $(BIN_PRISTINE) $(BIN_NON_FIXED)
+# The round-trip: the bytes the .asm assembles to must equal the game's.
+test: $(BIN) $(ASM_BIN)
+	cmp $(BIN) $(ASM_BIN)
 
 # --- Running every check, and reporting every one that failed -----------------
 #
@@ -435,15 +429,16 @@ test: $(BIN_PRISTINE) $(BIN_NON_FIXED)
 #
 # A check that needs a built prerequisite is held by the prerequisites of the
 # target it runs under, never by anything inside the loop: if the .skool or the
-# pristine image cannot be built the recipe never starts, and make reports the
+# game image cannot be built the recipe never starts, and make reports the
 # build failure. That is the one thing this must not get wrong — a check that
 # never ran must never be reported as a check with no findings.
 #
 # `lint-images` reads what the HTML build wrote and so cannot run beside the
-# rest; it runs in a sweep of its own after `html`. Every sweep the gate runs
-# ends in one `LINT PASS:`/`LINT FAIL:` line in the same format, and the gate
-# adds up every such line it finds — so a verdict counts every check even
-# though they ran in separate sweeps.
+# rest. It shares the `lint-html` sweep with `html-layout`, after `html`, and
+# `comment-fit` has a sweep of its own. Each of the gate's three sweeps ends in
+# one `LINT PASS:`/`LINT FAIL:` line in the same format, and the gate adds up
+# every such line it finds — so a verdict counts every check even though they
+# ran in three places.
 LINT_CHECKS = address-order instruction-order lengths label-length identity \
               data-structure publication names byte-counts array-elements registers \
               comments label-namespace terms
@@ -456,7 +451,7 @@ AGENTS_FILE := $(wildcard AGENTS.md)
 CHECK_label-family = $(SCRIPTS)/validate_label_family.py $(CTL) --agents AGENTS.md --baseline $(BASELINE)
 lint-label-family: $(CTL)
 	$(CHECK_label-family)
-CHECK_renames = $(SCRIPTS)/validate_renames.py $(CTL) --registry glossary.ref $(if $(AGENTS_FILE),--agents AGENTS.md)
+CHECK_renames = $(SCRIPTS)/validate_renames.py $(CTL) --registry $(SRC)/glossary.ref $(if $(AGENTS_FILE),--agents AGENTS.md)
 lint-renames: $(CTL)
 	$(CHECK_renames)
 lint-deletion-scope:
@@ -491,7 +486,7 @@ LINT_TOTAL = $(words $(LINT_CHECKS) $(LINT_HTML_CHECKS) comment-fit)
 # reported as its own clause.
 LINT_SWEEP = . $(SCRIPTS)/lint_sweep.sh
 
-lint: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL)
+lint: $(CTL) $(CTL_EXTRA) $(BIN) $(SKOOL)
 	@$(LINT_SWEEP); lint_begin; \
 	$(foreach c,$(LINT_CHECKS),lint_run $(c) $(CHECK_$(c));) \
 	lint_report $(words $(LINT_CHECKS))
@@ -576,9 +571,9 @@ lint-label-namespace: $(CTL) $(SKOOL)
 # the bytes, and a linter that silently skips half its checks is worse than one
 # that is not wired up at all.
 CHECK_data-structure = $(SCRIPTS)/validate_ctl_data_structure.py $(CTL) \
-    --bin $(BIN_PRISTINE) --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
+    --bin $(BIN) --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
     --baseline $(BASELINE) $(if $(AGENTS_FILE),--families AGENTS.md)
-lint-data-structure: $(CTL) $(BIN_PRISTINE)
+lint-data-structure: $(CTL) $(BIN)
 	$(CHECK_data-structure)
 
 # What the .ctl publishes as pages, rather than what any one entry declares.
@@ -652,21 +647,21 @@ lint-registers: $(CTL)
 # It runs through the same sweep as the other checks, so its findings reach the
 # verdict the way theirs do. Reporting it as "the build failed" would put the
 # one check whose subject is an outcome back behind a truncated tail.
-CHECK_images = $(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
+CHECK_images = $(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html $(HTML_DIR) \
     --baseline $(BASELINE)
-lint-images: html/.stamp
+lint-images: $(HTML_DIR)/.stamp
 	@$(LINT_SWEEP); lint_begin; lint_run images $(CHECK_images); lint_report 1
 
 # Two layout defects only a browser sees, gated over every built page: a heading
 # that wraps past 1.5 lines at 1280 px, and an image set into a block that holds
 # more than three words of running text outside the image's own table cell. With
 # no Chrome the check exits as one that could not run, never as clean.
-CHECK_html-layout = $(SCRIPTS)/check_html_layout.py html --baseline $(BASELINE)
-lint-html-layout: html/.stamp
+CHECK_html-layout = $(SCRIPTS)/check_html_layout.py $(HTML_DIR) --baseline $(BASELINE)
+lint-html-layout: $(HTML_DIR)/.stamp
 	@$(LINT_SWEEP); lint_begin; lint_run html-layout $(CHECK_html-layout); lint_report 1
 
 # Every check over the built site, in one sweep.
-lint-html: html/.stamp
+lint-html: $(HTML_DIR)/.stamp
 	@$(LINT_SWEEP); lint_begin; \
 	$(foreach c,$(LINT_HTML_CHECKS),lint_run $(c) $(CHECK_$(c));) \
 	lint_report $(words $(LINT_HTML_CHECKS))
@@ -679,8 +674,8 @@ lint-html: html/.stamp
 # list is the to-do list for the notes worth shortening. The script exits 0
 # whatever it finds, and says so when it skips for want of Chrome or of a
 # grouped listing, so this check is never red unless the script itself crashes.
-CHECK_comment-fit = $(SCRIPTS)/report_comment_fit.py html
-lint-comment-fit: html/.stamp
+CHECK_comment-fit = $(SCRIPTS)/report_comment_fit.py $(HTML_DIR)
+lint-comment-fit: $(HTML_DIR)/.stamp
 	@$(LINT_SWEEP); lint_begin; lint_run comment-fit $(CHECK_comment-fit); lint_report 1
 
 # Re-record the gating checks' findings as the project's accepted baseline. Run it
@@ -715,11 +710,11 @@ sift_baseline_status = s=$$?; \
         echo "make lint-baseline: the check above exited $$s without recording anything — that is not a refusal, it is a check that could not run."; \
         exit $$s; fi
 
-lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
+lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN) $(SKOOL) $(HTML_DIR)/.stamp
 	@refused=0; \
 	$(SCRIPTS)/validate_ctl_identity.py $(CTL) --skool $(SKOOL) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
-	$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN_PRISTINE) \
+	$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN) \
 	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) $(if $(AGENTS_FILE),--families AGENTS.md) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_label_family.py $(CTL) --agents AGENTS.md \
@@ -735,13 +730,13 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN_PRISTINE) $(SKOOL) html/.stamp
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_array_elements.py $(CTL) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
-	$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html html \
+	$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html $(HTML_DIR) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) $(if $(AGENTS_FILE),--families AGENTS.md) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_label_namespace.py $(CTL) --skool $(SKOOL) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
-	$(SCRIPTS)/check_html_layout.py html \
+	$(SCRIPTS)/check_html_layout.py $(HTML_DIR) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	[ $$refused -eq 0 ] || { echo "make lint-baseline: a check refused to record a key $(BASELINE) does not list, so it keeps what it said — the gate still fails on the finding."; exit $(BASELINE_REFUSED); }
 	@$(stamp_baseline_gate)
@@ -782,7 +777,7 @@ lint-array-elements: $(CTL)
 # The catalogs and the spec pages are passed too: they reach the same reader as
 # the .skool, so the DIARY sweep covers them. An unswept .ref is where a claim
 # sourced from a run survives.
-REFS  = $(wildcard *.ref)
+REFS  = $(wildcard $(SRC)/*.ref)
 PROSE = $(REFS) $(wildcard spec/*.md)
 
 CHECK_comments = $(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) \
@@ -797,8 +792,8 @@ lint-comments: $(SKOOL)
 # catches the ones that need only the *sentence*, and the difference matters: the
 # sentence-level rules are the technical-writing profession's, they are already
 # written, and every one this project hand-rolled is one it has to maintain. Vale
-# ships the Microsoft and Google style guides as executable rules; `styles/ZXDisasm`
-# (from the skill's `assets/`) adds the few this domain needs and `.vale.ini`
+# ships the Microsoft and Google style guides as executable rules; the skill's
+# `assets/styles/ZXDisasm` adds the few this domain needs and `assets/vale.ini`
 # switches off the ones that fire on a disassembly rather than on its prose.
 #
 # Vale reads neither a `.skool` nor a `.ctl` — it lints Markdown and the comments
@@ -810,15 +805,17 @@ lint-comments: $(SKOOL)
 # Advisory in the same sense as `lint-comments`: `--fail-on error` gates on the
 # errors while the report still carries the warnings and suggestions.
 # `Microsoft.SentenceLength` is a suggestion by design — it is meant to be read,
-# not obeyed. Run `vale sync` once in the project root to fetch the packages.
-PROSE_MD  = .prose/prose.md
-PROSE_MAP = .prose/prose.map.json
+# not obeyed. Run `vale sync --config <skill>/assets/vale.ini` once to fetch the
+# packages into the skill.
+VALE_INI  = $(SKILL_HOME)/assets/vale.ini
+PROSE_MD  = $(BUILD)/prose/prose.md
+PROSE_MAP = $(BUILD)/prose/prose.map.json
 
 $(PROSE_MD): $(SKOOL) $(CTL) $(PROSE)
 	@mkdir -p $(dir $(PROSE_MD))
 	$(SCRIPTS)/extract_prose.py --out $(PROSE_MD) --map $(PROSE_MAP) $(SKOOL) $(PROSE)
 
-CHECK_prose = $(SCRIPTS)/vale_report.py $(PROSE_MD) --map $(PROSE_MAP)
+CHECK_prose = $(SCRIPTS)/vale_report.py $(PROSE_MD) --map $(PROSE_MAP) --config $(VALE_INI)
 lint-prose: $(PROSE_MD)
 	$(CHECK_prose)
 
@@ -830,61 +827,37 @@ lint-prose: $(PROSE_MD)
 #
 # It also reads the two things the *gate* knows — the baseline it holds and the
 # images the build wrote — so the gauge cannot call a project done while the gate
-# is passing it on recorded credit. Both are auto-discovered beside the skool,
-# along with the .ctl and every *.ref.
+# is passing it on recorded credit. The recipe passes both, with the .ctl and
+# every .ref.
 coverage: $(SKOOL)
-	$(SCRIPTS)/coverage_report.py $(SKOOL) --reloc-floor $(RELOC_FLOOR)
+	$(SCRIPTS)/coverage_report.py $(SKOOL) --project . --ctl $(CTL) $(addprefix --ref ,$(REFS)) --reloc-floor $(RELOC_FLOOR) \
+	    --baseline $(BASELINE) --html $(HTML_DIR)
 
-# Non-fixed source: must already match the original (no @ofix applied).
+# The source, rendered in @ssub mode: `-s` puts every in-image operand through
+# its @ssub/@equ form, so `coverage` reports RELOCATABLE = 0.
 #
 # The build treats a skool2asm WARNING as fatal, so its stderr is captured and
 # grepped — but an error is not a warning (`ERROR: … file not found`, rc=1), so
 # the grep alone lets a failed run's partial stdout reach $@ under a green recipe.
 # The exit status decides first; the grep only adds the warnings on top of it.
 # Nothing moves onto $@ until both say the run was clean.
-$(ASM_NON_FIXED): $(SKOOL)
-	@$(SKOOL2ASM) --create-labels $(SKOOL) > $@.tmp 2> $@.stderr; rc=$$?; \
+$(ASM): $(SKOOL)
+	@$(SKOOL2ASM) --create-labels -s $(SKOOL) > $@.tmp 2> $@.stderr; rc=$$?; \
 	if grep -q WARNING $@.stderr; then rc=1; fi; \
 	if [ $$rc -ne 0 ]; then cat $@.stderr >&2; rm -f $@.tmp $@.stderr; exit $$rc; fi; \
 	rm -f $@.stderr; mv $@.tmp $@
 
-$(BIN_NON_FIXED): $(ASM_NON_FIXED)
-	$(PASMO) --bin $(ASM_NON_FIXED) $@
-
-# Fixed source: applies @isub/@ofix directives. The fixed asm renders relocatably
-# by default — `-s` puts every in-image operand through its @ssub/@equ form and
-# strictly gates that no raw in-image reference remains, so `coverage` reports
-# RELOCATABLE = 0. This is the standard, not a per-project opt-in. `-s` fails on
-# any unresolved in-image operand, so a project still in the breadth/labeling
-# sweep opts OUT until the sweep is done by setting `ASM_FIXED_FLAGS =` (empty) in
-# its Makefile, then removes that line to restore the standard gate.
-#
-# This is the one place the flags are stated. `verify-frag` reads the same
-# variable, and renders and assembles the fixed source the same way this rule and
-# $(BIN_FIXED) do, so a Worker's self-check and the Manager's `make` gate a
-# fragment identically — strict where the project is strict, permissive where it
-# has opted out.
-ASM_FIXED_FLAGS ?= -s
-$(ASM_FIXED): $(SKOOL)
-	@$(SKOOL2ASM) --create-labels -f 1 $(ASM_FIXED_FLAGS) $(SKOOL) > $@.tmp 2> $@.stderr; rc=$$?; \
-	if grep -q WARNING $@.stderr; then rc=1; fi; \
-	if [ $$rc -ne 0 ]; then cat $@.stderr >&2; rm -f $@.tmp $@.stderr; exit $$rc; fi; \
-	rm -f $@.stderr; mv $@.tmp $@
-
-$(BIN_FIXED): $(ASM_FIXED)
+$(ASM_BIN): $(ASM)
 	$(PASMO) --bin $< $@
 
-$(Z80_FIXED): $(BIN_FIXED)
-	$(BIN2SNA) --border 0 --org $(ORG) --start $(PC) --stack $(SP) $< $@
-
-# The documented source as a runnable deliverable: wrap the fixed program image
-# into a tape anyone can load. Kept out of `all` — it is a shipping artifact,
+# The documented source as a runnable deliverable: wrap what the .asm assembles
+# to into a tape anyone can load. Kept out of `all` — it is a shipping artifact,
 # not a gate.
-TAP_FIXED = $(GAME).fixed.tap
+TAP = $(BUILD)/$(GAME).tap
 
-tap: $(TAP_FIXED)
+tap: $(TAP)
 
-$(TAP_FIXED): $(BIN_FIXED)
+$(TAP): $(ASM_BIN)
 	$(BIN2TAP) --org $(ORG) --start $(PC) --stack $(SP) $< $@
 
 # Every site ships the skill's default theme: dark responsive layout, the listing
@@ -895,12 +868,13 @@ $(TAP_FIXED): $(BIN_FIXED)
 # (StyleSheet=skoolkit.css;theme.css;$(GAME).css). `-a` renders operands as
 # label names — `CALL draw_sprite`, never `CALL $F0A2`.
 #
-# The theme ref is parsed LAST, after every project ref, and last wins. Reading
-# the ref list is built in skool2html.py:183-196: glob($(GAME)*.ref) in the skool
-# file's directory first, with $(GAME).ref forced to the front; then the files
-# named in [Config] RefFiles; then the ref files on the command line. Passing
-# $(REF) after $(THEME)/theme.ref below changes nothing — parse_ref_files skips a
-# path already in the list, and $(GAME).ref entered it in the glob pass.
+# The theme ref is parsed LAST, after every project ref, and last wins.
+# skool2html.py:183-196 globs $(GAME)*.ref and reads [Config] (RefFiles, GameDir)
+# only in the skool file's directory, and the skool lives in $(BUILD), so the
+# recipe passes what that discovery would have found: $(GAME).ref first, the
+# other $(GAME)*.ref, then the files [Config] RefFiles names, in its order, then
+# the theme. GameDir is passed with -c, which skool2html applies before it reads
+# it (skool2html.py:192): the project's own [Config] GameDir, else $(GAME).
 #
 # So restating a parameter does NOT override the theme. refparser.py:30-33: a
 # plain [Section] REPLACES what earlier refs built, a [Section+] extends it, and
@@ -921,24 +895,16 @@ THEME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../assets)
 # second time in ASM mode and copies the operand text across, so the listing and
 # the .asm read alike. A project that needs an InitModule of its own must import
 # this one from it: the last [Config] value wins, and this is passed last.
-#
-# The wrapper parses in the sub mode $(ASM_FIXED_FLAGS) renders the fixed source
-# in, so a project that has opted out of `-s` while it labels the map does not
-# get @ssub operands on the page and not in the file it ships beside.
-# It reads the mode from the environment rather than the command line, so the
-# recipe stays a plain command and make 3.81's shell-less fast path cannot lose a
-# variable assignment prefixed to it (see "The toolchain" above).
-HTML_SUBS := $(SCRIPTS)/html_operand_subs.py
+HTML_SUBS := $(SCRIPTS)/html/operand_subs.py
 # Every $-hex value in the site's text is wrapped in span.hex, which the theme sets
-# in the monospace face. It runs after skool2html, inside the html/.stamp recipe,
+# in the monospace face. It runs after skool2html, inside the $(HTML_DIR)/.stamp recipe,
 # so no page ships without it and a rebuilt page is never left unwrapped.
-HTML_HEX := $(SCRIPTS)/html_hex_mono.py
+HTML_HEX := $(SCRIPTS)/html/hex_mono.py
 # Every label and constant name in the site's prose is wrapped in span.sym, so a
 # name without a link sets in the same face as a linked one. It runs after the
 # hex pass, in the same recipe; it reads the labels off the built pages and the
 # constants off the skool file's @equ directives.
-HTML_SYM := $(SCRIPTS)/html_sym_mono.py
-export SKOOL_HTML_SUB_MODE := $(if $(filter -r,$(ASM_FIXED_FLAGS)),3,$(if $(filter -s,$(ASM_FIXED_FLAGS)),2,1))
+HTML_SYM := $(SCRIPTS)/html/sym_mono.py
 
 # [Game] JavaScript is a single key, so a ref file that names theme.js owns the
 # whole slot and a project can ship none of its own. Composing it here instead
@@ -947,21 +913,29 @@ export SKOOL_HTML_SUB_MODE := $(if $(filter -r,$(ASM_FIXED_FLAGS)),3,$(if $(filt
 #
 #   HTML_JS = maps.js;search.js
 #
-# Name each file in [Resources] (or keep it in the -S search path) so skool2html
-# copies it onto the site.
+# Name each file in [Resources] so skool2html copies it onto the site. A project
+# keeps its hand-made site files in resources/, a directory skool2html searches
+# by default (skool2html.py SEARCH_DIRS), and its rendered ones in
+# $(SITE_RENDERS), which the recipe adds with -S. A [Resources] path is relative
+# to either.
 HTML_JS ?=
 HTML_JAVASCRIPT := theme.js$(if $(HTML_JS),;$(HTML_JS))
 
-html: html/.stamp
+HTML_REF_FILES := $(shell sed -n 's/^RefFiles=//p' $(REF) 2>/dev/null | tr ';' ' ')
+HTML_GAME_DIR := $(or $(shell sed -n 's/^GameDir=//p' $(REF) 2>/dev/null),$(GAME))
+HTML_REFS := $(REF) $(filter-out $(REF),$(sort $(wildcard $(SRC)/$(GAME)*.ref)))
+HTML_REFS += $(filter-out $(HTML_REFS),$(addprefix $(SRC)/,$(HTML_REF_FILES)))
 
-html/.stamp: $(SKOOL) $(wildcard *.ref) $(wildcard *.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS) $(HTML_HEX) $(HTML_SYM)
-	$(SKOOL2HTML) -d html -H -a -c "Config/InitModule=$(SCRIPTS):html_operand_subs" -c "Game/JavaScript=$(HTML_JAVASCRIPT)" --rebuild-images --rebuild-audio -S $(THEME) $(SKOOL) $(THEME)/theme.ref $(REF)
-	$(HTML_HEX) html
-	$(HTML_SYM) html $(SKOOL)
+html: $(HTML_DIR)/.stamp
+
+$(HTML_DIR)/.stamp: $(SKOOL) $(wildcard $(SRC)/*.ref) $(wildcard resources/*.css resources/*.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS) $(HTML_HEX) $(HTML_SYM)
+	$(SKOOL2HTML) -d $(HTML_DIR) -H -a -c "Config/InitModule=$(SCRIPTS)/html:operand_subs" -c "Config/GameDir=$(HTML_GAME_DIR)" -c "Game/JavaScript=$(HTML_JAVASCRIPT)" --rebuild-images --rebuild-audio -S $(THEME) -S $(SITE_RENDERS) $(SKOOL) $(HTML_REFS) $(THEME)/theme.ref
+	$(HTML_HEX) $(HTML_DIR)
+	$(HTML_SYM) $(HTML_DIR) $(SKOOL)
 	touch $@
 
 clean:
-	rm -rf html .prose *.asm *.bin *.skool *.z80
+	rm -rf $(BUILD)
 
 # --- Review: the record, the hooks, the screenshots ---------------------------
 #
@@ -979,19 +953,19 @@ hooks:
 # applied to a fresh worktree of HEAD under build/, and the gate runs there.
 # The REVIEW clause reads this repository's records, so it reports the review of
 # the staged diff.
-GATE_INDEX_DIR = build/gate-index
+GATE_INDEX_DIR = $(BUILD)/gate-index
 gate-index:
 	@top=$$(git rev-parse --show-toplevel) && wt="$$top/$(GATE_INDEX_DIR)" && \
 	  git worktree remove --force "$$wt" >/dev/null 2>&1; rm -rf "$$wt"; git worktree prune; \
 	  git worktree add --detach -q "$$wt" HEAD && \
 	  { git diff --cached --binary | (cd "$$wt" && git apply --index --allow-empty) ; } && \
 	  echo "gate-index: the staged index applied to HEAD in $$wt; paths below are relative to it." && \
-	  REVIEW_RECORD_DIR="$$top/build/review" \
+	  REVIEW_RECORD_DIR="$$top/$(BUILD)/review" \
 	  $(MAKE) --no-print-directory -C "$$wt/$$(git rev-parse --show-prefix)" gate \
 	      SKILL='$(SKILL_HOME)'
 
 # One screenshot of each page kind at 1280 px, for the review record's
 # `screenshots` field. A COMMIT record for a stylesheet or theme change needs one.
-SCREENSHOTS_DIR = build/review/screenshots
-visual-review: html/.stamp
-	@$(SCRIPTS)/check_html_layout.py html --screenshot $(SCREENSHOTS_DIR)
+SCREENSHOTS_DIR = $(BUILD)/review/screenshots
+visual-review: $(HTML_DIR)/.stamp
+	@$(SCRIPTS)/check_html_layout.py $(HTML_DIR) --screenshot $(SCREENSHOTS_DIR)

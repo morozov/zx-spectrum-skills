@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fixture for scripts/ctl_baseline.py: can a regeneration grow lint-baseline.txt?
+# Fixture for scripts/ctl_baseline.py: can a regeneration grow lint-baseline.toml?
 #
 # The file records the debt a check inherited when it landed, never debt taken on
 # afterwards, so `--write-baseline` must refuse a rewrite that adds a key. The
@@ -19,16 +19,16 @@
 # check whose wording drifts rewrites without reading as growth.
 #
 # Adoption is the one legitimate growth - a project recording what a check finds
-# the first time it runs there. It needs `--adopt`, it is recorded as an
-# `# adopted:` line in the file's own header, and it is refused for anything that
-# header already declares. That is what the last three cases are for: a check
-# whose findings were all fixed owns no line, exactly as a check that never ran
-# here owns none, so while adoption was read off the lines a clean check was
-# adoptable and the forbidden sequence worked one flag deeper.
+# the first time it runs there. It needs `--adopt`, it is recorded as an entry
+# in the file's `adopted` list, and it is refused for anything that list already
+# declares. That is what the last three cases are for: a check whose findings
+# were all fixed owns no finding, exactly as a check that never ran here owns
+# none, so while adoption was read off the findings a clean check was adoptable
+# and the forbidden sequence worked one flag deeper.
 #
 # `--adopt-kind` is the second granularity, for a kind the check itself gained
 # after the project adopted it. Its findings predate the kind by construction, so
-# they are inherited debt arriving under a name the header already declares.
+# they are inherited debt arriving under a name the file already declares.
 #
 # Nothing is assembled: every check here reads .ctl text. `make lint-baseline`
 # propagating the status is not exercised here - that needs a built project - see
@@ -47,7 +47,7 @@
 #      identity finding cleared:           accepted, and the inherited line drops
 #      finding on the now-clean identity,
 #        with --adopt:                     REFUSED, identity is declared
-#      a kind the header never declared:   REFUSED without a flag; accepted with
+#      a kind the file never declared:     REFUSED without a flag; accepted with
 #                                          `--adopt-kind UNTITLED_ENTRY`
 #      a second finding of that kind:      REFUSED, the kind is declared
 #   -> `baseline-monotonic: OK`, exit 0
@@ -85,9 +85,9 @@ fail=0
 run() { # <what> <expected-status: accept|refuse> <check> <extra args...>
     local what="$1" want="$2" check="$3"; shift 3
     local status
-    cp lint-baseline.txt before.txt 2>/dev/null || : > before.txt
+    cp lint-baseline.toml before.txt 2>/dev/null || : > before.txt
     set +e
-    OUT="$(python3 "$check" probe.ctl --baseline lint-baseline.txt \
+    OUT="$(python3 "$check" probe.ctl --baseline lint-baseline.toml \
                    --write-baseline "$@" 2>&1)"; status=$?
     set -e
     if [ "$want" = accept ] && [ $status -eq 0 ]; then
@@ -112,19 +112,19 @@ want_not_in() { # <what> <needle>
 # A refused first regeneration must not create the file either, so "unchanged"
 # has to cover the case where it does not exist yet.
 want_unchanged() { # <what>
-    if [ "$(cat lint-baseline.txt 2>/dev/null || true)" = "$(cat before.txt)" ]; then
+    if [ "$(cat lint-baseline.toml 2>/dev/null || true)" = "$(cat before.txt)" ]; then
         echo "PASS  $1: wrote nothing"
     else echo "FAIL  $1: the baseline was rewritten"; fail=1; fi
 }
 want_lines() { # <what> <check> <count>
-    local got; got="$(grep -c "^$2 " lint-baseline.txt || true)"
+    local got; got="$(grep -c "^check = \"$2\"\$" lint-baseline.toml || true)"
     if [ "$got" = "$3" ]; then echo "PASS  $1"
-    else echo "FAIL  $1: $2 owns $got line(s), wanted $3"; fail=1; fi
+    else echo "FAIL  $1: $2 owns $got finding(s), wanted $3"; fail=1; fi
 }
 want_declared() { # <what> <entry> <count>
-    local got; got="$(grep -c "^# adopted: $2\$" lint-baseline.txt || true)"
+    local got; got="$(grep -c "^  \"$2\",\$" lint-baseline.toml || true)"
     if [ "$got" = "$3" ]; then echo "PASS  $1"
-    else echo "FAIL  $1: the header declares \"$2\" $got time(s), wanted $3"; fail=1; fi
+    else echo "FAIL  $1: the adopted list declares \"$2\" $got time(s), wanted $3"; fail=1; fi
 }
 
 # --- adoption: the one growth that is not debt taken on -----------------------
@@ -188,7 +188,7 @@ sed -i.bak 's/Clear 163 bytes of tile map./Clear the 163-byte tile map./' probe.
 run "byte-counts, message reworded" accept "$BYTE_COUNTS"
 want_not_in "reword: not read as growth" "REFUSED"
 want_lines  "reword: the section did not grow" byte-counts 1
-OUT="$(cat lint-baseline.txt)"
+OUT="$(cat lint-baseline.toml)"
 want_in     "reword: the recorded message followed the wording" "'163-byte'"
 
 # --- clear the finding, and the regeneration passes ---------------------------
@@ -203,16 +203,16 @@ want_lines "cleared: byte-counts is untouched" byte-counts 1
 
 # --- a clean check is adopted, and a clean check cannot grow -------------------
 
-# identity now owns no line at all. That is the state the header exists for:
-# owning nothing means "never ran here" and "ran and came back clean" equally, so
-# while adoption was inferred from the lines, --adopt walked a finding straight
+# identity now owns no finding at all. That is the state the adopted list exists
+# for: owning nothing means "never ran here" and "ran and came back clean" equally, so
+# while adoption was inferred from the findings, --adopt walked a finding straight
 # into a clean check's section - the forbidden sequence, one flag deeper. The
 # declaration says which of the two it is, and identity is declared.
 sed 's/^B \$F009,2$/@ $F009 label=player_pos\nB $F009,1\nB $F00A,1/' base.ctl > probe.ctl
 run "new finding on a clean check, with --adopt" refuse "$IDENTITY" --adopt
 want_in "clean check: names the added key" "+ identity UNDESCRIBED \$F00A"
 want_in "clean check: refuses on the declaration, not on the line count" \
-        "# adopted: identity"
+        '`"identity"`'
 want_unchanged "clean check with --adopt"
 
 # --- a kind the check gained later is adopted once, by name -------------------
@@ -232,17 +232,17 @@ b $F009
 B $F009,2
 i $F00B
 EOF
-run "a kind the header does not declare, no flag" refuse "$IDENTITY"
+run "a kind the file does not declare, no flag" refuse "$IDENTITY"
 want_in "new kind: names the added key" "+ identity UNTITLED_ENTRY \$F009"
 
 run "adopt the new kind by name" accept "$IDENTITY" --adopt-kind UNTITLED_ENTRY
 want_in    "adopt-kind: declares the kind, not the check" \
-           "# adopted: identity UNTITLED_ENTRY"
+           '`"identity UNTITLED_ENTRY"`'
 want_lines    "adopt-kind: records the kind's finding" identity 1
-want_declared "adopt-kind: the header carries the kind" "identity UNTITLED_ENTRY" 1
+want_declared "adopt-kind: the adopted list carries the kind" "identity UNTITLED_ENTRY" 1
 want_declared "adopt-kind: the check stays declared once" "identity" 1
 
-# A second finding of a kind the header now declares is growth like any other.
+# A second finding of a kind the file now declares is growth like any other.
 cat > probe.ctl <<'EOF'
 @ $F000 start
 @ $F000 org
@@ -260,7 +260,7 @@ i $F00D
 EOF
 run "a second finding of the adopted kind" refuse "$IDENTITY" --adopt-kind UNTITLED_ENTRY
 want_in "adopted kind: refused, it only shrinks from here" \
-        "identity UNTITLED_ENTRY\` is declared in the header already"
+        "identity UNTITLED_ENTRY\` is declared in the file already"
 want_unchanged "second finding of the adopted kind"
 
 [ $fail -eq 0 ] || { echo "baseline-monotonic: FAILED"; exit 1; }
