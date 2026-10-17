@@ -34,7 +34,7 @@ READY TO COMMIT
 
 `gate N/e70342a` is the gate itself: the generation `SKILL.md` declares, then a digest over the skill files the build runs. **Report and store the verdict line whole (WORK-14).** The skill and a disassembly move independently. A verdict that does not name its gate stops meaning anything the moment either side moves, so a bare GREEN in a log is uninterpretable a week later. When a failing verdict says the project's `lint-baseline.toml` was recorded under a different gate, the finding is the gate moving and not the commit regressing; `build-verify.md` carries that rule.
 
-Read the difference. `NOTHING REBUILT` re-ran the round-trip and the linters over artifacts an earlier build produced; it is not evidence that the sources as they stand now assemble. `REBUILT` says at least one generated file came from source — which ones is in the log, not in the verdict. Force the whole chain — `make clean`, or remove the `.skool` — before reporting a checkpoint green. See `build-verify.md`.
+Read the difference. `NOTHING REBUILT` re-ran the round-trip and replayed each check sweep's last clean result over artifacts an earlier build produced; it is not evidence that the sources as they stand now assemble. `REBUILT` says at least one generated file came from source — which ones is in the log, not in the verdict. Force the whole chain — `make clean`, or remove the `.skool` — before reporting a checkpoint green. See `build-verify.md`.
 
 ## Non-negotiables
 

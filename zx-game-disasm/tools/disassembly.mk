@@ -203,17 +203,23 @@ all: $(ASM) test test-checks lint html lint-html lint-comment-fit
 # build by that status — never by what the output looks like.
 GATE_LOG = $(BUILD)/gate.log
 
-# The generated files the gate would rebuild. `all` also depends on the phony
-# `test`, `lint` and `html`, whose recipes run on every invocation, so asking make
+# Where a sweep keeps the output of its last clean run. See "Check results are
+# cached" below.
+CHECK_CACHE = $(BUILD)/checks
+
+# The generated files and check logs the gate would rebuild. `all` also depends
+# on the phony `test`, whose recipe runs on every invocation, so asking make
 # whether `all` is current always answers "no". Asking about these answers the
 # question the verdict has to distinguish: did this build regenerate anything, or
-# did it find every file current and only re-run the phony checks over them?
+# did it find every file and every check result current?
 #
 # That is the whole of what `-q` knows — one bit, over the set as a whole. It does
 # not say which of them rebuilt, so REBUILT claims no more than "at least one",
 # and the log is where a reader finds out which. Deleting one leaf artifact
 # rebuilds that leaf and nothing else, and REBUILT covers that case too.
-GATE_ARTIFACTS = $(Z80) $(BIN) $(SKOOL) $(ASM) $(ASM_BIN) $(HTML_DIR)/.stamp
+GATE_ARTIFACTS = $(Z80) $(BIN) $(SKOOL) $(ASM) $(ASM_BIN) $(HTML_DIR)/.stamp \
+    $(CHECK_CACHE)/test-checks.log $(CHECK_CACHE)/lint.log \
+    $(CHECK_CACHE)/lint-html.log $(CHECK_CACHE)/lint-comment-fit.log
 
 # --- Which gate produced the verdict ------------------------------------------
 #
@@ -314,7 +320,7 @@ gate:
 	  lintran=$$(grep -c '^LINT ' $(GATE_LOG)); \
 	  lintseen=$$(awk '/^LINT (PASS|FAIL): /{t+=$$5} END{print t+0}' $(GATE_LOG)); \
 	  buildfail=$$(awk '/: \*\*\* \[/{t=$$0; sub(/^.*\*\*\* \[/,"",t); sub(/\].*$$/,"",t); \
-	      sub(/^.*: /,"",t); if (t!="lint" && t!="lint-html" && t!="lint-images" && t!="lint-html-layout" && t!="lint-comment-fit" && !seen[t]++) \
+	      sub(/^.*: /,"",t); if (t!="lint" && t!="lint-html" && t!="lint-images" && t!="lint-html-layout" && t!="lint-comment-fit" && t!~/(^|\/)checks\/[^\/]*\.log$$/ && !seen[t]++) \
 	      l=(l?l ", " t:t)} END{print l}' $(GATE_LOG)); \
 	  named=$$(grep -c ': \*\*\* \[' $(GATE_LOG)); \
 	  if [ $$s -ne 0 ] && [ -n "$$lintfail" ] && [ $$named -eq 0 ]; then \
@@ -351,9 +357,9 @@ gate:
 	    tail -40 $(GATE_LOG); \
 	    echo; echo "CHECKS FAIL (make exit $$s) $$stamp – the build failed before any check ran, so no check has a finding count and none of them is what failed; the build's last 40 log lines are above. Full log: $(GATE_LOG).$$drift$$absent"; \
 	  elif [ $$q -eq 0 ]; then \
-	    echo "CHECKS PASS, NOTHING REBUILT $$stamp – every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: $(GATE_LOG)).$$drift"; \
+	    echo "CHECKS PASS, NOTHING REBUILT $$stamp – every generated file and every check result was already current; the round-trip cmp re-ran, and each check sweep replayed its last clean result, since none of its inputs changed (log: $(GATE_LOG)).$$drift"; \
 	  else \
-	    echo "CHECKS PASS, REBUILT $$stamp – at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: $(GATE_LOG).$$drift"; \
+	    echo "CHECKS PASS, REBUILT $$stamp – at least one generated file or check sweep was regenerated from its inputs; the round-trip cmp and the linters passed. Which ones ran is in the log: $(GATE_LOG).$$drift"; \
 	  fi; \
 	  [ $$s -eq 0 ] && c=PASS || c=FAIL; \
 	  $(REVIEW_RECORD) verdict --checks $$c || echo "REVIEW: unknown – $(REVIEW_RECORD) could not run, so nothing here is ready to commit."; \
@@ -481,10 +487,8 @@ LINT_TOTAL = $(words $(LINT_CHECKS) $(LINT_HTML_CHECKS) comment-fit)
 # reported as its own clause.
 LINT_SWEEP = . $(SCRIPTS)/lint_sweep.sh
 
-lint: $(CTL) $(CTL_EXTRA) $(BIN) $(SKOOL)
-	@$(LINT_SWEEP); lint_begin; \
-	$(foreach c,$(LINT_CHECKS),lint_run $(c) $(CHECK_$(c));) \
-	lint_report $(words $(LINT_CHECKS))
+lint: $(CHECK_CACHE)/lint.log
+	@cat $<
 
 # Label naming is a gauge metric, not a build gate. Early on the map is mostly
 # auto-labels and you cannot name a block before you have disassembled it, so a hard
@@ -499,10 +503,8 @@ lint: $(CTL) $(CTL_EXTRA) $(BIN) $(SKOOL)
 # recorded expectation and this diffs against it, so a rule that
 # stops firing is a red build rather than a quieter one. See
 # `fixtures/check-findings.sh` for why the whole output is the assertion.
-test-checks:
-	@$(FIXTURES)/check-findings.sh
-	@$(FIXTURES)/review-checks.sh
-	@$(SCRIPTS)/validate_rules.py
+test-checks: $(CHECK_CACHE)/test-checks.log
+	@cat $<
 
 CHECK_address-order = $(SCRIPTS)/validate_ctl_address_order.py $(CTL)
 lint-address-order: $(CTL)
@@ -656,10 +658,8 @@ lint-html-layout: $(HTML_DIR)/.stamp
 	@$(LINT_SWEEP); lint_begin; lint_run html-layout $(CHECK_html-layout); lint_report 1
 
 # Every check over the built site, in one sweep.
-lint-html: $(HTML_DIR)/.stamp
-	@$(LINT_SWEEP); lint_begin; \
-	$(foreach c,$(LINT_HTML_CHECKS),lint_run $(c) $(CHECK_$(c));) \
-	lint_report $(words $(LINT_HTML_CHECKS))
+lint-html: $(CHECK_CACHE)/lint-html.log
+	@cat $<
 
 # A listing comment longer than the code rows beside it opens space under its
 # group's last instruction. Only a browser knows where a comment wraps, so this
@@ -670,8 +670,8 @@ lint-html: $(HTML_DIR)/.stamp
 # whatever it finds, and says so when it skips for want of Chrome or of a
 # grouped listing, so this check is never red unless the script itself crashes.
 CHECK_comment-fit = $(SCRIPTS)/report_comment_fit.py $(HTML_DIR)
-lint-comment-fit: $(HTML_DIR)/.stamp
-	@$(LINT_SWEEP); lint_begin; lint_run comment-fit $(CHECK_comment-fit); lint_report 1
+lint-comment-fit: $(CHECK_CACHE)/lint-comment-fit.log
+	@cat $<
 
 # Re-record the gating checks' findings as the project's accepted baseline. Run it
 # when a fix clears a finding — the shrunk file is the evidence. It cannot do the
@@ -925,6 +925,75 @@ $(HTML_DIR)/.stamp: $(SKOOL) $(wildcard $(SRC)/*.ref) $(wildcard resources/*.css
 	$(HTML_HEX) $(HTML_DIR)
 	$(HTML_SYM) $(HTML_DIR) $(SKOOL)
 	touch $@
+
+# --- Check results are cached -------------------------------------------------
+#
+# A sweep writes no file of its own, so as a phony target it re-runs on every
+# make over inputs that have not moved. So each sweep runs into a log under
+# $(CHECK_CACHE), and the phony target prints that log. Make re-runs the sweep
+# only when one of its inputs is newer than the log, and the gate reads the same
+# LINT lines either way.
+#
+# Only a clean run is kept. A red sweep prints its output, deletes the log and
+# fails, so the next make runs it again. A pass that says it skipped, such as
+# comment-fit with no Chrome, is dated 1970, so the next make runs it again too.
+#
+# A log takes the time its sweep started, so a file saved while the sweep ran is
+# newer than the log. Two inputs have no timestamp of their own: the set of input
+# files, which loses one when a `.ref` is deleted, and the gate, which a copied
+# skill can change with old timestamps. $(CHECK_KEY) holds both, with the
+# project's own settings, and is rewritten only when its content changes.
+#
+# A sweep's inputs are the project files its checks read, the project Makefile,
+# the baseline, the key, and every file the skill's build runs and reads. A check
+# that reads a file outside its sweep's line would replay a stale pass, so a new
+# input of any check goes on that line.
+SKILL_FILES := $(shell find '$(SKILL_HOME)/tools' '$(SKILL_HOME)/scripts' '$(SKILL_HOME)/assets' -type f ! -name '*.pyc' 2>/dev/null)
+PROJECT_MAKEFILE := $(firstword $(MAKEFILE_LIST))
+
+CHECK_KEY = $(CHECK_CACHE)/inputs.key
+CHECK_KEY_TEXT := gate $(shell $(GATE_ID)); ORG $(ORG); SIZE $(SIZE); \
+    RELOC_FLOOR $(RELOC_FLOOR); files $(sort $(CTL) $(CTL_EXTRA) $(PROSE) $(wildcard $(BASELINE)))
+$(shell mkdir -p '$(CHECK_CACHE)' && { printf '%s\n' '$(CHECK_KEY_TEXT)' | cmp -s - '$(CHECK_KEY)' \
+    || printf '%s\n' '$(CHECK_KEY_TEXT)' > '$(CHECK_KEY)'; })
+
+CHECK_INPUTS = $(PROJECT_MAKEFILE) $(CHECK_KEY) $(wildcard $(BASELINE)) $(SKILL_FILES)
+
+# The skill's own fixtures read the skill alone, so their key is a digest of the
+# files in every directory they read, names included.
+SKILL_KEY = $(CHECK_CACHE)/skill.key
+SKILL_KEY_TEXT := $(shell cd '$(SKILL_HOME)' 2>/dev/null && \
+    sha=$$(command -v shasum >/dev/null 2>&1 && echo 'shasum -a 256' || echo 'sha256sum'); \
+    find tools scripts assets fixtures references -type f ! -name '*.pyc' -print0 2>/dev/null \
+    | LC_ALL=C sort -z | xargs -0 $$sha 2>/dev/null | $$sha 2>/dev/null | cut -c1-16)
+$(shell { printf '%s\n' '$(SKILL_KEY_TEXT)' | cmp -s - '$(SKILL_KEY)' \
+    || printf '%s\n' '$(SKILL_KEY_TEXT)' > '$(SKILL_KEY)'; })
+
+# `cached_sweep` runs the sweep $(1) into $@, which is kept only when it passes
+# and did not skip, and is dated to the sweep's start.
+cached_sweep = @mkdir -p $(dir $@); touch $@.start; \
+	( $(1) ) > $@.tmp 2>&1; s=$$?; \
+	if [ $$s -eq 0 ] && ! grep -q ': skipped' $@.tmp; then mv $@.tmp $@; touch -r $@.start $@; rm -f $@.start; \
+	elif [ $$s -eq 0 ]; then mv $@.tmp $@; touch -t 197001010000 $@; rm -f $@.start; \
+	else cat $@.tmp; rm -f $@.tmp $@ $@.start; exit $$s; fi
+
+# The skill's own fixtures depend on the skill alone, never on the project.
+$(CHECK_CACHE)/test-checks.log: $(SKILL_KEY) $(SKILL_FILES) \
+    $(shell find '$(FIXTURES)' '$(SKILL_HOME)/references' -type f 2>/dev/null)
+	$(call cached_sweep,$(FIXTURES)/check-findings.sh && $(FIXTURES)/review-checks.sh && $(SCRIPTS)/validate_rules.py)
+
+$(CHECK_CACHE)/lint.log: $(CTL) $(CTL_EXTRA) $(BIN) $(SKOOL) $(PROSE) $(CHECK_INPUTS)
+	$(call cached_sweep,$(LINT_SWEEP); lint_begin; \
+	$(foreach c,$(LINT_CHECKS),lint_run $(c) $(CHECK_$(c));) \
+	lint_report $(words $(LINT_CHECKS)))
+
+$(CHECK_CACHE)/lint-html.log: $(HTML_DIR)/.stamp $(CTL) $(REFS) $(CHECK_INPUTS)
+	$(call cached_sweep,$(LINT_SWEEP); lint_begin; \
+	$(foreach c,$(LINT_HTML_CHECKS),lint_run $(c) $(CHECK_$(c));) \
+	lint_report $(words $(LINT_HTML_CHECKS)))
+
+$(CHECK_CACHE)/lint-comment-fit.log: $(HTML_DIR)/.stamp $(CHECK_INPUTS)
+	$(call cached_sweep,$(LINT_SWEEP); lint_begin; lint_run comment-fit $(CHECK_comment-fit); lint_report 1)
 
 clean:
 	rm -rf $(BUILD)

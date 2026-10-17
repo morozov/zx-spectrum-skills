@@ -99,8 +99,8 @@ To gate a version other than the working tree – the staged index before a comm
 `make gate` runs the full mechanical gate into `build/gate.log` (the ignored build directory), prints the last 40 lines plus an unmistakable verdict on failure, and exits with make's own status. Every verdict names the SkoolKit *and the gate* that produced it, and a passing one says **which** of two passing states it is:
 
 ```
-CHECKS PASS, REBUILT [SkoolKit 10.1, gate 1/e70342a] – at least one generated file was regenerated from source; the round-trip cmp and the linters passed. Which files rebuilt is in the log: build/gate.log
-CHECKS PASS, NOTHING REBUILT [SkoolKit 10.1, gate 1/e70342a] – every generated file was already current; the round-trip cmp and the linters re-ran over the existing build, nothing was regenerated from source (log: build/gate.log)
+CHECKS PASS, REBUILT [SkoolKit 10.1, gate 1/e70342a] – at least one generated file or check sweep was regenerated from its inputs; the round-trip cmp and the linters passed. Which ones ran is in the log: build/gate.log.
+CHECKS PASS, NOTHING REBUILT [SkoolKit 10.1, gate 1/e70342a] – every generated file and every check result was already current; the round-trip cmp re-ran, and each check sweep replayed its last clean result, since none of its inputs changed (log: build/gate.log).
 ```
 
 Under the verdict line the gate prints a `REVIEW:` line, read by `scripts/review_record.py` from the Challenger's review record for the current diff:
@@ -112,7 +112,7 @@ Under the verdict line the gate prints a `REVIEW:` line, read by `scripts/review
 
 Then comes `READY TO COMMIT` only after `CHECKS PASS` and `REVIEW: approved`, and `NOT READY TO COMMIT` with the reason otherwise. A last line lists the rule IDs marked `review` for the changed file types, which no check enforces. `CHECKS PASS` alone says nothing about those rules.
 
-The gate asks make (`make -q`) whether any generated file is out of date *before* it builds, and reports that answer. It is a real distinction: `all` depends on the phony `test`, `lint` and `html`, whose recipes run every time, so a green `make` always means the `cmp` and the linters passed — but it does not by itself mean the `.skool`, the `.asm` or the `.bin` under them came from the sources as they stand now.
+The gate asks make (`make -q`) whether any generated file is out of date *before* it builds, and reports that answer. Each check sweep writes its output to a log under `build/checks/` and keeps it only when the sweep passes. Make re-runs a sweep only when one of its inputs is newer than its log: a project file the checks read, the project Makefile, the baseline, any file under the skill's `tools/`, `scripts/` or `assets/`, or `build/checks/inputs.key`. The key holds the gate, the project's settings and the list of input files, so a deleted `.ref` or a skill copied with old timestamps re-runs the sweeps too. The skill's own fixtures have a key of their own, `build/checks/skill.key`, a digest of every file under the skill's `tools/`, `scripts/`, `assets/`, `fixtures/` and `references/`. A log takes the time its sweep started, so a file saved during the sweep is newer than it. An unchanged sweep replays its last clean log. A red sweep keeps no log, and a sweep that skipped is dated so it runs again, so neither replays as a pass. The verdict says whether anything had to be regenerated.
 
 **`REBUILT` says "at least one", and that is all `-q` can say.** It is one bit over the whole artifact set, not a per-file answer: delete `$(GAME).asm.bin` alone and the verdict is `REBUILT` while only `pasmo` ran, the `.skool` never regenerated and `skool2html.py` never executed. Read the log for which files actually rebuilt; the verdict only tells you the tree was not entirely current.
 
