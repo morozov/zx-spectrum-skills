@@ -5,9 +5,9 @@
 # The repo is built here, in two commits:
 #
 #   1. `enemy_spark` labels $EC4B, the entry title reads "Enemy spark update",
-#      `spr_shot` labels $ED00, and the registry has no row for `enemy`.
+#      and the registry has no row for `enemy`.
 #   2. The label becomes `guard_spark`, the title "Guard spark
-#      update", and `spr_shot` moves family to `slot_shot`. `test_state`
+#      update". `test_state`
 #      becomes the generated `unused_ee00` under the title "Unused bytes",
 #      and the title "Shot speed lookup table" is rewritten as "How fast the
 #      shot moves on each level". The registry is unchanged.
@@ -20,9 +20,9 @@
 #     half-finished retitle at $F100 (its twin at $F200 keeps "Enemy sprites")
 #     and the label merged onto `saw_update`, a name that stood at $F400
 #     before, each drop 'enemy' and fail; so do the retype plus rename at
-#     $F500 and the split plus rename at $F610, since neither old name moved; the family move drops only a declared prefix, the
+#     $F500 and the split plus rename at $F610, since neither old name moved; the
 #     reclassification as unused renames no term, and the rewrite drops three
-#     words, so all three are silent; exit 1
+#     words, so both are silent; exit 1
 #   against HEAD~1, the row added to the working registry: silent, exit 0
 #   against HEAD (the default), no .ctl change since: silent, exit 0
 set -uo pipefail
@@ -39,13 +39,6 @@ git config user.email fixture@example.invalid
 git config user.name fixture
 git config commit.gpgsign false
 
-cat > AGENTS.md <<'AGENTS'
-<!-- label-families
-spr_ $FA00-$FAFF
-slot_ $FC00-$FCFF
--->
-AGENTS
-
 cat > glossary.ref <<'REF'
 [Term:spelling:One spelling per word]
 #TABLE(default)
@@ -57,8 +50,6 @@ REF
 cat > game.ctl <<'CTL'
 @ $EC4B label=enemy_spark
 c $EC4B Enemy spark update
-@ $ED00 label=spr_shot
-c $ED00 Draw the shot
 @ $EE00 label=test_state
 b $EE00 Range-test operands
 @ $EF00 label=shot_speeds
@@ -84,8 +75,6 @@ git add -A && git commit -qm one
 cat > game.ctl <<'CTL'
 @ $EC4B label=guard_spark
 c $EC4B Guard spark update
-@ $ED00 label=slot_shot
-c $ED00 Draw the shot
 @ $EE00 label=unused_ee00
 u $EE00 Unused bytes
 @ $EF00 label=shot_speeds
@@ -116,7 +105,7 @@ run() {
     echo
 }
 
-run game.ctl --base HEAD~1 --agents AGENTS.md
+run game.ctl --base HEAD~1
 
 cat > glossary.ref <<'REF'
 [Term:spelling:One spelling per word]
@@ -127,5 +116,5 @@ cat > glossary.ref <<'REF'
 TABLE#
 REF
 
-run game.ctl --base HEAD~1 --agents AGENTS.md
-run game.ctl --agents AGENTS.md
+run game.ctl --base HEAD~1
+run game.ctl

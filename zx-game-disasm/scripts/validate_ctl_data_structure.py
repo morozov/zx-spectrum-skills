@@ -27,12 +27,10 @@ Seven checks, all arithmetic over directives the .ctl already carries:
                a sentinel. A comment on a row is no evidence of a record, so
                commenting rows never clears this.
   STRIDE_APPEASE (advisory) a B span with a sublength of 2, 3 or 4 over bytes
-               a render draws, or inside the range of a label family whose
-               range holds a render or a copy of one (`--families`). That
-               sublength may be a width chosen to clear UNTYPED. Whether it is
-               the record the code walks is not decidable from the .ctl, so the
-               kind is listed and never gates, and a record length stated in
-               prose does not clear it.
+               a render draws or a copy of them. That sublength may be a width
+               chosen to clear UNTYPED. Whether it is the record the code walks
+               is not decidable from the .ctl, so the kind is listed and never
+               gates, and a record length stated in prose does not clear it.
   ZEROFILL     (needs --bin) an all-zero span enumerated as a stride instead of
                declared a buffer — nothing checks a stride over zeros
   TILING       sub-directive lengths sum to the block size, contiguous from its
@@ -78,7 +76,6 @@ import re
 import sys
 
 import ctl_baseline
-import validate_label_family
 
 CHECK = 'data-structure'
 
@@ -882,36 +879,15 @@ def check_row_width(block, covered=None, operands=(frozenset(), frozenset())):
     return violations
 
 
-def bitmap_families(blocks, families, by_address):
+def check_stride_appease(block, covered):
     """
-    Return the declared families whose bytes are bitmaps, as (prefix, start, end).
+    List a narrow sublength over rendered bytes (advisory).
 
-    A family is one when a block in its range is drawn by a render, or names a
-    source it is `copied from`. The label-families block declares only prefixes
-    and ranges, so what the bytes are is read off the blocks in the range.
-    """
-    found = []
-    for family in families:
-        _, start, end = family
-        for block in blocks:
-            if not start <= block['address'] <= end:
-                continue
-            drawn = rendered_coverage(block, by_address)
-            if drawn is None or drawn or COPIED_RE.search(block['prose']):
-                found.append(family)
-                break
-    return found
-
-
-def check_stride_appease(block, covered, families):
-    """
-    List a narrow sublength over a render or a bitmap family (advisory).
-
-    A sublength of 2, 3 or 4 on a span a render draws, or one inside the range
-    of a family whose bytes are bitmaps, cuts a bitmap into rows of no record
-    unless the code walks a record of that width. The .ctl cannot show what the
-    code walks, and a length stated in prose is no evidence of it, so this is
-    listed for a reader to settle and never gates.
+    A sublength of 2, 3 or 4 on a span a render draws, or on a copy of one, cuts
+    a bitmap into rows of no record unless the code walks a record of that
+    width. The .ctl cannot show what the code walks, and a length stated in
+    prose is no evidence of it, so this is listed for a reader to settle and
+    never gates.
     """
     violations = []
     for span in block['spans']:
@@ -921,15 +897,11 @@ def check_stride_appease(block, covered, families):
         if width not in APPEASING_WIDTHS:
             continue
         extent = range(span['address'], span['address'] + span['length'])
-        drawn = covered is None or covered.issuperset(extent)
-        family = next((prefix for prefix, start, end in families
-                       if start <= span['address'] <= end), None)
-        if not drawn and family is None:
+        if covered is not None and not covered.issuperset(extent):
             continue
-        where = 'a render draws' if drawn else f'the {family} range holds'
         violations.append((span['line_number'], 'STRIDE_APPEASE',
                            f"B ${span['address']:04X},{span['length']},{width} cuts "
-                           f"bytes {where} into {width}-byte rows. Keep the width "
+                           f"bytes a render draws into {width}-byte rows. Keep the width "
                            f"only when the code walks a {width}-byte record. "
                            f"Otherwise drop the sublength"))
     return violations
@@ -1094,9 +1066,6 @@ def main():
                         help='address the --bin image loads at (default $4000)')
     parser.add_argument('--reloc-floor', type=lambda s: int(s, 0), default=0x5B00,
                         help='addresses at/above this are the game region (default $5B00)')
-    parser.add_argument('--families',
-                        help="the project's AGENTS.md, whose label-families block "
-                             "names the family ranges STRIDE_APPEASE reads")
     ctl_baseline.add_arguments(parser)
     args = parser.parse_args()
 
@@ -1115,8 +1084,6 @@ def main():
             print(f"Error: File not found: {args.binary}")
             return 1
 
-    families = validate_label_family.read_families(args.families) or []
-    families = bitmap_families(blocks, families, by_address)
     operands = code_operands(image, args.org)
 
     violations = []
@@ -1130,7 +1097,7 @@ def main():
             covered = covered | copied_coverage(block, by_address, image, args.org)
         found = check_untyped(block, args.threshold, by_address, covered)
         found += check_row_width(block, covered, operands)
-        found += check_stride_appease(block, covered, families)
+        found += check_stride_appease(block, covered)
         found += check_tiling(block)
         found += check_divisibility(block)
         if image is not None:
@@ -1168,7 +1135,7 @@ def main():
 
     if advisory:
         print(f"Advisory, not gated: {len(advisory)} narrow sublength(s) over a "
-              f"render or a bitmap family. Keep each only when the code walks a "
+              f"render. Keep each only when the code walks a "
               f"record of that width:")
         print()
         for line_number, kind, message, block in advisory:

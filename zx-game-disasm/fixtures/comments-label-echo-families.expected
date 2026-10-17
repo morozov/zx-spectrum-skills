@@ -1,7 +1,0 @@
-Found 2 comment defect(s):
-
-[LABEL_ECHO] 2
-  label-echo-families.skool:15: the comment is the label's own words ('title') – the operand's link already names the target; say what this row does with it [HOME-5]
-    w$FC00 DEFW $FD00     ; title
-  label-echo-families.skool:17: the comment is the label's own words ('title jingle') – the operand's link already names the target; say what this row does with it [HOME-5]
-    $FC04 DEFW $FD20     ; title jingle

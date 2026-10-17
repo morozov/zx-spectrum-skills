@@ -7,12 +7,9 @@
 #   $F058  one-byte fields the code at $F0D0 reads by address (good)
 #   $F0C4  a table whose description says it is indexed one byte per type (good)
 #   $F0B0, $F0B8  one-byte rows a render draws (good)
-# STRIDE_APPEASE lists a narrow sublength over a render or a bitmap family, and
-# never gates:
+# STRIDE_APPEASE lists a narrow sublength over a render, and never gates:
 #   $F020  over a render (listed)
 #   $F028  over a render, with a record length stated in prose (padding: listed)
-#   $F090  inside the slot_ range, a family whose range holds a copy of a render
-#          (listed)
 b $F000 Attribute ramp
 B $F000,16,1 Rising attribute ramp
 b $F010 Loose bytes

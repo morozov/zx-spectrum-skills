@@ -183,7 +183,7 @@ The gating kinds are held against the project's `lint-baseline.toml` like every
 other gating check, so a mature project records the findings it starts with and
 the gate fails on a new one. The advisory kinds print and never fail.
 
-Usage: lint_comments.py <file.skool> [prose-file …] [--families AGENTS.md]
+Usage: lint_comments.py <file.skool> [prose-file …]
                        [--baseline FILE] [--write-baseline]
 Exit 0 when no unbaselined gating finding stands, 1 otherwise.
 """
@@ -195,7 +195,6 @@ import re
 import sys
 
 import ctl_baseline
-import validate_label_family
 from prose_units import PROSE_SURFACES, read_units
 
 CHECK = 'comments'
@@ -1022,7 +1021,7 @@ SKOOL_COMMENT_SURFACES = frozenset(('title', 'block', 'register', 'row', 'data-r
 
 # The project's labels and entries, read from the `.skool`, so a `.ref` page's
 # `#R` can be resolved to the entry it names.
-ENV = {'labels': {}, 'entries': [], 'starts': [], 'family_stems': frozenset()}
+ENV = {'labels': {}, 'entries': [], 'starts': []}
 
 
 def set_env(labels, entries):
@@ -1620,9 +1619,7 @@ def check_cell_index(unit):
 
 
 # HOME-5. A row whose comment is only its operand label's words says what the
-# link beside it already says. A label's family prefix, read from the project's
-# label-families block (`--families`), says which bank the bytes sit in, so it
-# is not one of the words a comment could echo.
+# link beside it already says.
 LABEL_DROP_WORDS = frozenset(('update', 'anim', 'src', 'handler', 'h'))
 LABEL_OPERAND_RE = re.compile(r'(?i)^(DEFW|JP|CALL|JR|DJNZ|LD)\b\s*(.*)$')
 LABEL_ECHO_DETAIL = (
@@ -1659,8 +1656,7 @@ def check_label_echo(unit):
     label_words = set()
     for label in labels:
         label_words |= {w for w in re.split(r'[_\-]+', label.lower())
-                        if w and not w.isdigit() and w not in LABEL_DROP_WORDS
-                        and w not in ENV['family_stems']}
+                        if w and not w.isdigit() and w not in LABEL_DROP_WORDS}
     comment = re.sub(r'#R\$[0-9A-Fa-f]{4}', ' ', unit.text.lower())
     words = {w for w in re.findall(r'[a-z]+', comment) if w not in ('a', 'an', 'the')}
     if words and words <= label_words:
@@ -2260,14 +2256,8 @@ def main():
     parser.add_argument('paths', nargs='+', help='the .skool, then any prose files')
     parser.add_argument('--advisory', action='store_true',
                         help='list the advisory findings, not just their counts')
-    parser.add_argument('--families',
-                        help="the project's AGENTS.md, whose label-families block "
-                             "names the prefixes LABEL_ECHO leaves out of a label's words")
     ctl_baseline.add_arguments(parser)
     args = parser.parse_args()
-    ENV['family_stems'] = frozenset(
-        validate_label_family.stem(prefix).lower()
-        for prefix, _, _ in validate_label_family.read_families(args.families) or [])
 
     findings = []
     read_term_words(args.paths)

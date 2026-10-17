@@ -161,7 +161,7 @@ ASM           = $(BUILD)/$(GAME).asm
 ASM_BIN       = $(BUILD)/$(GAME).asm.bin
 HTML_DIR      = $(BUILD)/html
 
-.PHONY: lint-label-family lint-renames lint-deletion-scope diff-entries all gate gate-index hooks visual-review lint-html lint-html-layout tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-registers lint-images lint-comment-fit lint-baseline lint-array-elements lint-comments lint-prose coverage html
+.PHONY: lint-renames lint-deletion-scope diff-entries all gate gate-index hooks visual-review lint-html lint-html-layout tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-registers lint-images lint-comment-fit lint-baseline lint-array-elements lint-comments lint-prose coverage html
 
 # A recipe that redirects into its own target has already created that target by
 # the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
@@ -446,12 +446,7 @@ LINT_CHECKS = address-order instruction-order lengths label-length identity \
 # >>> LINT_CHECKS slot: a new text check is one line here and one CHECK_<name>
 # definition below it, e.g. `LINT_CHECKS += foil` and `CHECK_foil = …`. A check
 # that reads the built site goes in LINT_HTML_CHECKS instead.
-LINT_CHECKS += label-family
-AGENTS_FILE := $(wildcard AGENTS.md)
-CHECK_label-family = $(SCRIPTS)/validate_label_family.py $(CTL) --agents AGENTS.md --baseline $(BASELINE)
-lint-label-family: $(CTL)
-	$(CHECK_label-family)
-CHECK_renames = $(SCRIPTS)/validate_renames.py $(CTL) --registry $(SRC)/glossary.ref $(if $(AGENTS_FILE),--agents AGENTS.md)
+CHECK_renames = $(SCRIPTS)/validate_renames.py $(CTL) --registry $(SRC)/glossary.ref
 lint-renames: $(CTL)
 	$(CHECK_renames)
 lint-deletion-scope:
@@ -572,7 +567,7 @@ lint-label-namespace: $(CTL) $(SKOOL)
 # that is not wired up at all.
 CHECK_data-structure = $(SCRIPTS)/validate_ctl_data_structure.py $(CTL) \
     --bin $(BIN) --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
-    --baseline $(BASELINE) $(if $(AGENTS_FILE),--families AGENTS.md)
+    --baseline $(BASELINE)
 lint-data-structure: $(CTL) $(BIN)
 	$(CHECK_data-structure)
 
@@ -715,9 +710,7 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN) $(SKOOL) $(HTML_DIR)/.stamp
 	$(SCRIPTS)/validate_ctl_identity.py $(CTL) --skool $(SKOOL) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_data_structure.py $(CTL) --bin $(BIN) \
-	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) $(if $(AGENTS_FILE),--families AGENTS.md) \
-	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
-	$(SCRIPTS)/validate_label_family.py $(CTL) --agents AGENTS.md \
+	    --org $(ORG) --reloc-floor $(RELOC_FLOOR) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_publication.py $(CTL) $(CTL_EXTRA) \
 	    --org $(ORG) --size $(SIZE) --skool $(SKOOL) \
@@ -732,7 +725,7 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN) $(SKOOL) $(HTML_DIR)/.stamp
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_rendered_images.py $(CTL) $(REFS) --html $(HTML_DIR) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
-	$(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) $(if $(AGENTS_FILE),--families AGENTS.md) \
+	$(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/validate_ctl_label_namespace.py $(CTL) --skool $(SKOOL) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
@@ -780,8 +773,7 @@ lint-array-elements: $(CTL)
 REFS  = $(wildcard $(SRC)/*.ref)
 PROSE = $(REFS) $(wildcard spec/*.md)
 
-CHECK_comments = $(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) \
-    $(if $(AGENTS_FILE),--families AGENTS.md) --baseline $(BASELINE)
+CHECK_comments = $(SCRIPTS)/lint_comments.py $(SKOOL) $(PROSE) --baseline $(BASELINE)
 lint-comments: $(SKOOL)
 	$(CHECK_comments) --advisory
 

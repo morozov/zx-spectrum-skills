@@ -21,7 +21,7 @@ metadata:
   # RED says which gate produced it. Raise it in the same commit that changes
   # what the gate accepts or rejects — a new gating check, a check that gains a
   # finding kind, a rule that widens. See references/build-verify.md.
-  gate: 12
+  gate: 13
 ---
 
 # ZX Spectrum game disassembly
@@ -223,7 +223,7 @@ The build expects this layout. `tools/disassembly.mk` reads the `.ctl`, the `.t2
 | `Makefile`, `skoolkit.ini`, `.gitignore` | files make, SkoolKit and git read from the root | tracked |
 | `src/` | the disassembly's source: `{game}.ctl`, the `.ref` pages, the `.t2s` recipes that load and pin the game's files | tracked |
 | `spec/` | the behavior pages | tracked |
-| `tools/` | the settings it passes to skill scripts, `lint-baseline.toml`, `requirements.txt` | tracked |
+| `tools/` | the settings it passes to skill scripts (`lint-baseline.toml`), `requirements.txt` | tracked |
 | `resources/` | the hand-made files the site copies: stylesheet, scripts, images | tracked |
 | `build/` | everything make writes: snapshots, `.skool`, `.asm`, binaries, the site files rendered from the image in `resources/`, `html/`, `prose/`, stamps, the review records, the `gate-index` worktree | ignored |
 

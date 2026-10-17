@@ -122,10 +122,6 @@ run comments-ste \
 # which keep their full stop.
 run comments-fragment-stop \
     scripts/lint_comments.py fixtures/fragment-stop.skool
-# LABEL_ECHO with the family stems read from a label-families block.
-run comments-label-echo-families \
-    scripts/lint_comments.py fixtures/label-echo-families.skool \
-    --families fixtures/label-echo-families.md
 # Which surface each piece of prose is read as. A unit that lands on the wrong
 # surface is skipped by every check that does not declare that surface.
 run prose-units \
@@ -156,15 +152,11 @@ run struct-term-label \
     --registry fixtures/struct-term-label-registry.ref
 run struct-rename \
     fixtures/rename.sh
-run struct-label-family \
-    scripts/validate_label_family.py fixtures/struct-label-family.ctl \
-    --agents fixtures/struct-label-family-agents.md
 run struct-identity \
     scripts/validate_ctl_identity.py fixtures/struct-identity.ctl
 run struct-data \
     scripts/validate_ctl_data_structure.py fixtures/struct-data.ctl \
-    --bin fixtures/struct-data.bin --org 0xF000 \
-    --families fixtures/struct-data-agents.md
+    --bin fixtures/struct-data.bin --org 0xF000
 run struct-diff-entries \
     fixtures/struct-diff-entries.sh
 run struct-deletion-scope \

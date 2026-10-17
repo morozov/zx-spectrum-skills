@@ -163,30 +163,6 @@ Four rules no check can decide:
 
 **One paragraph per directive line — never hard-wrap.** Each `D` at the same address renders as its own paragraph, separated by a blank comment line. Splitting one sentence across several `D` lines produces a blank `;` mid-sentence. Write the whole paragraph on a single `D` line and let `skool2asm` word-wrap it (`Set-line-width` in `skoolkit.ini` sets the width); use a second `D` line only for a genuine second paragraph. The same holds for `N` and for instruction comments. See `references/comment-style.md` for what each paragraph should say.
 
-### Label families by address
-
-A project declares which label prefix owns which address range in its `AGENTS.md`, as one HTML comment block the checks read as data:
-
-```
-<!-- label-families
-spr_ $F000-$F7FF
-slot_ $7100-$7177
-slot_ $7180-$72FF
--->
-```
-
-Each line holds a prefix and an inclusive `$`-hex range, separated by a hyphen or an en dash. A prefix may own several ranges, one line each. The block declares nothing else: what the bytes in a range are is read off the entries there. A prefix's stem is the prefix without its trailing `_`, and a word starting with the stem names the family (`spr` names "sprite", `slot` names "slots").
-
-Three checks read the block:
-
-| Check | What it reads from the block |
-| --- | --- |
-| `LABEL_FAMILY` (`make lint-label-family`) | A label inside a range carries that range's prefix, and a declared prefix stays inside its ranges (NAME-5). A title in one family's range that names another family names its own too (NAME-7). |
-| `LABEL_ECHO` (`lint_comments.py --families`) | A family stem is left out of a label's words, so a row naming the family says more than the label does (HOME-5). |
-| `STRIDE_APPEASE` (`validate_ctl_data_structure.py --families`) | A family is a bitmap family when an entry in its range is drawn by a render or names a source it is `copied from`. A narrow sublength anywhere in that range is listed (ROW-5). |
-
-A project with no block has no family held to a range, and `make lint-label-family` says so.
-
 ## Line-level comments and the length rule
 
 A comment on an instruction (or a run of instructions) is keyed by address and an optional length:

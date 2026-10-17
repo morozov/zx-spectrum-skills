@@ -157,9 +157,6 @@ lint_run instruction-order "$SCRIPTS/validate_ctl_instruction_order.py" "$SPLICE
 lint_run lengths           "$SCRIPTS/validate_ctl_lengths.py"           "$SPLICED"
 lint_run label-length      "$SCRIPTS/validate_ctl_label_length.py"      "$SPLICED"
 
-# The project's label families, read by the same two checks as in `make`.
-FAMILIES=()
-[ -f "$(dirname "$CTL")/AGENTS.md" ] && FAMILIES=(--families "$(dirname "$CTL")/AGENTS.md")
 
 # --ignore-stale: clearing a baselined finding is the fragment doing its job, and
 # the Worker cannot edit the shared baseline to record it. Dropping the line is
@@ -167,7 +164,7 @@ FAMILIES=()
 lint_run identity "$SCRIPTS/validate_ctl_identity.py" "$SPLICED" \
     --baseline "$BASELINE" --ignore-stale
 lint_run data-structure "$SCRIPTS/validate_ctl_data_structure.py" "$SPLICED" \
-    --bin "$BIN" --org "$ORG" --reloc-floor "$RELOC_FLOOR" ${FAMILIES[@]+"${FAMILIES[@]}"} \
+    --bin "$BIN" --org "$ORG" --reloc-floor "$RELOC_FLOOR" \
     --baseline "$BASELINE" --ignore-stale
 # The skool passed here is the one disassembled from the spliced .ctl above, so
 # the MUTABLE check reads the code as the fragment's own map lays it out.
@@ -198,7 +195,7 @@ lint_run label-namespace "$SCRIPTS/validate_ctl_label_namespace.py" "$SPLICED" \
 # marker must not be green here and red in the Manager's `make`, which is the one
 # thing this script promises cannot happen. It needs the project's baseline for
 # the same reason every other gating check does.
-lint_run comments "$SCRIPTS/lint_comments.py" "$tmp/game.skool" ${FAMILIES[@]+"${FAMILIES[@]}"} \
+lint_run comments "$SCRIPTS/lint_comments.py" "$tmp/game.skool" \
     --baseline "$BASELINE"
 
 # `terms` likewise: the registry in glossary.ref gates the build, and a fragment

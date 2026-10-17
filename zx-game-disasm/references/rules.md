@@ -138,9 +138,8 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | NAME-2 | A rename or reclassification changes every mention of the thing, labels included, in one commit. The registry gets a row only when the old name is a synonym the project never uses for that thing, never for a word with a meaning of its own. | TERM_LABEL, lint-terms, review | Does this unit still call the renamed thing by its old name? |
 | NAME-3 | A new term passes the admission test: the game's word first, a word free in the project, a contrast the code holds, and a name for the thing itself. | review | Does this unit introduce a term that is not the game's own word or that implies a contrast the code does not hold? |
 | NAME-4 | A name asserts no classification the game lacks. | review | Does this unit classify things (as enemies, solid, hostile, active) in a way the code does not? |
-| NAME-5 | A label's prefix is the family that the project's `AGENTS.md` assigns to the region its address is in. | LABEL_FAMILY | |
 | NAME-6 | Titles and prose name a thing in words and contain no constant's identifier. | IDENT_IN_PROSE, GLOSSARY_IDENT | |
-| NAME-7 | A family has one prefix and one naming scheme, every member carries it, and its sibling families are checked in the same pass. | LABEL_FAMILY, LABEL_PAIR, review | |
+| NAME-7 | A family has one prefix and one naming scheme, every member carries it, and its sibling families are checked in the same pass. | LABEL_PAIR, review | |
 | NAME-8 | Text about a pickup names the pickup. Its glyph or container is named only where the text is about the picture or the tile, and a container before its reveal is a container, not a pickup. A pickup name is never an adjective for what it produced. | review | Does this unit name a pickup's glyph or container where it means the pickup, call an unrevealed container a pickup, or use a pickup name as an adjective for what the pickup produced? |
 | NAME-9 | A name claims the nature its data has. | review | |
 | NAME-10 | Prose names a member of a labeled slot family by its label and uses no positional word for it. | lint-names, review | |
@@ -248,3 +247,5 @@ Apply the listed rules before writing.
 | An owner call-out | WORK-7, WORK-1, WORK-9 |
 | A gate finding | WORK-2 |
 | Before reporting or committing | WORK-4, WORK-6, WORK-14 |
+
+A retired rule's ID is not reused, so a range such as NAME-1 to NAME-11 spans a retired ID such as NAME-5.

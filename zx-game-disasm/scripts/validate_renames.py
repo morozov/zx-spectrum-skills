@@ -19,15 +19,14 @@ its singular are one word.
 
 A rename is a swap: one or two words dropped while at least one is added. A
 name that only loses words renamed nothing, and one that drops three or more is
-a rewrite, which a registry row per word would not describe. Three more drops
+a rewrite, which a registry row per word would not describe. Two more drops
 ask for no row:
 
 - a word made only of digits, which is a position;
-- a declared label-family prefix (`--agents`), which is a family move;
 - any word of a name replaced by a generated `unused_` label or the title
   "Unused bytes", which reclassifies the bytes and renames no term.
 
-Usage: validate_renames.py CTL [--registry glossary.ref] [--base REF] [--agents AGENTS.md]
+Usage: validate_renames.py CTL [--registry glossary.ref] [--base REF]
 Exit 0 when every dropped word is registered, 1 otherwise.
 """
 
@@ -38,7 +37,6 @@ import subprocess
 import sys
 
 import validate_glossary_terms
-import validate_label_family
 
 CHECK = 'renames'
 
@@ -111,27 +109,27 @@ def registered_words(registry):
     return words
 
 
-def dropped(old, new, exempt):
-    """Return the words of `old` absent from `new`, in order, minus the exempt ones."""
+def dropped(old, new):
+    """Return the words of `old` absent from `new`, in order, digits left out."""
     kept = set(new)
     out = []
     for word in old:
-        if word in kept or word in out or word.isdigit() or word in exempt:
+        if word in kept or word in out or word.isdigit():
             continue
         out.append(word)
     return out
 
 
-def swapped(old_words, new_words, exempt):
+def swapped(old_words, new_words):
     """Return the words a swap drops, or [] when the change is no swap."""
-    lost = dropped(old_words, new_words, exempt)
-    gained = dropped(new_words, old_words, exempt)
+    lost = dropped(old_words, new_words)
+    gained = dropped(new_words, old_words)
     if not gained or len(lost) > SWAP_LIMIT:
         return []
     return lost
 
 
-def check(before, after, registered, exempt):
+def check(before, after, registered):
     """Return (line_number, kind, message) findings for one .ctl's two versions."""
     findings = []
     old_labels, old_titles, old_types = names(before)
@@ -162,7 +160,7 @@ def check(before, after, registered, exempt):
             continue
         if label_moved(address, old, new):
             continue
-        for word in swapped(label_words(old), label_words(new), exempt):
+        for word in swapped(label_words(old), label_words(new)):
             if word not in registered:
                 findings.append((new_labels[address][1], 'RENAME_UNREGISTERED',
                                  f"label at ${address:04X}: {old} → {new} drops '{word}', "
@@ -176,7 +174,7 @@ def check(before, after, registered, exempt):
             continue
         if title_moved(address, old):
             continue
-        for word in swapped(title_words(old), title_words(new), exempt):
+        for word in swapped(title_words(old), title_words(new)):
             if word not in registered:
                 findings.append((new_titles[address][1], 'RENAME_UNREGISTERED',
                                  f"title at ${address:04X}: \"{old}\" → \"{new}\" drops "
@@ -208,8 +206,6 @@ def main():
     parser.add_argument('--registry', help='the .ref page holding the Write/Not table '
                                            '(default: glossary.ref beside the .ctl)')
     parser.add_argument('--base', default='HEAD', help='the revision to compare against')
-    parser.add_argument('--agents', help="the project's AGENTS.md, whose label-families "
-                                         "prefixes a family move may drop")
     args = parser.parse_args()
 
     try:
@@ -227,10 +223,7 @@ def main():
 
     registry = args.registry or os.path.join(
         os.path.dirname(os.path.abspath(args.ctl)), 'glossary.ref')
-    families = validate_label_family.read_families(args.agents) or []
-    exempt = {prefix.strip('_-') for prefix, _, _ in families}
-
-    findings = check(before, after, registered_words(registry), exempt)
+    findings = check(before, after, registered_words(registry))
     if findings:
         print(f'Found {len(findings)} rename(s) with no registry row, against {args.base}:')
         print()
