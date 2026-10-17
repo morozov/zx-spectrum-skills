@@ -145,16 +145,13 @@ RULE_ID_RE = re.compile(r'^\|\s*([A-Z]+-\d+)\s*\|', re.M)
 
 
 def required_ids():
-    """Every rule ID a COMMIT record must answer: the rulebook's and the project's."""
+    """Every rule ID a COMMIT record must answer: the rulebook's."""
     rules = Path(os.environ.get('REVIEW_RULES_MD') or
                  Path(__file__).resolve().parent.parent / 'references' / 'rules.md')
-    ids = []
-    for source in (rules, toplevel() / 'AGENTS.md'):
-        try:
-            ids += RULE_ID_RE.findall(source.read_text(encoding='utf-8'))
-        except OSError:
-            continue
-    return sorted(set(ids))
+    try:
+        return sorted(set(RULE_ID_RE.findall(rules.read_text(encoding='utf-8'))))
+    except OSError:
+        return []
 
 
 def problems(rec, files):
@@ -218,7 +215,7 @@ def status(cached=False):
     older = []
     if d.is_dir():
         for p in d.glob('*.json'):
-            if p.name.count('.') != 1:
+            if not re.fullmatch(r'[0-9a-f]{64}', p.stem):
                 continue
             rec = load(p)
             if rec.get('base') == base:

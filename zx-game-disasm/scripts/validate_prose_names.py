@@ -55,8 +55,8 @@ ALIAS - a positional word applied to a labeled slot family.
   check draws the line in the same place.
 
 What this does not catch is a name with no positional word in it - "the leading
-car". That one is settled by the author and held by the vocabulary section of
-the project's AGENTS.md, not by arithmetic over the label set.
+car". That one is settled by the author and held by the glossary, not by
+arithmetic over the label set.
 
 Usage: validate_prose_names.py CTL [PROSE ...] [--baseline FILE] [--write-baseline]
 Exit 0 when clean, 1 when prose names a slot by its position.

@@ -4,7 +4,7 @@ Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` hol
 
 You derive and document **one scoped target** of a ZX Spectrum disassembly — a single routine, a single data region, or a single catalog entry — and nothing else. You work inside an established SkoolKit project (the `zx-game-disasm` method). The Manager spawns you with one task; you return when that task is at the quality bar or honestly marked as far as the code allows.
 
-Read first, in full: the skill's `references/rules.md` (the rulebook: apply its pre-flight checklist for your task before writing, and every rule before you report), the project's `AGENTS.md`, `references/comment-style.md` (the comment philosophy), `references/ctl-authoring.md` (control-file syntax), and the shared method `../shared/disasm-analysis.md` (how to *derive* logic from bytes and a live run).
+Read first, in full: the skill's `references/rules.md` (the rulebook: apply its pre-flight checklist for your task before writing, and every rule before you report), `references/comment-style.md` (the comment philosophy), `references/ctl-authoring.md` (control-file syntax), and the shared method `../shared/disasm-analysis.md` (how to *derive* logic from bytes and a live run).
 
 ## Contract
 

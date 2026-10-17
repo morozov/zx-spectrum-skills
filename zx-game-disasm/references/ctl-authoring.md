@@ -4,7 +4,7 @@ Commentary. The rules are in `rules.md`. Where this file differs, `rules.md` hol
 
 The `.ctl` is the only file you hand-edit. It is a list of directives, each tied to an address, that tells `sna2skool` how to interpret the snapshot: where code and data live, what to name things, what to substitute, and what to say about it. `sna2skool` weaves the `.ctl` over the snapshot to produce the `.skool`.
 
-The `.skool` and `.asm` are **generated and overwritten on every `make`**; an edit to either is silently lost. The project's `AGENTS.md` opens with this file contract so a cold agent sees it — keep that line intact.
+The `.skool` and `.asm` are **generated and overwritten on every `make`**; an edit to either is silently lost. The project layout says so: the source is in `src/`, and everything under `build/` is generated.
 
 The `.skool` is your feedback loop. Rebuild it after every `.ctl` change and read it to confirm instruction boundaries, byte lengths, and that no `overlapping instruction` warning appeared. Use the `.skool` — not the `.ctl` — to find the exact address and length of an instruction you want to comment.
 
@@ -421,7 +421,7 @@ The slot tokens have to *enumerate* for that to hold: digits, or letters running
 
 Nor is a hyphenated compound modifier an alias. "The second-enemy bonus" names a bonus; the hyphen is you saying `bonus` is the head noun. That entity has a name of its own, and "the enemy B bonus" is worse wording than what you wrote. It is the *referring* use — "the second enemy", naming the enemy — that has to become "enemy B".
 
-An alias with no positional word in it — "the chasing enemy" — is beyond any linter: no tool can know it means `enemy_a` rather than a third enemy. That one is settled when the name is chosen and held by the vocabulary section of the project's `AGENTS.md`.
+An alias with no positional word in it — "the chasing enemy" — is beyond any linter: no tool can know it means `enemy_a` rather than a third enemy. That one is settled when the name is chosen and held by the glossary.
 
 **Every image macro must produce an image.** A `#UDGARRAY` in the `.ctl` is a claim that a picture appears at that block. The claim is checkable — `make lint-images` compares the filenames the macros declare against the files the site build wrote — and it is not the same claim as "the HTML built". The frame-only `(*name)` defines a frame and writes no file, so a `.ctl` that writes it in place of `(name)` builds green and publishes no image. Write `(name)` to publish the image, `(name*frame)` to publish it *and* define the frame for a `#FRAMES` animation; `(*frame)` alone publishes nothing and is only ever an ingredient of an animation that does.
 

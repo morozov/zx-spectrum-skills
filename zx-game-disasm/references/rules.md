@@ -9,7 +9,7 @@ Each rule is a testable statement with an ID and an enforcer. Enforcers are name
 - An upper-case name is a check kind, reported by the linters under that name.
 - `lint-…` is a make target of the mechanical gate.
 - `review-record` is the review record the Challenger writes and the commit hook reads.
-- `review` is the Challenger, who answers every rule ID in this file and every project rule in the project's `AGENTS.md` on every diff. The Question column holds the yes/no question it asks of one unit, answered yes when the unit breaks the rule.
+- `review` is the Challenger, who answers every rule ID in this file on every diff. The Question column holds the yes/no question it asks of one unit, answered yes when the unit breaks the rule.
 
 A rule with only `review` as its enforcer holds exactly as hard as one with a check. The mechanical gate passing says nothing about it.
 
@@ -107,6 +107,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | ENT-6 | A routine description states the contract (purpose, inputs, outputs, side effects) in at most two sentences, unless it buys a table, a format or a state machine. | review | Does this routine description walk the mechanism, preview the call sequence, or run past two sentences without buying a table, a format or a state machine? |
 | ENT-7 | Every basic block of a routine carries a comment, and a bare `RET` or a call to a well-named routine carries none. | RET_GROUP, review | |
 | ENT-8 | A comment group covers one act: it spans no unconditional transfer, is entered only at its first row, and skips none of its own rows. | GROUP_SPLIT, GROUP_ENTRY, GROUP_SKIP, review | |
+| ENT-9 | The `.ctl` writes every address as `$`-hex, in block addresses and `#R` references alike. | review | |
 
 ## GFX: graphics and fonts
 
@@ -145,6 +146,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | NAME-9 | A name claims the nature its data has. | review | |
 | NAME-10 | Prose names a member of a labeled slot family by its label and uses no positional word for it. | lint-names, review | |
 | NAME-11 | Link anchors use dashes. | review | |
+| NAME-12 | Frame numbers in labels, image names and captions are 1-based. A two-state sprite is named by its states. "Frame" names an animation frame. A state's name comes from the handler that owns the state, and the listing and the `.ref` pages use the same word for it. | review | |
 
 ## HEAD: titles and headings
 
@@ -196,12 +198,13 @@ The writing rules of ASD-STE100, the controlled language of technical documentat
 | --- | --- | --- | --- |
 | VIS-1 | A render sits in a block-level `N` note or page block (`#UDGTABLE`), and never inside a description sentence, a row comment or a running paragraph. | INLINE_RENDER, review | |
 | VIS-2 | Every color has a stated role, one role per token, the palette includes the game's own attribute colors, and no color is assigned by section position. | review | |
-| VIS-3 | Headings and blocks on a page share the content column's edges, and a heading fits on one line. | HEADING_WRAP, review | |
+| VIS-3 | Headings and blocks on a page share the content column's edges, and a heading fits on one line. When lines run long, the column width changes; a width cap on prose alone is never the fix. | HEADING_WRAP, review | |
 | VIS-4 | Explanatory text under a heading is a paragraph element, present because of its content. | review | |
 | VIS-5 | The listing's comment column is part of the listing table, with no box, border or background break of its own. | review | |
 | VIS-6 | A visual change is accepted only on rendered screenshots of every affected page kind, read back by the reviewer. | review-record, review | |
-| VIS-7 | The owner decisions in the project's `AGENTS.md` are constraints that no proposal or reviewer overrides. | review | |
 | VIS-8 | A built site fetches nothing, and every font it names is shipped beside it or present on the reader's platform. | review | |
+| VIS-9 | The listing's code rows keep one even pitch, and a comment's length never changes the code rows' spacing. | review | |
+| VIS-10 | Design work runs in four steps: specialists name each problem with its root cause and a prescribed fix; an independent challenger with no stake in the proposal reviews each prescription; only what passes is implemented, exactly as prescribed; then the result is rendered and reviewed. | review | |
 
 ## WORK: how to work
 
@@ -223,7 +226,7 @@ The writing rules of ASD-STE100, the controlled language of technical documentat
 ## The call-out protocol (WORK-7)
 
 1. **Answer first when the call-out is a question.** Answer it from the rules and the code before any edit. When the answer shows no defect, say so and stop.
-2. **Classify it against the rules.** Search this file, the project's `AGENTS.md`, and the terminology registry. When a rule exists, name its ID and say why it was missed: no detector, a detector too narrow, or a skipped review. When none exists, add one here, stated as the class.
+2. **Classify it against the rules.** Search this file and the terminology registry. When a rule exists, name its ID and say why it was missed: no detector, a detector too narrow, or a skipped review. When none exists, add one here, stated as the class.
 3. **Remove every contradiction.** Search the skill and the project for the old wording and for every example of the opposite, and fix or delete each.
 4. **Write the guard before the fix.** Put the owner's text in verbatim as the bad fixture and the corrected text as the good fixture. Build or extend the detector, or add the review question. Run it and show it fires on the bad fixture and stays silent on the good one. When the rule exists, fix its guard and add no second sentence for it.
 5. **Sweep with the guard.** Fix every instance of the shape in the project. Each entry the owner did not name passes the stated test on its own. Nothing is deleted that the test does not condemn entry by entry.
@@ -242,11 +245,11 @@ Apply the listed rules before writing.
 | A glossary entry | DEF-1 to DEF-6, NAME-1, NAME-3, NAME-6 |
 | An entry title or page heading | HEAD-1 to HEAD-4, NAME-6, AUD-1, HOME-10, TYPO-1 |
 | A sprite, glyph or sound entry | GFX-1 to GFX-9, HOME-7, VIS-1, EVID-3 |
-| A label, term or classification change | NAME-1 to NAME-11, WORK-1 |
+| A label, term or classification change | NAME-1 to NAME-12, WORK-1 |
 | `.ref` page prose | HOME-1 to HOME-3, HOME-10, HOME-13, STE-1 to STE-6, AUD-1, AUD-3, AUD-4, ROW-7, VIS-1, TYPO-1, TYPO-2 |
-| CSS, theme or layout | VIS-2 to VIS-8, and the owner decisions in the project's `AGENTS.md` |
+| CSS, theme or layout | VIS-2 to VIS-10 |
 | An owner call-out | WORK-7, WORK-1, WORK-9 |
 | A gate finding | WORK-2 |
 | Before reporting or committing | WORK-4, WORK-6, WORK-14 |
 
-A retired rule's ID is not reused, so a range such as NAME-1 to NAME-11 spans a retired ID such as NAME-5.
+A retired rule's ID is not reused, so a range such as NAME-1 to NAME-12 spans a retired ID such as NAME-5, and VIS-2 to VIS-10 spans VIS-7.

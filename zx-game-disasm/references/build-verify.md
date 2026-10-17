@@ -394,7 +394,7 @@ Three restrictions keep the check on that class and off ordinary prose.
 
 **Only a phrase that refers to a member is an alias.** "The second enemy" names the enemy. "The second-enemy bonus" names a bonus, and `second-enemy` is a hyphenated compound modifier — the hyphen is the writer saying so. The head noun there is `bonus`, a different entity with a name of its own, and substituting the label gives "the enemy B bonus", which is not idiomatic and is not the fix this check asks for. A referring use is rewritten to "enemy B"; an attributive one stands.
 
-An alias with no positional word in it is settled by the author and held by the vocabulary section of the project's `AGENTS.md`, not by arithmetic over labels.
+An alias with no positional word in it is settled by the author and held by the glossary, not by arithmetic over labels.
 
 The sweep covers the `.ctl`, every `.ref` and `spec/*.md`: a term settles wherever nothing looks. Its baseline keys on `<file>:<phrase>` rather than an address, since a finding in a catalog table has no directive address and the phrase is its identity. The file has to be in that key: without it, an accepted phrase in a `.ref` and the same phrase newly written into the `.ctl` are one key with one count, so fixing the catalog pays for the new one and the gate stays green.
 
