@@ -205,6 +205,7 @@ The writing rules of ASD-STE100, the controlled language of technical documentat
 | VIS-8 | A built site fetches nothing, and every font it names is shipped beside it or present on the reader's platform. | review | |
 | VIS-9 | The listing's code rows keep one even pitch, and a comment's length never changes the code rows' spacing. | review | |
 | VIS-10 | Design work runs in four steps: specialists name each problem with its root cause and a prescribed fix; an independent challenger with no stake in the proposal reviews each prescription; only what passes is implemented, exactly as prescribed; then the result is rendered and reviewed. | review | |
+| VIS-11 | A page that lists entries orders them in a way the reader can name. Things the game shows go in the order the game presents them, such as inhabitants by the level they first appear on. Sounds go by when a game plays them, with entries of one kind kept together, such as the title and game-over tunes. Any other list follows an order with a meaning to the reader, such as defects by what they cost the player. A list with no such order, such as a glossary, is alphabetical. Address order belongs to the memory maps alone. | review | |
 
 ## WORK: how to work
 
@@ -246,7 +247,7 @@ Apply the listed rules before writing.
 | An entry title or page heading | HEAD-1 to HEAD-4, NAME-6, AUD-1, HOME-10, TYPO-1 |
 | A sprite, glyph or sound entry | GFX-1 to GFX-9, HOME-7, VIS-1, EVID-3 |
 | A label, term or classification change | NAME-1 to NAME-12, WORK-1 |
-| `.ref` page prose | HOME-1 to HOME-3, HOME-10, HOME-13, STE-1 to STE-6, AUD-1, AUD-3, AUD-4, ROW-7, VIS-1, TYPO-1, TYPO-2 |
+| `.ref` page prose | HOME-1 to HOME-3, HOME-10, HOME-13, STE-1 to STE-6, AUD-1, AUD-3, AUD-4, ROW-7, VIS-1, TYPO-1, TYPO-2, VIS-11 |
 | CSS, theme or layout | VIS-2 to VIS-10 |
 | An owner call-out | WORK-7, WORK-1, WORK-9 |
 | A gate finding | WORK-2 |
