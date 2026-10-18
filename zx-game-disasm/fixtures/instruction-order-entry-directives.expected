@@ -1,0 +1,16 @@
+Found 3 entry-level directive(s) at a non-entry address:
+
+  Line 24: D $F004
+      D $F004 Resets the life counter.
+    D renders only at an entry's start, so sna2skool drops this one
+    silently. Split an entry at $F004, or move the text to an N or a row comment.
+
+  Line 26: R $F004
+      R $F004 I:B life count
+    R renders only at an entry's start, so sna2skool drops this one
+    silently. Split an entry at $F004, or move the text to an N or a row comment.
+
+  Line 28: E $F004
+      E $F004 Falls through to the frame loop.
+    E renders only at an entry's start, so sna2skool drops this one
+    silently. Split an entry at $F004, or move the text to an N or a row comment.

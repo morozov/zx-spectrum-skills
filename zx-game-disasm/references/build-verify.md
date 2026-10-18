@@ -238,7 +238,7 @@ The framework builds one source, in `@ssub` mode, and holds it to the game's byt
 `make` runs these `.ctl` linters (also runnable standalone as `make lint`, or from `scripts/`):
 
 - `validate_ctl_address_order.py` — directives in ascending address order, and no two entry heads on one address. Equal addresses are ordinary between an `@`, an entry head and its `D`; between two entry heads they give the first a size of zero, which drops it out of every check that measures a block's extent.
-- `validate_ctl_instruction_order.py` — at one address: `@` → block type → `D` → `N` → `R` → line comment.
+- `validate_ctl_instruction_order.py` — at one address: `@` → block type → `D` → `N` → `R` → line comment. A `D`, `R` or `E` at an address with no block-type line fails too, because `sna2skool` drops it without a warning.
 - `validate_ctl_lengths.py` — no line-comment `LENGTH` that just restates the gap to the next entry.
 - `validate_ctl_label_length.py` — labels within 24 characters.
 - `validate_ctl_identity.py` — every entry titled, every sub-directive named.

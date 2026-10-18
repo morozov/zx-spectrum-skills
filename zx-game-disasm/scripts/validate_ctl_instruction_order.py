@@ -10,6 +10,12 @@ Canonical order for instructions at the same address:
 4. N (block-level comments - first and additional paragraphs)
 5. R (register annotations - inputs and outputs)
 6. i (instruction-level comments)
+
+It also fails on a `D`, `R` or `E` at an address that carries no block-type
+line. SkoolKit renders those three only at an entry's start, and `sna2skool`
+drops one written at any other address without a warning, so its text reaches
+no page while every downstream check passes. Only `N` and line comments render
+mid-block.
 """
 
 import sys
@@ -187,6 +193,29 @@ def validate_instruction_order(instructions_by_address: Dict[int, List[Instructi
     return len(violations) == 0, violations
 
 
+# Block types that start an entry, and the directives SkoolKit renders only there.
+# A line comment is typed `i` as well, so an entry line is also told by starting
+# in the first column.
+ENTRY_TYPES = set('cgbtuswi')
+ENTRY_LEVEL = set('DRE')
+
+
+def is_entry(instr: InstructionInfo) -> bool:
+    """True for a block-type line, false for a line comment."""
+    return instr.instruction_type in ENTRY_TYPES and not instr.line_content[:1].isspace()
+
+
+def find_misplaced(instructions_by_address: Dict[int, List[InstructionInfo]]) -> List[InstructionInfo]:
+    """Return every `D`, `R` or `E` at an address with no block-type line."""
+    misplaced = []
+    for address in sorted(instructions_by_address):
+        instructions = instructions_by_address[address]
+        if any(is_entry(i) for i in instructions):
+            continue
+        misplaced.extend(i for i in instructions if i.instruction_type in ENTRY_LEVEL)
+    return misplaced
+
+
 def main():
     """Main entry point."""
     if len(sys.argv) != 2:
@@ -199,6 +228,8 @@ def main():
         print("  4. N (block-level comments)")
         print("  5. R (register annotations)")
         print("  6. i (instruction-level comments)")
+        print()
+        print("and that D, R and E sit only at an address with a block-type line.")
         sys.exit(1)
 
     ctl_file_path = sys.argv[1]
@@ -206,9 +237,23 @@ def main():
     try:
         instructions_by_address = extract_instructions(ctl_file_path)
         is_valid, violations = validate_instruction_order(instructions_by_address)
+        misplaced = find_misplaced(instructions_by_address)
+
+        if is_valid and not misplaced:
+            return 0
+
+        if misplaced:
+            print(f"Found {len(misplaced)} entry-level directive(s) at a non-entry address:")
+            print()
+            for instr in misplaced:
+                print(f"  {instr}")
+                print(f"      {instr.line_content}")
+                print(f"    {instr.instruction_type} renders only at an entry's start, so sna2skool drops this one")
+                print(f"    silently. Split an entry at ${instr.address:04X}, or move the text to an N or a row comment.")
+                print()
 
         if is_valid:
-            return 0
+            return 1
 
         print(f"Found {len(violations)} ordering violation(s):")
         print()

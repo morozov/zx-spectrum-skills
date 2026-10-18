@@ -109,6 +109,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | ENT-7 | Every basic block of a routine carries a comment, and a bare `RET` or a call to a well-named routine carries none. | RET_GROUP, review | |
 | ENT-8 | A comment group covers one act: it spans no unconditional transfer, is entered only at its first row, and skips none of its own rows. | GROUP_SPLIT, GROUP_ENTRY, GROUP_SKIP, review | |
 | ENT-9 | The `.ctl` writes every address as `$`-hex, in block addresses and `#R` references alike. | review | |
+| ENT-10 | A `D`, `R` or `E` directive sits at an entry's own address. Prose inside a block is an `N` or a row comment. | lint-instruction-order | |
 
 ## GFX: graphics and fonts
 
@@ -242,7 +243,7 @@ Apply the listed rules before writing.
 | Task | Rules |
 | --- | --- |
 | A data row comment or sub-block | ROW-1 to ROW-9, PROSE-9, HOME-5, AUD-4, TYPO-1, TYPO-2 |
-| A routine description (`D`/`N`) or instruction comment | ENT-6 to ENT-8, HOME-1, HOME-2, HOME-4 to HOME-6, HOME-9, HOME-11, HOME-12, PROSE-1 to PROSE-9, STE-1 to STE-6, AUD-3, AUD-4, REG-3, TYPO-1, TYPO-2 |
+| A routine description (`D`/`N`) or instruction comment | ENT-6 to ENT-8, ENT-10, HOME-1, HOME-2, HOME-4 to HOME-6, HOME-9, HOME-11, HOME-12, PROSE-1 to PROSE-9, STE-1 to STE-6, AUD-3, AUD-4, REG-3, TYPO-1, TYPO-2 |
 | A variable or table definition | DEF-1 to DEF-5, PROSE-9, HOME-2, HOME-4, HOME-12, ENT-4, ENT-5, UNU-1 to UNU-3 |
 | A glossary entry | DEF-1 to DEF-6, NAME-1, NAME-3, NAME-6 |
 | An entry title or page heading | HEAD-1 to HEAD-4, NAME-6, AUD-1, HOME-10, TYPO-1 |

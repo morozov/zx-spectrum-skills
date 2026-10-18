@@ -69,6 +69,8 @@ run instruction-order-late-directive \
     scripts/validate_ctl_instruction_order.py fixtures/comment-line-order.ctl
 run instruction-order-decimal \
     scripts/validate_ctl_instruction_order.py fixtures/decimal-addresses.ctl
+run instruction-order-entry-directives \
+    scripts/validate_ctl_instruction_order.py fixtures/entry-directives.ctl
 run array-elements-unindexed \
     scripts/validate_ctl_array_elements.py fixtures/wide-comment-array.ctl
 run data-structure-partition \
