@@ -446,6 +446,8 @@ R $ADDRESS O:HL address of the allocated slot
 
 Document only registers that are real parameters, not every register the body touches.
 
+`R` holds the register table and nothing else. Every row starts `I:` or `O:` and names a register. SkoolKit reads the first word of any other row as a register, so `R $7D60 Used by #FOREACH(…)` renders as a register "Used" whose description is the rest of the row: the text lands in the register table, not in the entry's prose. Prose and macros belong in an `N`, which comes before the `R` rows.
+
 Every row names its register: `O:` with nothing after the colon is not a row. Say that result in the description.
 
 One register per row, always. `R $ADDRESS I:HL destination, DE source, B byte count` is three rows: one `I:HL`, one `I:DE`, one `I:B`. Never list several registers in a row's description, never put two `I:`/`O:` fields in one row, and never describe the registers of a routine in its `D` or `N` prose instead of rows. The same goes for a description that says "HL and DE ...". A reader scans the register table by the register column.
@@ -456,7 +458,7 @@ The text of a row is a noun phrase in one style across the project:
 - It says what the register holds, with the encoding or limit that matters: `I:C row count (0 draws none)`, `O:A 1 when the door is locked, 0 when open`. A bare noun (`destination`, `attribute`) fails; `unchanged` is the one one-word row, for a register the routine preserves.
 - Routines that do the same job at different sizes carry parallel rows.
 
-`make lint-registers` gates all of it: one register per row, a lower-case phrase, no final full stop, no one-word role.
+`make lint-registers` gates all of it: an `I:`/`O:` row, one register per row, a lower-case phrase, no final full stop, no one-word role.
 
 In comment text, reference addresses with `#R$XXXX` (SkoolKit resolves it to the label) and register names with `#REG` macros (`#REGhl`, `#REGbc`, `#REGde`, `#REGa`). The `I:`/`O:` fields in `R` directives use bare register names — that is SkoolKit syntax — but in prose always wrap them.
 

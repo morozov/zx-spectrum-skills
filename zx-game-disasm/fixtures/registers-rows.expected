@@ -1,4 +1,4 @@
-Found 7 register row finding(s):
+Found 8 register row finding(s):
 
   registers.ctl:3: REG_MULTI — the description names a second register: give it its own row
     R $4000 I:HL destination, DE source, B byte count
@@ -20,3 +20,6 @@ Found 7 register row finding(s):
 
   registers.ctl:10: REG_EMPTY — the row has no register ('O:'): say it in the entry description and delete the row
     R $4000 O: updates the heading
+
+  registers.ctl:11: REG_FORM — the row is not an I: or O: register entry, so SkoolKit reads its first word as a register: put prose and macros in an N
+    R $4000 Used by #FOREACH(EREF$4000)(caller,#Rcaller,, and )

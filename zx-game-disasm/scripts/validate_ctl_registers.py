@@ -28,6 +28,14 @@ REG_BARE - a description of one word.
   not what the register holds, not its encoding or limit. The one exception is
   "unchanged", which is the whole statement on a register a routine preserves.
 
+REG_FORM - an `R` row that is not an `I:` or `O:` register entry.
+
+  `R $9180 Used by #FOREACH(EREF$9180)(...)` builds clean, and SkoolKit reads its
+  first word as a register: the table gains a register "Used" whose description
+  is the rest of the row, so the text lands in the register table, not in the
+  entry's prose. `R` holds the register table only. Prose and macros belong in
+  an `N`.
+
 Usage: validate_ctl_registers.py CTL [--baseline FILE] [--write-baseline]
 Exit 0 when clean, 1 when a row breaks the rule.
 """
@@ -41,6 +49,7 @@ import ctl_baseline
 
 CHECK = 'registers'
 
+DIRECTIVE_RE = re.compile(r'^R \S+ ')
 ROW_RE = re.compile(r'^R \$?[0-9A-Fa-f]+ (?P<dir>[IO]):(?P<reg>\S*)(?: (?P<text>.*))?$')
 WORD_RE = re.compile(r"[A-Za-z']+")
 # A second register inside a description: ", DE ..." or " and BC ...".
@@ -52,8 +61,13 @@ def scan(path):
     findings = []
     with open(path, encoding='utf-8') as f:
         for lineno, raw in enumerate(f, 1):
-            match = ROW_RE.match(raw.rstrip('\n'))
+            line = raw.rstrip('\n')
+            match = ROW_RE.match(line)
             if not match:
+                if DIRECTIVE_RE.match(line):
+                    findings.append((lineno, 'REG_FORM',
+                                     'the row is not an I: or O: register entry, so SkoolKit reads '
+                                     'its first word as a register: put prose and macros in an N'))
                 continue
             reg = match.group('reg')
             text = (match.group('text') or '').strip()

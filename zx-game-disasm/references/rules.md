@@ -133,6 +133,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | REG-2 | A register row is a lower-case noun phrase with no final full stop that says what the register holds, with the encoding or limit that matters. | lint-registers | |
 | REG-3 | A routine that takes a value in a register, or hands one back, has an `R` row for it, and its prose describes no register. | review | Does this description or note describe a register's input or output in prose? |
 | REG-4 | An `R` row states a contract that the caller deliberately sets or uses, confirmed at the call sites. | review | |
+| REG-5 | Every `R` row is an `I:` or `O:` row that names a register. Prose and macros go in an `N`. | REG_FORM | |
 
 ## NAME: names, terms and labels
 
