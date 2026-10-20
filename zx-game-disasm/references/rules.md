@@ -42,6 +42,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | EVID-8 | An answer to "are you sure?" states exactly which bytes, slots or addresses the claim covers and what the image holds there. | review | |
 | EVID-9 | Grouping, animation boundaries and identity come from the frame table and the handler's code. | review | |
 | EVID-10 | A relocatability claim is made only after the program has been moved and run. | review | |
+| EVID-11 | A verb that says how a thing moves, where it places another thing, or that it waits matches what its handler does. A thing the code holds still sits, and does not wait. A thing placed above its source is spawned, not dropped. | review | |
 
 ## HOME: one home per fact
 

@@ -152,7 +152,7 @@ Found 118 comment defect(s):
   fragment-stop.skool:196: 'holding' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
     $ED87 DEFB $00      ; The catch delay and the alarm delay leave HL holding whatever the guard step #R$F730 last used, an
   fragment-stop.skool:198: 'tracking' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
-    $ED89 DEFB $00      ; Drifts down while tracking the player's floor, and drops traps.
+    $ED89 DEFB $00      ; Paces sideways while tracking the player's floor, and lays traps.
   fragment-stop.skool:201: 'turning' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]
     $ED8C DEFB $00      ; Runs along a straight path, turning only at doors.
   fragment-stop.skool:202: 'weaving' is an -ing form – write the verb in a simple tense, or the noun it names. A word of a label is a technical name and may keep its -ing [STE-4]

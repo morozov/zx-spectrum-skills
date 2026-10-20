@@ -195,7 +195,7 @@ b$ED00 DEFB $00      ; The lamp dims.
  $ED86 DEFB $00      ; The ladder check reads the wrong byte.
  $ED87 DEFB $00      ; The catch delay and the alarm delay leave HL holding whatever the guard step #R$F730 last used, and the check above at $F750 means the test only runs with the torch lit.
  $ED88 DEFB $00      ; Two extra cells sit in #R$F770 / #R$F790: a weak ledge and a second firm one.
- $ED89 DEFB $00      ; Drifts down while tracking the player's floor, and drops traps.
+ $ED89 DEFB $00      ; Paces sideways while tracking the player's floor, and lays traps.
  $ED8A DEFB $00      ; Closes in on the player.
  $ED8B DEFB $00      ; Waits in place for a time, then closes in on the player.
  $ED8C DEFB $00      ; Runs along a straight path, turning only at doors.
