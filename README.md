@@ -1,5 +1,7 @@
 # ZX Spectrum skills
 
+![A robot typing on a ZX Spectrum while a platform game runs on the TV](assets/banner.png)
+
 Agent skills for working with ZX Spectrum software.
 
 ## Skills
