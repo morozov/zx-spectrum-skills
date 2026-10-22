@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install the toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pasmo
+          pip install -r requirements.txt
+      - name: Check syntax
+        run: |
+          git ls-files '*.py' | xargs python -m py_compile
+          git ls-files '*.sh' | xargs -n1 bash -n
+      - name: Validate the rulebook
+        working-directory: zx-game-disasm
+        run: python scripts/validate_rules.py
+      - name: Run the fixture suites
+        working-directory: zx-game-disasm
+        run: |
+          status=0
+          for suite in fixtures/*.sh; do
+            echo "::group::$suite"
+            bash "$suite" || status=1
+            echo "::endgroup::"
+          done
+          exit $status
