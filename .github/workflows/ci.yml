@@ -22,6 +22,13 @@ jobs:
         run: |
           git ls-files '*.py' | xargs python -m py_compile
           git ls-files '*.sh' | xargs -n1 bash -n
+      - name: Dry-run the site build from site.mk alone
+        run: |
+          out=$(make -n -B --warn-undefined-variables -f zx-game-disasm/site/site.mk \
+            GAME=x ORG=0 SIZE=1 PC=0 SP=0 T2S=/dev/null CTL=/dev/null html build/x.bin 2>&1) \
+            || { printf '%s\n' "$out"; exit 1; }
+          printf '%s\n' "$out"
+          if printf '%s\n' "$out" | grep 'undefined variable'; then exit 1; fi
       - name: Validate the rulebook
         working-directory: zx-game-disasm
         run: python scripts/validate_rules.py

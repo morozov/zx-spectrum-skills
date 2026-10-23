@@ -1,10 +1,12 @@
 # Shared SkoolKit-disassembly build framework for the zx-game-disasm skill.
 #
 # A game Makefile sets GAME, ORG, SIZE, PC, SP (and optionally RELOC_FLOOR), then
-# `include`s this file. All build rules live here, so a project's Makefile stays a
-# few lines and a fix to the framework reaches every game without re-copying. This
-# mirrors how SkoolKit's own disassemblies include `$(SKOOLKIT_HOME)/tools/
-# disassembly.mk`. Do NOT copy this into a project — reference it in place.
+# `include`s this file. The build rules live here and in site/site.mk, so a
+# project's Makefile stays a few lines and a fix to the framework reaches every
+# game without re-copying. This mirrors how SkoolKit's own disassemblies include
+# `$(SKOOLKIT_HOME)/tools/disassembly.mk`. Do NOT copy this into a project —
+# reference it in place. The one copy a project keeps is site/, which
+# `make vendor` writes.
 #
 # Targets:
 #   make          The mechanical gate: round-trip cmp + .ctl linters + HTML build
@@ -46,6 +48,9 @@
 #   make verify-frag FRAG=…  Round-trip one Worker fragment in isolation
 #   make tap      A loadable .tap of what the .asm assembles to — the disassembly
 #                 as a playable rebuild, not only a byte-check
+#   make html     The HTML site alone, from site/site.mk
+#   make vendor   Copy the skill's site/ into the project's $(SITE_DIR)
+#   make vendor-check  Gate: $(SITE_DIR) is identical to the skill's site/
 #   make clean    Remove all generated files
 #
 # The default `make` builds everything — the disassembly, the verified round-trip,
@@ -57,18 +62,24 @@
 # The build refuses to start when any of its tools is missing from PATH, whether
 # or not the tree is up to date — see "The toolchain" below.
 
-# Locate the skill's scripts relative to this file: .../tools/disassembly.mk lives
-# beside .../scripts, so the project never has to point at them.
-SCRIPTS := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../scripts)
-FIXTURES := $(abspath $(SCRIPTS)/../fixtures)
+# The skill's root, from this file's own path. It is read here, before the
+# include below, because MAKEFILE_LIST names the included file after it.
+SKILL_HOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
+SCRIPTS    := $(SKILL_HOME)/scripts
+FIXTURES   := $(SKILL_HOME)/fixtures
+
+# The site build. A project includes its vendored copy before this file; one
+# with no copy yet builds with the skill's own until `make vendor` writes it.
+ifndef SITE_HOME
+include $(SKILL_HOME)/site/site.mk
+endif
+
+.DEFAULT_GOAL := all
 
 # --- The toolchain -----------------------------------------------------------
 #
 # The build runs its tools from PATH.
-TAP2SNA    := tap2sna.py
-SNA2SKOOL  := sna2skool.py
 SKOOL2ASM  := skool2asm.py
-SKOOL2HTML := skool2html.py
 BIN2TAP    := bin2tap.py
 PASMO      := pasmo
 
@@ -109,7 +120,7 @@ TOOLS_lint-baseline       := $(TOOLS_html)
 # default build's set. `lint-publication` is not among them: it reads the
 # generated .skool for the addresses the code stores to, so it can need the
 # disassembler to produce one.
-TOOLS_FREE_GOALS := clean gate gate-index hooks lint-address-order lint-instruction-order \
+TOOLS_FREE_GOALS := clean gate gate-index hooks vendor vendor-check lint-address-order lint-instruction-order \
                     lint-lengths lint-label-length lint-identity \
                     lint-names lint-terms lint-byte-counts lint-array-elements lint-registers
 
@@ -135,42 +146,14 @@ endif
 # label (below is ROM/screen, fixed). Per-game; override in the game Makefile.
 RELOC_FLOOR ?= 0x5B00
 
-SRC       ?= src
-BUILD     ?= build
-# Where a project's make rules write the site files they render from the image.
-SITE_RENDERS ?= $(BUILD)/resources
-
 # Source files (hand-edited)
-CTL = $(SRC)/$(GAME).ctl
-T2S = $(SRC)/$(GAME).t2s
 INI = skoolkit.ini
-REF = $(SRC)/$(GAME).ref
-
-# Further .ctl files the disassembly is built from, if the project generates any
-# (a build script's sprite masks, say). Set it in the game Makefile as a plain
-# list of paths. They reach sna2skool as extra `--ctl` arguments and are held to
-# the same publication rules as the main one: a page is a page whichever file
-# declared it.
-CTL_EXTRA ?=
 
 # Generated files
-SKOOL         = $(BUILD)/$(GAME).skool
-Z80           = $(BUILD)/$(GAME).z80
-BIN           = $(BUILD)/$(GAME).bin
 ASM           = $(BUILD)/$(GAME).asm
 ASM_BIN       = $(BUILD)/$(GAME).asm.bin
-HTML_DIR      = $(BUILD)/html
 
-.PHONY: lint-renames lint-deletion-scope diff-entries all gate gate-index hooks visual-review lint-html lint-html-layout tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-registers lint-images lint-comment-fit lint-baseline lint-array-elements lint-comments lint-prose coverage html
-
-# A recipe that redirects into its own target has already created that target by
-# the time it fails: `sna2skool.py … > $(SKOOL)` that dies mid-write leaves a
-# truncated .skool newer than the .ctl, which make then calls current and every
-# downstream target agrees with. Delete the target instead, so the next make
-# rebuilds it and a failure cannot be laundered into an up-to-date tree. Every
-# failing target that must survive here is phony, and `lint-baseline` writes
-# $(BASELINE), not $@.
-.DELETE_ON_ERROR:
+.PHONY: lint-renames lint-deletion-scope diff-entries all gate gate-index hooks visual-review lint-html lint-html-layout tap clean verify-frag test test-checks lint lint-address-order lint-instruction-order lint-lengths lint-label-length lint-label-namespace lint-identity lint-data-structure lint-publication lint-names lint-byte-counts lint-registers lint-images lint-comment-fit lint-baseline lint-array-elements lint-comments lint-prose coverage vendor vendor-check
 
 # Findings a project has accepted as its starting point, one per line. The gating
 # checks below hold this line: a finding it does not list fails the build, and a
@@ -185,7 +168,7 @@ BASELINE ?= tools/lint-baseline.toml
 # produced: their subject is a directory of files rather than a text file. Its
 # own prerequisite is $(HTML_DIR)/.stamp, so the order holds under `-j` too.
 # `lint-comment-fit` reads the built site for the same reason.
-all: $(ASM) test test-checks lint html lint-html lint-comment-fit
+all: vendor-check $(ASM) test test-checks lint html lint-html lint-comment-fit
 
 # The same gate, with a result that cannot be misread.
 #
@@ -244,8 +227,8 @@ GATE_ARTIFACTS = $(Z80) $(BIN) $(SKOOL) $(ASM) $(ASM_BIN) $(HTML_DIR)/.stamp \
 # through a symlink, a copy or a checkout, and only the files are guaranteed to be
 # there. A copy has no revision to read, while a digest reads the same there as in
 # the checkout it came from — and it does not move when only prose moves, because
-# it covers tools/, scripts/ and assets/, which is what the build runs and reads,
-# and not references/.
+# it covers tools/, scripts/, site/ and assets/, which is what the build runs and
+# reads, and not references/.
 #
 # Every part of it degrades to a word rather than to a failure, because a project
 # whose marker cannot be read must still build: an unreadable SKILL.md gives
@@ -256,7 +239,6 @@ GATE_ARTIFACTS = $(Z80) $(BIN) $(SKOOL) $(ASM) $(ASM_BIN) $(HTML_DIR)/.stamp \
 # reported only on a failure — that is the shape of an old commit rebuilt under a
 # newer gate, and on a pass the absence is the right default for a new
 # disassembly rather than something to say.
-SKILL_HOME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 
 # Prints the declared generation and the digest through the printf format $(1).
 # GATE_ID is `<declared>/<digest>`, which the verdict prints after the word
@@ -273,7 +255,7 @@ gate_id = { \
       v=$$(awk '/^metadata:/{m=1;next} m&&/^[^ ]/{m=0} m&&$$1=="gate:"{print $$2;exit}' \
           '$(SKILL_HOME)/SKILL.md' 2>/dev/null); \
       sha=$$(command -v shasum >/dev/null 2>&1 && echo 'shasum -a 256' || echo 'sha256sum'); \
-      d=$$(cd '$(SKILL_HOME)' 2>/dev/null && find tools scripts assets -type f ! -name '*.pyc' -print0 2>/dev/null \
+      d=$$(cd '$(SKILL_HOME)' 2>/dev/null && find tools scripts site assets -type f ! -name '*.pyc' -print0 2>/dev/null \
           | LC_ALL=C sort -z | xargs -0 $$sha 2>/dev/null | $$sha 2>/dev/null | cut -c1-7); \
       printf '$(1)' "$${v:-undeclared}" "$${d:-unknown}"; }
 GATE_ID = $(call gate_id,%s/%s\n)
@@ -372,27 +354,6 @@ gate:
 # so this recipe stays one line. Usage: make verify-frag FRAG=build/frags/my.ctl
 verify-frag: $(Z80) $(BIN)
 	@$(SCRIPTS)/verify_fragment.sh "$(CTL)" "$(FRAG)" "$(Z80)" "$(BIN)" "$(SCRIPTS)" "$(BASELINE)" "$(ORG)" "$(RELOC_FLOOR)" "$(SIZE)"
-
-# Load the game from its tape into a snapshot.
-$(Z80): $(T2S)
-	@mkdir -p $(dir $@)
-	$(TAP2SNA) @$(T2S) --reg pc=$(PC) --reg sp=$(SP) $(Z80)
-
-# Extract the program bytes from the snapshot (the ground truth).
-$(BIN): $(Z80)
-	$(SCRIPTS)/extract_bytes.py $(Z80) $(ORG) $(SIZE) $@
-
-# Disassemble the snapshot into skool, applying the control file.
-# sna2skool warns and continues when it cannot place a .ctl line — a hard-wrapped
-# directive loses every line after the first this way, and the truncated comment
-# then passes every downstream check, because from their point of view the text
-# simply is not there. Fail here instead, the way the asm render already does.
-$(SKOOL): $(Z80) $(CTL) $(CTL_EXTRA)
-	@$(SNA2SKOOL) --hex $(Z80) --ctl $(CTL) $(addprefix --ctl ,$(CTL_EXTRA)) \
-	    > $@.tmp 2> $@.stderr; rc=$$?; \
-	if grep -q 'Ignoring line' $@.stderr; then rc=1; fi; \
-	if [ $$rc -ne 0 ]; then cat $@.stderr >&2; rm -f $@.tmp $@.stderr; exit $$rc; fi; \
-	cat $@.stderr; rm -f $@.stderr; mv $@.tmp $@
 
 # The round-trip: the bytes the .asm assembles to must equal the game's.
 test: $(BIN) $(ASM_BIN)
@@ -852,80 +813,6 @@ tap: $(TAP)
 $(TAP): $(ASM_BIN)
 	$(BIN2TAP) --org $(ORG) --start $(PC) --stack $(SP) $< $@
 
-# Every site ships the skill's default theme: dark responsive layout, the listing
-# in the platform's own monospace face, Z80 syntax highlighting, comment-group
-# hover, and a card-grid index (assets/theme.{ref,css,js}). The theme names no
-# face it does not load — see `references/html-docs.md`. A project layers its
-# identity by appending its own stylesheet to the chain its [Game] declares
-# (StyleSheet=skoolkit.css;theme.css;$(GAME).css). `-a` renders operands as
-# label names — `CALL draw_sprite`, never `CALL $F0A2`.
-#
-# The theme ref is parsed LAST, after every project ref, and last wins.
-# skool2html.py:183-196 globs $(GAME)*.ref and reads [Config] (RefFiles, GameDir)
-# only in the skool file's directory, and the skool lives in $(BUILD), so the
-# recipe passes what that discovery would have found: $(GAME).ref first, the
-# other $(GAME)*.ref, then the files [Config] RefFiles names, in its order, then
-# the theme. GameDir is passed with -c, which skool2html applies before it reads
-# it (skool2html.py:192): the project's own [Config] GameDir, else $(GAME).
-#
-# So restating a parameter does NOT override the theme. refparser.py:30-33: a
-# plain [Section] REPLACES what earlier refs built, a [Section+] extends it, and
-# within a dictionary section a later `Key=` overwrites an earlier one. A key
-# theme.ref states in [Game+] or [Paths+] therefore beats the project's value for
-# that key, and a plain [Template:*] in theme.ref cannot be reclaimed at all.
-# theme.ref carries only what is genuinely the theme's own; a default a project
-# should be able to change lives in assets/game.ref.template, which is the
-# project's own file and is parsed first. The one layer that composes rather than
-# clobbers is `-c` (skool2html.py:197, applied after every ref), which is why
-# HTML_JS below appends to the theme's JavaScript instead of replacing it.
-THEME := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../assets)
-
-# `-a` names the *targets* of calls and jumps, and nothing else: skool2html
-# builds its parser with no asm_mode, so @isub/@ssub and the @equ label map —
-# everything that spells an address as a constant in the ASM — never reach the
-# page. `InitModule` loads the skill's parser wrapper, which parses the skool a
-# second time in ASM mode and copies the operand text across, so the listing and
-# the .asm read alike. A project that needs an InitModule of its own must import
-# this one from it: the last [Config] value wins, and this is passed last.
-HTML_SUBS := $(SCRIPTS)/html/operand_subs.py
-# Every $-hex value in the site's text is wrapped in span.hex, which the theme sets
-# in the monospace face. It runs after skool2html, inside the $(HTML_DIR)/.stamp recipe,
-# so no page ships without it and a rebuilt page is never left unwrapped.
-HTML_HEX := $(SCRIPTS)/html/hex_mono.py
-# Every label and constant name in the site's prose is wrapped in span.sym, so a
-# name without a link sets in the same face as a linked one. It runs after the
-# hex pass, in the same recipe; it reads the labels off the built pages and the
-# constants off the skool file's @equ directives.
-HTML_SYM := $(SCRIPTS)/html/sym_mono.py
-
-# [Game] JavaScript is a single key, so a ref file that names theme.js owns the
-# whole slot and a project can ship none of its own. Composing it here instead
-# leaves the slot open: a project lists its scripts in HTML_JS and they load
-# after the theme's.
-#
-#   HTML_JS = maps.js;search.js
-#
-# Name each file in [Resources] so skool2html copies it onto the site. A project
-# keeps its hand-made site files in resources/, a directory skool2html searches
-# by default (skool2html.py SEARCH_DIRS), and its rendered ones in
-# $(SITE_RENDERS), which the recipe adds with -S. A [Resources] path is relative
-# to either.
-HTML_JS ?=
-HTML_JAVASCRIPT := theme.js$(if $(HTML_JS),;$(HTML_JS))
-
-HTML_REF_FILES := $(shell sed -n 's/^RefFiles=//p' $(REF) 2>/dev/null | tr ';' ' ')
-HTML_GAME_DIR := $(or $(shell sed -n 's/^GameDir=//p' $(REF) 2>/dev/null),$(GAME))
-HTML_REFS := $(REF) $(filter-out $(REF),$(sort $(wildcard $(SRC)/$(GAME)*.ref)))
-HTML_REFS += $(filter-out $(HTML_REFS),$(addprefix $(SRC)/,$(HTML_REF_FILES)))
-
-html: $(HTML_DIR)/.stamp
-
-$(HTML_DIR)/.stamp: $(SKOOL) $(wildcard $(SRC)/*.ref) $(wildcard resources/*.css resources/*.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS) $(HTML_HEX) $(HTML_SYM)
-	$(SKOOL2HTML) -d $(HTML_DIR) -H -a -c "Config/InitModule=$(SCRIPTS)/html:operand_subs" -c "Config/GameDir=$(HTML_GAME_DIR)" -c "Game/JavaScript=$(HTML_JAVASCRIPT)" --rebuild-images --rebuild-audio -S $(THEME) -S $(SITE_RENDERS) $(SKOOL) $(HTML_REFS) $(THEME)/theme.ref
-	$(HTML_HEX) $(HTML_DIR)
-	$(HTML_SYM) $(HTML_DIR) $(SKOOL)
-	touch $@
-
 # --- Check results are cached -------------------------------------------------
 #
 # A sweep writes no file of its own, so as a phony target it re-runs on every
@@ -948,7 +835,7 @@ $(HTML_DIR)/.stamp: $(SKOOL) $(wildcard $(SRC)/*.ref) $(wildcard resources/*.css
 # the baseline, the key, and every file the skill's build runs and reads. A check
 # that reads a file outside its sweep's line would replay a stale pass, so a new
 # input of any check goes on that line.
-SKILL_FILES := $(shell find '$(SKILL_HOME)/tools' '$(SKILL_HOME)/scripts' '$(SKILL_HOME)/assets' -type f ! -name '*.pyc' 2>/dev/null)
+SKILL_FILES := $(shell find '$(SKILL_HOME)/tools' '$(SKILL_HOME)/scripts' '$(SKILL_HOME)/site' '$(SKILL_HOME)/assets' -type f ! -name '*.pyc' 2>/dev/null)
 PROJECT_MAKEFILE := $(firstword $(MAKEFILE_LIST))
 
 CHECK_KEY = $(CHECK_CACHE)/inputs.key
@@ -964,7 +851,7 @@ CHECK_INPUTS = $(PROJECT_MAKEFILE) $(CHECK_KEY) $(wildcard $(BASELINE)) $(SKILL_
 SKILL_KEY = $(CHECK_CACHE)/skill.key
 SKILL_KEY_TEXT := $(shell cd '$(SKILL_HOME)' 2>/dev/null && \
     sha=$$(command -v shasum >/dev/null 2>&1 && echo 'shasum -a 256' || echo 'sha256sum'); \
-    find tools scripts assets fixtures references -type f ! -name '*.pyc' -print0 2>/dev/null \
+    find tools scripts site assets fixtures references -type f ! -name '*.pyc' -print0 2>/dev/null \
     | LC_ALL=C sort -z | xargs -0 $$sha 2>/dev/null | $$sha 2>/dev/null | cut -c1-16)
 $(shell { printf '%s\n' '$(SKILL_KEY_TEXT)' | cmp -s - '$(SKILL_KEY)' \
     || printf '%s\n' '$(SKILL_KEY_TEXT)' > '$(SKILL_KEY)'; })
@@ -997,6 +884,32 @@ $(CHECK_CACHE)/lint-comment-fit.log: $(HTML_DIR)/.stamp $(CHECK_INPUTS)
 
 clean:
 	rm -rf $(BUILD)
+
+# --- The vendored site build --------------------------------------------------
+#
+# A project tracks a copy of the skill's site/ at $(SITE_DIR), which its
+# Makefile sets, so the site builds where the skill is not installed. `vendor`
+# writes the copy. `--checksum` without `--times` rewrites only the files whose
+# content differs, and gives each one the current time, so the site rebuilds
+# exactly when its runtime changed. It deletes nothing: a file the skill dropped
+# is reported by `vendor-check` and removed with git rm.
+#
+# `vendor-check` fails while the copy differs from the skill, so the gate never
+# passes over a site build other than the skill's. It compares content, not file
+# modes. Both recipes skip __pycache__ and .DS_Store, which Python and the
+# Finder write into a directory.
+need_site_dir = $(if $(SITE_DIR),,$(error SITE_DIR is not set: the project Makefile names the directory that holds its copy of the site build))
+
+vendor:
+	$(need_site_dir)
+	@mkdir -p $(SITE_DIR)
+	rsync --recursive --perms --checksum --exclude __pycache__ --exclude .DS_Store '$(SKILL_HOME)/site/' '$(SITE_DIR)/'
+
+vendor-check:
+	$(need_site_dir)
+	@diff -rq -x __pycache__ -x .DS_Store '$(SKILL_HOME)/site' '$(SITE_DIR)' || { \
+	  echo "vendor-check: $(SITE_DIR) is not a copy of $(SKILL_HOME)/site. Run make vendor, and git rm any file listed as only in $(SITE_DIR)."; \
+	  exit 1; }
 
 # --- Review: the record, the hooks, the screenshots ---------------------------
 #

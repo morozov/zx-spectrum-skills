@@ -1,17 +1,19 @@
-# SkoolKit disassembly — game Makefile. Set the name and the five numbers below,
-# then include the skill's shared framework. The project carries NO build logic, so
-# a framework fix reaches every game without re-copying (mirrors how SkoolKit's own
-# disassemblies include $(SKOOLKIT_HOME)/tools/disassembly.mk). SKILL has no
-# default: set it to the zx-game-disasm skill directory.
+# SkoolKit disassembly — game Makefile. Set the name and the five numbers below.
+#
+# The site build is the copy of the skill's site/ at $(SITE_DIR), which
+# `make vendor` writes and git tracks, so `make html` needs only SkoolKit and
+# tools/requirements.txt. Every other target comes from the skill at $(SKILL).
 #
 #   make          The gate: round-trip cmp + the .ctl linters + the HTML build
 #   make gate     The same gate, logged, ending in one verdict line
 #   make coverage The "is it done?" gauge
-#   make html     Build the HTML site (needs the .ref files)
+#   make html     Build the HTML site (needs no skill)
+#   make vendor   Copy the skill's site build into $(SITE_DIR)
 #   make clean    Remove all generated files (build/)
 #
-# A rule that renders a site file from the image writes into $(SITE_RENDERS) and
-# keeps its stamp in $(BUILD)/stamps/, for example:
+# A rule that renders a site file from the image writes into $(SITE_RENDERS),
+# keeps its stamp in $(BUILD)/stamps/, and runs the site's scripts from
+# $(SITE_HOME), for example:
 #
 #   RENDERS = $(BUILD)/stamps/renders.stamp
 #   $(RENDERS): tools/render.py $(BIN)
@@ -19,6 +21,9 @@
 #   	python3 tools/render.py $(BIN) $(SITE_RENDERS)/renders
 #   	@touch $@
 #   $(HTML_DIR)/.stamp: $(RENDERS)
+#
+# A rule that runs a skill script from $(SCRIPTS) goes inside `ifdef SKILL_HOME`,
+# because the site build defines neither.
 
 GAME = game
 
@@ -30,12 +35,17 @@ PC   =
 SP   =
 RELOC_FLOOR = 0x5B00   # refs at/above must be labels (below = ROM/screen, fixed)
 
-ifndef SKILL
-    $(error set SKILL to the zx-game-disasm skill directory)
-endif
 $(foreach v,ORG SIZE PC SP,$(if $($(v)),,$(error set $(v) to the game's value)))
-MK = $(SKILL)/tools/disassembly.mk
-ifeq ($(wildcard $(MK)),)
-    $(error $(MK): not found — set SKILL to the zx-game-disasm skill directory)
+
+SKILL ?= $(HOME)/.agents/skills/zx-game-disasm
+SITE_DIR = vendor/zx-game-disasm
+DEV_MK = $(SKILL)/tools/disassembly.mk
+
+-include $(SITE_DIR)/site.mk
+ifneq ($(wildcard $(DEV_MK)),)
+    include $(DEV_MK)
+else ifndef SITE_HOME
+    $(error $(SITE_DIR)/site.mk not found, and no skill at $(SKILL) to vendor it from)
+else
+    $(info $(DEV_MK) not found: only the site build is available)
 endif
-include $(MK)

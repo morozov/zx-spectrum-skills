@@ -226,7 +226,7 @@ The writing rules of ASD-STE100, the controlled language of technical documentat
 | WORK-12 | A tool built for the work is validated against cases with known answers before its output is trusted. | review | |
 | WORK-13 | A contribution taken over is brought to the standard of its neighbors. | review | |
 | WORK-14 | Every checkpoint passes the mechanical gate (`make`), with a byte-identical round-trip and zero `skool2asm` warnings, and its verdict line is reported whole. | review-record | |
-| WORK-15 | A project holds the disassembly, its game's inputs and the settings only that game needs. A tool, config or rule that holds for any game lives in the skill, which the build reads it from, and no project keeps a copy. | review | |
+| WORK-15 | A project holds the disassembly, its game's inputs and the settings only that game needs. A tool, config or rule that holds for any game lives in the skill, which the build reads it from, and no project keeps a copy, except the site build at `vendor/zx-game-disasm/`, which `make vendor` writes and the gate holds identical to the skill's `site/`. | review | |
 
 ## The call-out protocol (WORK-7)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Wrap every $-hex value in the built site's text in <span class="hex">.
 
-The theme (assets/theme.css) sets .hex in the monospace face. A value is two or four hex digits
+The theme (theme/theme.css) sets .hex in the monospace face. A value is two or four hex digits
 after a dollar sign. Text already monospace is left alone: the listing's
 instruction and label cells, code and pre blocks, and the head. Running it twice
 changes nothing, because text inside a span.hex is skipped.

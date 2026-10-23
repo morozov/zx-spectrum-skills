@@ -19,10 +19,10 @@ cmp {game}.bin {game}.asm.bin ............................ must be identical
 
 Two independent assemblers see the source: SkoolKit (`skool2bin`/`skool2asm`) and `pasmo`. Agreement between an extracted-from-snapshot binary and a reassembled-from-source binary is strong evidence the disassembly is faithful.
 
-`scripts/extract_bytes.py` pulls the program region straight out of the snapshot:
+`site/extract_bytes.py` pulls the program region straight out of the snapshot:
 
 ```
-python3 scripts/extract_bytes.py {game}.z80 {ORG} {SIZE} {game}.bin
+python3 site/extract_bytes.py {game}.z80 {ORG} {SIZE} {game}.bin
 ```
 
 Then `cmp {game}.bin {game}.asm.bin` must print nothing. Any difference is a real defect — chase it before documenting further, because every comment past it describes bytes that may be wrong.
@@ -45,7 +45,7 @@ So byte-fidelity and *semantic* accuracy are two independent axes, and `make` gr
 
 ## The Makefile
 
-The project's `Makefile` carries **no build logic**. It sets the game's name, the five numbers, and a floor, then `include`s the skill's shared framework (`$(SKILL)/tools/disassembly.mk`) — exactly how SkoolKit's own disassemblies include `$(SKOOLKIT_HOME)/tools/disassembly.mk`. All the rules (the default gate, `gate`, `verify-frag`, `coverage`, the linters, `html`) live in the framework, so a project stays a dozen lines and a framework fix reaches every game without re-copying — no stale vendored Makefile. Start from `assets/Makefile.template`:
+The project's `Makefile` carries **no build logic**. It sets the game's name, the five numbers, and a floor, then `include`s the site build from `$(SITE_DIR)/site.mk` and the skill's shared framework from `$(SKILL)/tools/disassembly.mk` — exactly how SkoolKit's own disassemblies include `$(SKOOLKIT_HOME)/tools/disassembly.mk`. The site rules (the snapshot, the program image, the skool file and `html`) live in `site/site.mk`. Every other rule (the default gate, `gate`, `verify-frag`, `coverage`, the linters, `vendor`) lives in the framework. A project stays a few dozen lines, and a framework fix reaches every game without re-copying. Start from `assets/Makefile.template`:
 
 ```
 GAME = {game}
@@ -55,15 +55,34 @@ PC   =            # entry point
 SP   =            # stack pointer
 RELOC_FLOOR = 0x5B00   # refs at/above must be labels (below = ROM/screen)
 
-ifndef SKILL
-    $(error set SKILL to the zx-game-disasm skill directory)
+$(foreach v,ORG SIZE PC SP,$(if $($(v)),,$(error set $(v) to the game's value)))
+
+SKILL ?= $(HOME)/.agents/skills/zx-game-disasm
+SITE_DIR = vendor/zx-game-disasm
+DEV_MK = $(SKILL)/tools/disassembly.mk
+
+-include $(SITE_DIR)/site.mk
+ifneq ($(wildcard $(DEV_MK)),)
+    include $(DEV_MK)
+else ifndef SITE_HOME
+    $(error $(SITE_DIR)/site.mk not found, and no skill at $(SKILL) to vendor it from)
+else
+    $(info $(DEV_MK) not found: only the site build is available)
 endif
-MK = $(SKILL)/tools/disassembly.mk
-ifeq ($(wildcard $(MK)),)
-    $(error $(MK): not found — set SKILL to the skill directory)
-endif
-include $(MK)
 ```
+
+`SKILL` defaults to the installed skill. Set it on the command line or in the environment when the skill is elsewhere. A project rule that runs a site script calls it from `$(SITE_HOME)`, the directory of the `site.mk` that make read. A rule that runs a skill script from `$(SCRIPTS)` goes inside `ifdef SKILL_HOME`, because the site build defines neither variable.
+
+### The vendored site build
+
+`$(SITE_DIR)` holds a copy of the skill's `site/`: `site.mk`, `extract_bytes.py`, the HTML passes, the renderers and the theme. The project tracks it in git, so a clone builds the site with SkoolKit and the packages in `tools/requirements.txt` alone. Nobody edits the copy in place. A change goes into the skill's `site/`, and the project picks it up through `make vendor`.
+
+- **`make vendor`** copies the skill's `site/` into `$(SITE_DIR)` with `rsync --recursive --perms --checksum`. It rewrites only the files whose content differs and gives each one the current time, so the site rebuilds exactly when its runtime changed. It deletes nothing: remove a file the skill dropped with `git rm`. The result is an ordinary diff to review and commit, and the sync commit's message names the skill revision it came from.
+- **`make vendor-check`** runs `diff -rq` between the skill's `site/` and `$(SITE_DIR)` and fails while they differ. It reports a file edited in the copy, a file the skill changed since the last sync, a file the skill added that the copy lacks, a file the copy keeps that the skill dropped, and a missing copy.
+- **The gate holds the copy.** `vendor-check` is the first prerequisite of `all`, so a sequential `make` stops there before any check sweep prints a `LINT` line. `make gate` then reports that the build failed before any check ran, with the `diff -rq` lines in the log tail above the verdict.
+- **The tools.** Both calls work with the macOS `/usr/bin/rsync` and `/usr/bin/diff`, and with the GNU tools. The drift check compares content and ignores file modes. Both calls skip `__pycache__` and `.DS_Store`; a Finder `.DS_Store` in the copy would otherwise report as drift.
+- **Without the skill**, `make html` reads the copy alone. The Makefile prints that only the site build is available, and no target of the framework exists, so no preflight runs: a missing tool fails its recipe with a non-zero exit. The deploy job builds this way.
+- **A new project** has no copy yet. With the skill installed, the framework falls back to the skill's own `site.mk`, so `make vendor` can write the first copy. With neither, the Makefile stops and names the missing file.
 
 The framework locates the skill's `scripts/` relative to itself, so the project never points at them. `make` is incremental — run plain `make` while iterating, not `make clean && make`. The first run downloads and converts the tape (slow); after that only what you changed rebuilds. Plain `make` runs the round-trip, the linters, and the HTML build — the whole gate; `make clean` removes every generated file (`.skool`, `.asm`, `.bin`, `.z80`, `html`).
 
@@ -112,7 +131,7 @@ Under the verdict line the gate prints a `REVIEW:` line, read by `scripts/review
 
 Then comes `READY TO COMMIT` only after `CHECKS PASS` and `REVIEW: approved`, and `NOT READY TO COMMIT` with the reason otherwise. A last line lists the rule IDs marked `review` for the changed file types, which no check enforces. `CHECKS PASS` alone says nothing about those rules.
 
-The gate asks make (`make -q`) whether any generated file is out of date *before* it builds, and reports that answer. Each check sweep writes its output to a log under `build/checks/` and keeps it only when the sweep passes. Make re-runs a sweep only when one of its inputs is newer than its log: a project file the checks read, the project Makefile, the baseline, any file under the skill's `tools/`, `scripts/` or `assets/`, or `build/checks/inputs.key`. The key holds the gate, the project's settings and the list of input files, so a deleted `.ref` or a skill copied with old timestamps re-runs the sweeps too. The skill's own fixtures have a key of their own, `build/checks/skill.key`, a digest of every file under the skill's `tools/`, `scripts/`, `assets/`, `fixtures/` and `references/`. A log takes the time its sweep started, so a file saved during the sweep is newer than it. An unchanged sweep replays its last clean log. A red sweep keeps no log, and a sweep that skipped is dated so it runs again, so neither replays as a pass. The verdict says whether anything had to be regenerated.
+The gate asks make (`make -q`) whether any generated file is out of date *before* it builds, and reports that answer. Each check sweep writes its output to a log under `build/checks/` and keeps it only when the sweep passes. Make re-runs a sweep only when one of its inputs is newer than its log: a project file the checks read, the project Makefile, the baseline, any file under the skill's `tools/`, `scripts/`, `site/` or `assets/`, or `build/checks/inputs.key`. The key holds the gate, the project's settings and the list of input files, so a deleted `.ref` or a skill copied with old timestamps re-runs the sweeps too. The skill's own fixtures have a key of their own, `build/checks/skill.key`, a digest of every file under the skill's `tools/`, `scripts/`, `site/`, `assets/`, `fixtures/` and `references/`. A log takes the time its sweep started, so a file saved during the sweep is newer than it. An unchanged sweep replays its last clean log. A red sweep keeps no log, and a sweep that skipped is dated so it runs again, so neither replays as a pass. The verdict says whether anything had to be regenerated.
 
 **`REBUILT` says "at least one", and that is all `-q` can say.** It is one bit over the whole artifact set, not a per-file answer: delete `$(GAME).asm.bin` alone and the verdict is `REBUILT` while only `pasmo` ran, the `.skool` never regenerated and `skool2html.py` never executed. Read the log for which files actually rebuilt; the verdict only tells you the tree was not entirely current.
 

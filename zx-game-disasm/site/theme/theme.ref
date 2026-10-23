@@ -8,7 +8,7 @@
 ; Everything a project should be able to change lives in assets/game.ref.template,
 ; which is the project's own file and is parsed first — StyleSheet, AddressAnchor,
 ; CodeFiles, Release, Copyright are all there. The script slot is composed on the
-; skool2html command line (tools/disassembly.mk, HTML_JS), because `-c` applies
+; skool2html command line (site.mk, HTML_JS), because `-c` applies
 ; after every ref and can append rather than replace.
 
 [Template:Layout]
