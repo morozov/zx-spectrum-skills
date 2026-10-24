@@ -142,9 +142,7 @@ The instances are genuinely independent — separate register and memory state. 
 | `stepi` | single-step one instruction |
 | `watch write <addr>` | write watchpoint (also `watch read`) |
 
-Quirks: a bare repeated `dis` does **not** advance — pass the next address each time (compute it from the `;[addr] bytes` column). `I`/`R`/`IFF1`/`IFF2`/`IM` are in `reg` and writable by name (`set iff1 1`). For anything Fuse's debugger can do but the client cannot, use the `monitor` passthrough (`monitor break port write $FE`, `monitor break time <tstates>`, conditional breakpoints `break <addr> if
-<expr>`) — see `references/protocol.md`. The passthrough needs FuseX built
-from the `automation` branch of `morozov/fusex`; upstream FuseX answers only its built-in monitor commands.
+Quirks: a bare repeated `dis` does **not** advance — pass the next address each time (compute it from the `;[addr] bytes` column). `I`/`R`/`IFF1`/`IFF2`/`IM` are in `reg` and writable by name (`set iff1 1`). For anything Fuse's debugger can do but the client cannot, use `monitor debugger <command>`: `monitor debugger break port write 0xfe`, `monitor debugger break time <tstates>`, `monitor debugger break <addr> if <expr>`. `references/protocol.md` covers the replies. `monitor debugger` needs FuseX built and installed from the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`. Upstream FuseX answers only its built-in monitor commands.
 
 ## Reset detection — do this on every `cont`
 
@@ -161,7 +159,7 @@ scripts/gdb.sh "break 0x0000" "break 0x8050" "cont" "reg"
 - **Never attach blind.** Read `reg` first to learn where PC is (ROM idle, mid-run, reset at `$0000`) before acting.
 - **Track each instance's PID and kill by PID.** Capture `$!` at launch and `kill` that. A kill by name takes down every instance, including ones you did not start.
 - **A silent, never-returning `cont` is a reset or a missed breakpoint**, not a slow run — the reset guard plus timeout turn that into an observable result.
-- **`monitor disassemble` returns nothing over RSP** (it only moves the GUI pane; by design). `monitor print` does return its value. For disassembly use the client's own `dis` or raw `reg`/`x`. See `references/protocol.md`.
+- **`monitor debugger disassemble` returns nothing over RSP** (it only moves the GUI pane; by design). `monitor debugger print` does return its value. For disassembly use the client's own `dis` or raw `reg`/`x`. See `references/protocol.md`.
 
 ## Reference
 
@@ -174,7 +172,7 @@ scripts/gdb.sh "break 0x0000" "break 0x8050" "cont" "reg"
 
 Verify each exists before use; name any that is missing.
 
-- **FuseX** (gdbserver build) — the macOS `FuseX.app` for a visible window; `scripts/fuse_drive.py gdbserver` for a headless run. Built from the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`: upstream lacks the `monitor` passthrough and the `fusex_peek` family the driver binds.
+- **FuseX** (gdbserver build) — the macOS `FuseX.app` for a visible window; `scripts/fuse_drive.py gdbserver` for a headless run. Built from the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`: upstream lacks `monitor debugger` and the `fusex_peek` family the driver binds.
 - **`z88dk-gdb`** — the canonical gdbserver client (install notes in `references/protocol.md`).
 - **`libfusex`** — the C ABI library: `FuseX.app/Contents/Frameworks/libfusex.dylib` on macOS; on Linux, the `libfusex.so` that FuseX configured with `--with-null-ui` builds, set as `FUSEX_LIB`, with the tree's `roms/` as `FUSEX_ROMS`. Needs glib, gettext and libpng.
 - **Python 3** — for `gdb-session.py`, `fuse_drive.py`, and any raw-RSP scripting. The libfusex driver also wants `numpy` and `Pillow`.

@@ -1,6 +1,6 @@
 # FuseX gdbserver — complete reference
 
-FuseX exposes a GDB Remote Serial Protocol (RSP) server through its debugger build. With it enabled, a client attaches over TCP and can set breakpoints and memory watchpoints, single-step, inspect and modify memory and registers, and — through a `monitor` passthrough — drive Fuse's full internal debugger command language.
+FuseX exposes a GDB Remote Serial Protocol (RSP) server through its debugger build. With it enabled, a client attaches over TCP and can set breakpoints and memory watchpoints, single-step, inspect and modify memory and registers, and, through `monitor debugger`, drive Fuse's full internal debugger command language.
 
 This is the protocol and mechanics reference behind `SKILL.md`. It is platform-generic across Z80 programs; project-specific findings (a game's relocator, a loader bug) belong in that project's own notes, not here.
 
@@ -88,7 +88,7 @@ z88dk-gdb -h 127.0.0.1 -p 1337 -x /path/to/prog.map
 
 - Pass `-x <map>` even with no symbols — point it at an empty file (`touch /tmp/empty.map`). The flag is required.
 - Use `-h 127.0.0.1`. `-h localhost` resolves to `::1` and fails — the stub is IPv4-only.
-- **Release v2.4 lacks the watchpoint support** — its `watch` updates only a local list and never reaches the target. If you end up on that build, set watchpoints with the raw `Z2`/`Z3` packets or the `monitor break write/read` passthrough instead. With a nightly build, `watch write`/`watch read` just work.
+- **Release v2.4 lacks the watchpoint support** — its `watch` updates only a local list and never reaches the target. If you end up on that build, set watchpoints with the raw `Z2`/`Z3` packets or `monitor debugger break write`/`break read` instead. With a nightly build, `watch write`/`watch read` just work.
 
 ## Connection mechanics
 
@@ -108,7 +108,7 @@ PacketSize=4000;qXfer:features:read+;qXfer:auxv:read+;vSpectranext+
 af bc de hl sp pc ix iy af' bc' de' hl' ir iff1 iff2 im clockl clockh
 ```
 
-`ir` is the combined interrupt/refresh register (`I` high byte, `R` low byte). `iff1`/`iff2`/`im` and `clockl`/`clockh` (the emulator's T-state counter) live in fuse-emulator features. So `I`, `R`, `IFF1`, `IFF2`, `IM` are first-class registers over `g`/`G`/`p`/`P` — read them structurally rather than scraping `monitor print z80:iff1`.
+`ir` is the combined interrupt/refresh register (`I` high byte, `R` low byte). `iff1`/`iff2`/`im` and `clockl`/`clockh` (the emulator's T-state counter) live in fuse-emulator features. So `I`, `R`, `IFF1`, `IFF2`, `IM` are first-class registers over `g`/`G`/`p`/`P` — read them structurally rather than scraping `monitor debugger print z80:iff1`.
 
 ## RSP packets supported
 
@@ -153,11 +153,21 @@ z2,5c78,1   -> +$OK
 c           -> +                                runs free once removed
 ```
 
-Port, time, and event watchpoints have no RSP type — use the monitor passthrough (`break port write`, `break time`, `break event`).
+Port, time, and event watchpoints have no RSP type — use `monitor debugger` (`break port write`, `break time`, `break event`).
 
 ## Monitor commands
 
-`qRcmd` talks to Fuse's internal debugger. Upstream FuseX answers only its built-ins: `monitor help`, `monitor reset`, `monitor dump`, and the Spectranet and XFS commands. **On the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`, everything else is dispatched to `debugger_command_evaluate`** — the same parser behind the Cocoa debugger entry box. Highlights:
+`qRcmd` talks to Fuse's internal debugger. Upstream FuseX answers only its built-ins: `monitor help`, `monitor reset`, `monitor dump`, and the Spectranet and XFS commands. **FuseX built and installed from the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex` adds `monitor debugger <command>`**, which runs `<command>` through `debugger_command_evaluate`, the same parser that reads commands typed into the debugger window:
+
+```
+monitor debugger break port write 0xfe
+monitor debugger break 0x8000 if z80:hl == 0x1234
+monitor debugger print z80:pc
+```
+
+The stub must be halted, which it is from attach until the client resumes it. The command runs on the emulator thread, and the machine stays halted afterwards. The debugger's own `continue`, `next` and `finish` do not resume emulation. Only the client's `cont` (RSP `c`) does.
+
+Highlights of the command language:
 
 | Capability | Syntax |
 | --- | --- |
@@ -171,13 +181,20 @@ Port, time, and event watchpoints have no RSP type — use the monitor passthrou
 | Direct memory or register write | `set <addr> <value>`, `set z80:hl <value>`, `out <port> <value>` |
 | One-shot breakpoint | `tbreakpoint <addr> [if …]` |
 | Skip N hits | `ignore <id> <count>` |
-| Step over / step out | `next`, `finish` |
+| Delete one / all breakpoints | `clear <addr>`, `delete [<id>]` |
 
-Addresses accept absolute hex (`0x1234`, `$1234`) or `source:page:offset`. `if` expressions use a C-subset evaluator (arithmetic, comparisons, bitwise, logical, `[]` for memory dereference).
+Addresses accept absolute hex (`0x1234`, `$1234`) or `source:page:offset`. `if` expressions use a C-subset evaluator: arithmetic, comparisons, bitwise, logical, and `[]` for memory dereference.
 
-**Most output is returned; disassembly is the exception.** Commands that *act* (`set`, `break`, `out`, `clear`) return a bare `OK`. Commands that print a value — `print z80:pc`, `print <expr>` — *do* come back as console (`O…`) output: the passthrough redirects stdout for the evaluation and forwards what the command writes. The one command that returns nothing is **`disassemble`**: it only moves the GUI debugger pane (it has no text output), and that is deliberately left a client-side concern. Disassemble with the client instead — `z88dk-gdb`'s `dis`, or read memory with `m`/`g` and run a local Z80 disassembler. System variables also work *inside* `if` conditions (`break <addr> if z80:iff1 == 1`), evaluated in the stub.
+### Replies
 
-Errors via `ui_error` come back as console-output (`O…`) packets before the terminal `OK`. The trailing `OK` is only the protocol acknowledgement — inspect the console lines for the actual result.
+| Outcome | Console (`O…`) output | Reply |
+| --- | --- | --- |
+| Command succeeded | whatever it printed (`print 2+3` → `0x5`) | `OK` |
+| Parse or evaluation error | the error text | `E01` |
+| Bare `monitor debugger` | `Usage: debugger <command>` | `E01` |
+| Any other unknown monitor command, such as `monitor break …` | none | `E04` |
+
+`disassemble` succeeds but prints nothing, as [Known limits and caveats](#known-limits-and-caveats) describes.
 
 ## Raw RSP for Python scripting
 
@@ -208,7 +225,7 @@ def mon(s, cmd):
 s = socket.create_connection(("127.0.0.1", 1337))
 send(s, "qSupported:"); recv(s)
 send(s, "?"); recv(s)               # halts on attach
-mon(s, "break 0x8000 if z80:hl == 0x1234")
+mon(s, "debugger break 0x8000 if z80:hl == 0x1234")
 send(s, "c"); print(recv(s))         # blocks until breakpoint fires
 send(s, "g"); print(recv(s))         # all 18 registers as hex
 ```
@@ -218,8 +235,8 @@ The `g` dump is 36 hex bytes, little-endian per word, in the register order abov
 ## Known limits and caveats
 
 - **No source-level debugging.** No DWARF, no symbol tables on the wire. Symbol resolution is the client's problem (`z88dk-gdb -x <prog>.map`); raw-RSP scripts carry their own address tables.
-- **Memory access is logical-address-space-only.** `m`/`M`/`X` see whatever is currently paged in. For a paged-out bank use page-aware monitor addresses (`RAM:5:0x0`), or page it in (`monitor set ula:mem7ffd <value>`).
-- **`monitor disassemble` returns nothing over RSP** (by design — it only moves the GUI pane). `monitor print` does return its value. Disassemble with the client's `dis` or raw `g`/`m` plus a local disassembler.
+- **Memory access is logical-address-space-only.** `m`/`M`/`X` see whatever is currently paged in. For a paged-out bank use page-aware monitor addresses (`RAM:5:0x0`), or page it in (`monitor debugger set ula:mem7ffd <value>`).
+- **`monitor debugger disassemble` returns nothing over RSP** (by design — it only moves the GUI pane). `monitor debugger print` does return its value. Disassemble with the client's `dis` or raw `g`/`m` plus a local disassembler.
 - **Stock GNU gdb compatibility is unverified.** Use z88dk-gdb or raw RSP.
 - **`open --args` is hostile to FuseX argv** (macOS GUI). Use direct exec.
 
@@ -227,7 +244,7 @@ The `g` dump is 36 hex bytes, little-endian per word, in the register order abov
 
 This document is the agent-facing reference for the gdbserver. The truth for the server internals is the [FuseX](https://github.com/speccytools/fusex) source:
 
-- `fusepb/FuseHelp/_English.lproj/monitor.md` — full internal debugger command reference (the complete surface behind the `monitor` passthrough).
+- `fusepb/FuseHelp/_English.lproj/monitor.md` — full internal debugger command reference (the complete surface behind `monitor debugger`).
 - `debugger/arch.h` — the served target description (the register layout above).
-- `debugger/gdbserver.c`, `debugger/gdbserver_remote_commands.c` — RSP dispatch and the built-in monitor commands. The passthrough to the internal debugger is in `debugger/gdbserver_remote_commands.c` on the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`.
+- `debugger/gdbserver.c`, `debugger/gdbserver_remote_commands.c` — RSP dispatch and the built-in monitor commands. `monitor debugger` is in `debugger/gdbserver_remote_commands.c` on the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`.
 - `fuse.c` (startup gdbserver wiring) and `fusepb/xibs/Preferences.xib` (the Cocoa preference) — where the enable/port settings are bound.
