@@ -227,7 +227,7 @@ def mon(s, cmd):
     send(s, "qRcmd," + cmd.encode().hex())
     while True:
         r = recv(s)
-        if r.startswith("O") and len(r) > 1:
+        if r.startswith("O") and r != "OK":
             print(bytes.fromhex(r[1:]).decode(errors="replace"), end=""); continue
         return r
 s = socket.create_connection(("127.0.0.1", 1337))
