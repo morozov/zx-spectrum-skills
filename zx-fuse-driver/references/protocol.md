@@ -157,7 +157,7 @@ Port, time, and event watchpoints have no RSP type — use `monitor debugger` (`
 
 ## Monitor commands
 
-`qRcmd` talks to Fuse's internal debugger. Upstream FuseX answers only its built-ins: `monitor help`, `monitor reset`, `monitor dump`, and the Spectranet and XFS commands. **FuseX built and installed from the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex` adds `monitor debugger <command>`**, which runs `<command>` through `debugger_command_evaluate`, the same parser that reads commands typed into the debugger window:
+`qRcmd` talks to Fuse's internal debugger. **FuseX built from source from the [`main` branch](https://github.com/speccytools/fusex/tree/main) of `speccytools/fusex` provides `monitor debugger <command>`**, which runs `<command>` through `debugger_command_evaluate`, the same parser that reads commands typed into the debugger window:
 
 ```
 monitor debugger break port write 0xfe
@@ -254,5 +254,5 @@ This document is the agent-facing reference for the gdbserver. The truth for the
 
 - `man/fuse.1`, section `MONITOR/DEBUGGER` — the internal debugger command language behind `monitor debugger`. The installed copy is described in [The debugger man page](#the-debugger-man-page).
 - `debugger/arch.h` — the served target description (the register layout above).
-- `debugger/gdbserver.c`, `debugger/gdbserver_remote_commands.c` — RSP dispatch and the built-in monitor commands. `monitor debugger` is in `debugger/gdbserver_remote_commands.c` on the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`.
+- `debugger/gdbserver.c`, `debugger/gdbserver_remote_commands.c` — RSP dispatch and the built-in monitor commands. `monitor debugger` is in `debugger/gdbserver_remote_commands.c`.
 - `fuse.c` (startup gdbserver wiring) and `fusepb/xibs/Preferences.xib` (the Cocoa preference) — where the enable/port settings are bound.

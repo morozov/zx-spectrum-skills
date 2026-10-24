@@ -61,7 +61,8 @@ def load_library():
     lib.keyboard_release.argtypes = [c_int]
     lib.snapshot_read.argtypes = [c_char_p]
     lib.snapshot_read.restype = c_int
-    lib.fusex_peek_block.argtypes = [c_int, c_int, c_char_p]
+    lib.fusex_peek.argtypes = [ctypes.c_uint16]
+    lib.fusex_peek.restype = ctypes.c_uint8
     lib.fusex_display_info.restype = ctypes.POINTER(DisplayInfo)
     lib.fusex_display_frame.restype = ctypes.POINTER(DisplayFrame)
     return lib
@@ -92,9 +93,7 @@ def main():
         raise SystemExit(f'oracle: cannot read {args.snapshot}')
 
     def mem(addr, n):
-        buf = (ctypes.c_ubyte * n)()
-        lib.fusex_peek_block(addr, n, ctypes.cast(buf, ctypes.c_char_p))
-        return bytes(buf)
+        return bytes(lib.fusex_peek(a) for a in range(addr, addr + n))
 
     def screen():
         info = lib.fusex_display_info().contents

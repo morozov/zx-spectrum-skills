@@ -84,8 +84,8 @@ class Fuse:
         lib.keyboard_release.argtypes = [ctypes.c_int]
         lib.fusex_display_info.restype = ctypes.POINTER(_DisplayInfo)
         lib.fusex_display_frame.restype = ctypes.POINTER(_DisplayFrame)
-        lib.fusex_peek.argtypes = [ctypes.c_int]; lib.fusex_peek.restype = ctypes.c_int
-        lib.writebyte_internal.argtypes = [ctypes.c_uint16, ctypes.c_uint8]
+        lib.fusex_peek.argtypes = [ctypes.c_uint16]; lib.fusex_peek.restype = ctypes.c_uint8
+        lib.fusex_poke.argtypes = [ctypes.c_uint16, ctypes.c_uint8]
         lib.snapshot_write.argtypes = [ctypes.c_char_p]; lib.snapshot_write.restype = ctypes.c_int
         lib.snapshot_read.argtypes = [ctypes.c_char_p]; lib.snapshot_read.restype = ctypes.c_int
         self.lib = lib
@@ -157,7 +157,7 @@ class Fuse:
         return self.lib.fusex_peek(int(addr))
 
     def poke(self, addr, val):
-        self.lib.writebyte_internal(int(addr), int(val) & 0xFF)
+        self.lib.fusex_poke(int(addr), int(val))
 
     def save(self, path):
         self.lib.snapshot_write(path.encode() if isinstance(path, str) else path)

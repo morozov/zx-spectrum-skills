@@ -2,7 +2,7 @@
 
 `libfusex` is FuseX built as a shared library. Load it in-process with `ctypes` and drive the machine directly: boot media, hold and release keys, step frames, read the rendered screen, peek and poke RAM, and record RZX files and movies. No TCP, no external client, no window. This is the interface for *playing and exercising* a program — proving a game is playable, that controls respond, that scoring and lives work — as opposed to the gdbserver, which is for inspecting internals.
 
-- **The library must come from the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`.** Upstream's library exports only `fusex_display_info` and `fusex_display_frame`, so the `fusex_peek`, `fusex_peek_block` and `fusex_get_reg` rows below are missing from it.
+- **The library must come from FuseX built from source from the [`main` branch](https://github.com/speccytools/fusex/tree/main) of `speccytools/fusex`.**
 - **Library and ROMs.** On macOS the library is `FuseX.app/Contents/Frameworks/libfusex.dylib` and the ROMs are in `FuseX.app/Contents/Resources`, under `~/Applications` or `/Applications`. On Linux, set `FUSEX_LIB` to the `libfusex.so` of a `--with-null-ui` build and `FUSEX_ROMS` to its tree's `roms/`; `/usr/lib/libfusex.so` and `/usr/share/fusex` are tried when they are unset. `FUSEX_LIB` and `FUSEX_ROMS` override the defaults on every platform. Pass the ROM directory as `--rom-dir`, and the working directory stops mattering.
 - **Wrapper**: `scripts/fuse_drive.py` resolves both paths and wraps the calls below.
 - **When a symbol is missing**, `ctypes` raises `AttributeError` on first use and says nothing about why. The library carries no export list: it exports whatever Fuse's objects define, so Fuse's own functions are callable alongside the `fusex_*` additions. `nm -gU libfusex.dylib` is the authoritative answer for a given copy.
@@ -18,10 +18,8 @@
 | `joystick_press` | `int(int which, int button, int press)` | Joystick button hold or release. |
 | `fusex_display_info` | `fusex_display_info_t *(void)` | Display geometry: `width`, `height`, `border_width`, `border_height`. |
 | `fusex_display_frame` | `fusex_display_frame_t *(void)` | The indexed framebuffer, one palette index 0–15 per pixel, border included. |
-| `fusex_peek` | `int(int addr)` | Read one memory byte. Ground-truth oracle — validation only, never a player's input. |
-| `fusex_peek_block` | `void(int addr, int len, unsigned char *buf)` | Read `len` bytes from `addr`. |
-| `writebyte_internal` | `void(uint16_t addr, uint8_t val)` | Write one memory byte. |
-| `fusex_get_reg` | `int(int which)` | Read a Z80 register: 0 `PC`, 1 `SP`, 2 `AF`, 3 `BC`, 4 `DE`, 5 `HL`, 10 `IX`, 11 `IY`. |
+| `fusex_peek` | `uint8_t(uint16_t addr)` | Read one memory byte. Ground-truth oracle — validation only, never a player's input. |
+| `fusex_poke` | `void(uint16_t addr, uint8_t value)` | Write one memory byte. |
 | `snapshot_write` | `int(const char *path)` | Write a snapshot (`.szx`/`.z80`) of the current state. |
 | `snapshot_read` | `int(const char *path)` | Load a snapshot. |
 | `rzx_start_recording` | `int(const char *path, int embed_snapshot)` | Begin recording an RZX input replay. |

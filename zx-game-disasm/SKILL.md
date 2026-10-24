@@ -197,7 +197,7 @@ Verify each exists before use; name any that is missing.
 - **pasmo** — independent reassembly, to cross-check the round-trip.
 - **Vale** (`brew install vale`, or https://vale.sh/docs/install) — the prose linter, carrying the Microsoft style and the ZXDisasm rules. `make lint-prose` needs it; `references/build-verify.md` has the one-time project setup.
 - **Python 3.11 or newer** — runs the bundled `.ctl` linters in `scripts/` and the byte-extraction helper in `site/`. `site/render/screen_cells.py` also needs `Pillow`, the relocation oracle's `--png` needs `Pillow` and `numpy`, and `site/render/font.py` needs `fontTools` and `brotli`.
-- **FuseX**, built from the `automation` branch of `morozov/fusex` — the relocation oracle runs the game in the `libfusex` library installed with it, and reads memory with `fusex_peek_block`, which upstream lacks.
+- **FuseX**, built from source from the [`main` branch](https://github.com/speccytools/fusex/tree/main) of `speccytools/fusex` — the relocation oracle runs the game in the `libfusex` library installed with it.
 - **Google Chrome or Chromium** — `make lint-comment-fit` measures the built site in headless Chrome, and the visual review screenshots it.
 
 ## Bundled resources

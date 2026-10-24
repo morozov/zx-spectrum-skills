@@ -21,7 +21,7 @@ Agent skills for working with ZX Spectrum software.
 ### All skills
 
 - [Python](https://www.python.org) 3.11 or newer
-- FuseX built from the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`: installed as `FuseX.app` on macOS; on Linux, configured with `--with-null-ui`, with `FUSEX_LIB` and `FUSEX_ROMS` pointing at its `libfusex.so` and `roms/`
+- FuseX built from source from the [`main` branch](https://github.com/speccytools/fusex/tree/main) of `speccytools/fusex`: installed as `FuseX.app` on macOS; on Linux, configured with `--with-null-ui`, with `FUSEX_LIB` and `FUSEX_ROMS` pointing at its `libfusex.so` and `roms/`
 - `z88dk-gdb` from a [z88dk nightly build](http://nightly.z88dk.org/)
 - `timeout` from [GNU coreutils](https://www.gnu.org/software/coreutils/)
 
