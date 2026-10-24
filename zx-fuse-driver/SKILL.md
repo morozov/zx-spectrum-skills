@@ -142,7 +142,7 @@ The instances are genuinely independent — separate register and memory state. 
 | `stepi` | single-step one instruction |
 | `watch write <addr>` | write watchpoint (also `watch read`) |
 
-Quirks: a bare repeated `dis` does **not** advance — pass the next address each time (compute it from the `;[addr] bytes` column). `I`/`R`/`IFF1`/`IFF2`/`IM` are in `reg` and writable by name (`set iff1 1`). For anything Fuse's debugger can do but the client cannot, use `monitor debugger <command>`: `monitor debugger break port write 0xfe`, `monitor debugger break time <tstates>`, `monitor debugger break <addr> if <expr>`. `references/protocol.md` covers the replies. `monitor debugger` needs FuseX built and installed from the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`. Upstream FuseX answers only its built-in monitor commands.
+Quirks: a bare repeated `dis` does **not** advance — pass the next address each time (compute it from the `;[addr] bytes` column). `I`/`R`/`IFF1`/`IFF2`/`IM` are in `reg` and writable by name (`set iff1 1`). For anything Fuse's debugger can do but the client cannot, use `monitor debugger <command>`: `monitor debugger break port write 0xfe`, `monitor debugger break time <tstates>`, `monitor debugger break <addr> if <expr>`. The debugger reads `$FE` as a variable that evaluates to 0, so write hex as `0xfe`. `references/protocol.md` covers the replies. `monitor debugger` needs FuseX built and installed from the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`. Upstream FuseX answers only its built-in monitor commands.
 
 ## Reset detection — do this on every `cont`
 

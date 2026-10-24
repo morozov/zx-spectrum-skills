@@ -167,6 +167,8 @@ monitor debugger print z80:pc
 
 The stub must be halted, which it is from attach until the client resumes it. The command runs on the emulator thread, and the machine stays halted afterwards. The debugger's own `continue`, `next` and `finish` do not resume emulation. Only the client's `cont` (RSP `c`) does.
 
+**Numbers are decimal unless prefixed with `0x`.** `$name` is a debugger variable, so `$FE` evaluates to 0 and `break port write $FE` watches the wrong ports. Write `0xfe`.
+
 Highlights of the command language:
 
 | Capability | Syntax |
@@ -183,7 +185,7 @@ Highlights of the command language:
 | Skip N hits | `ignore <id> <count>` |
 | Delete one / all breakpoints | `clear <addr>`, `delete [<id>]` |
 
-Addresses accept absolute hex (`0x1234`, `$1234`) or `source:page:offset`. `if` expressions use a C-subset evaluator: arithmetic, comparisons, bitwise, logical, and `[]` for memory dereference.
+Addresses accept `0x1234` or `source:page:offset`. A port below `0x100` matches on the low byte only, so `0xfe` matches any port whose low byte is `0xFE`. `if` expressions use a C-subset evaluator: arithmetic, comparisons, bitwise, logical, and `[]` for memory dereference.
 
 ### Replies
 
