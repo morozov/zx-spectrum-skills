@@ -185,7 +185,7 @@ Highlights of the command language:
 | Skip N hits | `ignore <id> <count>` |
 | Delete one / all breakpoints | `clear <addr>`, `delete [<id>]` |
 
-Addresses accept `0x1234` or `source:page:offset`. A port below `0x100` matches on the low byte only, so `0xfe` matches any port whose low byte is `0xFE`. `if` expressions use a C-subset evaluator: arithmetic, comparisons, bitwise, logical, and `[]` for memory dereference.
+Addresses accept `0x1234` or `source:page:offset`. A port below `0x100` matches on the low byte only, so `0xfe` matches any port whose low byte is `0xFE`. `if` expressions use a C-subset evaluator: arithmetic, comparisons, bitwise, logical, and `[]` for memory dereference. The full language is the `MONITOR/DEBUGGER` section of [the Fuse man page](#the-debugger-man-page).
 
 ### Replies
 
@@ -197,6 +197,12 @@ Addresses accept `0x1234` or `source:page:offset`. A port below `0x100` matches 
 | Any other unknown monitor command, such as `monitor break …` | none | `E04` |
 
 `disassemble` succeeds but prints nothing, as [Known limits and caveats](#known-limits-and-caveats) describes.
+
+### The debugger man page
+
+The man page documents the command language, but not the gdbserver or the `monitor debugger` wrapper. FuseX installs it as `man1/fuse.1`.
+
+On macOS it is inside the app bundle at `FuseX.app/Contents/Resources/man`. Read it with `man -M <FuseX.app>/Contents/Resources/man fuse`, using the `FuseX.app` that `scripts/fuse_drive.py` resolves. On Linux the page goes under the install prefix's `share/man`, and `man fuse` finds it.
 
 ## Raw RSP for Python scripting
 
@@ -246,7 +252,7 @@ The `g` dump is 36 hex bytes, little-endian per word, in the register order abov
 
 This document is the agent-facing reference for the gdbserver. The truth for the server internals is the [FuseX](https://github.com/speccytools/fusex) source:
 
-- `fusepb/FuseHelp/_English.lproj/monitor.md` — full internal debugger command reference (the complete surface behind `monitor debugger`).
+- `man/fuse.1`, section `MONITOR/DEBUGGER` — the internal debugger command language behind `monitor debugger`. The installed copy is described in [The debugger man page](#the-debugger-man-page).
 - `debugger/arch.h` — the served target description (the register layout above).
 - `debugger/gdbserver.c`, `debugger/gdbserver_remote_commands.c` — RSP dispatch and the built-in monitor commands. `monitor debugger` is in `debugger/gdbserver_remote_commands.c` on the [`automation` branch](https://github.com/morozov/fusex/tree/automation) of `morozov/fusex`.
 - `fuse.c` (startup gdbserver wiring) and `fusepb/xibs/Preferences.xib` (the Cocoa preference) — where the enable/port settings are bound.
