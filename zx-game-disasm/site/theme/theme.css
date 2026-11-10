@@ -78,6 +78,11 @@
   --measure:       1200px;
   --index-measure: 720px;
   --gutter:        32px;
+  /* The space an image table puts round a cell: this much above and below,
+     so an image sits twice this far from the caption under it, and half of it
+     at each side, so two images in a row sit this far apart. The sides take
+     the half because a gallery fills the column across far sooner than down. */
+  --figure-gap:    4px;
 
   /* Type scale. Six steps, one role each. A size that is not one of these is a
      size with no role. */
@@ -825,6 +830,14 @@ table.default td {
 }
 
 td.centre { text-align: center; }
+
+/* #UDGTABLE, and #TABLE with no class, write class="" on the table and on every
+   cell. The reset zeroes their padding, so an image and its caption below it
+   touch and two images in a row meet edge to edge. */
+table[class=""] > tbody > tr > td[class=""] {
+  padding: var(--figure-gap) calc(var(--figure-gap) / 2);
+  vertical-align: top;
+}
 
 /* ── Contents list ───────────────────────── */
 
