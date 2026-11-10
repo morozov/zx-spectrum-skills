@@ -1011,8 +1011,23 @@ a .hex { font-size: inherit; }
 /* A link into the disassembly reads as code. Matching on the path is what
    SkoolKit's generated markup allows — it puts no class on a #R link — so the
    match is at least held to a site-relative href, and a third-party URL that
-   happens to contain the same characters is left alone. */
-a:not([href^="http"])[href*="asm/"] {
+   happens to contain the same characters is left alone.
+
+   A link from one entry of a listing to another is a bare file name
+   (F06C.html#f070), with no asm/ in it. On a code page — the layout writes the
+   page id on body, Asm-<type> or <code>-Asm-<type> — every other page of the
+   site sits in another directory, so a link there with no directory in its
+   href leads into the same listing. :where() keeps that context at no weight,
+   so the rule below can hand the listing's own cells their size back. */
+a:not([href^="http"])[href*="asm/"],
+:where(body[class*="Asm-"] .page-content) a[href]:not([href*="/"]) {
   font-family: var(--font-mono);
   font-size: 0.88em;
+}
+
+/* An operand link and the entry navigation are set in the listing's own
+   monospace size already. */
+td.instruction a[href],
+table.asm-navigation a[href] {
+  font-size: inherit;
 }
