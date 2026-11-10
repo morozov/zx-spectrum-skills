@@ -55,10 +55,9 @@
      --bg to its own game's black and nothing else would otherwise get navy
      banding on its memory map from a stylesheet that declares no blue. */
   --tint:        rgba(10, 20, 50, 0.35);   /* zebra row, quiet surface       */
-  --tint-strong: rgba(8, 18, 50, 0.4);     /* the -2 box and list variants   */
+  --card:        rgba(255, 255, 255, 0.035); /* a box or list entry's ground */
   --hover:       rgba(20, 55, 130, 0.65);  /* link card, contents pill       */
   --rule:        rgba(22, 36, 72, 0.4);    /* row separator inside a table   */
-  --rule-strong: rgba(22, 36, 72, 0.7);    /* the -2 variants' border        */
 
   /* The lamp. Hovering an annotated group of the listing lights it: this much
      white falls on every surface in the group, over whatever color that surface
@@ -719,22 +718,19 @@ div.map-entry-desc {
 
 /* ── Box entries (facts, notes, bugs…) ───── */
 
-div.box {
-  background: rgba(255, 255, 255, 0.035);
+/* SkoolKit numbers a page's boxes and list entries 1, 2, 1, 2 by position
+   (box-1, box-2), so a color keyed to that class is a color with no role but
+   the box's place on the page (VIS-2). Every box takes the one card ground, and
+   the same class rule matches box-1 and box-2 alike. */
+div.box,
+div.box-1,
+div.box-2 {
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 20px 24px;
   margin-bottom: 14px;
   width: auto;
-}
-
-div.box-1 {
-  background: rgba(255, 255, 255, 0.035);
-}
-
-div.box-2 {
-  background: var(--tint-strong);
-  border-color: var(--rule-strong);
 }
 
 div.box-title {
@@ -752,17 +748,16 @@ div.box p {
 
 /* ── List entries (graphics…) ────────────── */
 
-div.list-entry {
-  background: rgba(255, 255, 255, 0.035);
+div.list-entry,
+div.list-entry-1,
+div.list-entry-2 {
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 20px 24px;
   margin-bottom: 14px;
   width: auto;
 }
-
-div.list-entry-1 { background: rgba(255, 255, 255, 0.035); }
-div.list-entry-2 { background: var(--tint-strong); }
 
 div.list-entry-title {
   font-family: var(--font-mono);
