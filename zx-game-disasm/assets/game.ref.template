@@ -27,6 +27,11 @@ StyleSheet=skoolkit.css;theme.css;{game}.css
 ; decimal anchor is two bases on one URL.
 AddressAnchor={address#IF({base}==16)(:04x)}
 
+; Link the operands a reader will chase: SkoolKit links only CALL, DEFW, DJNZ,
+; JP and JR, so a pointer loaded with LD would link nowhere. See "Link every
+; operand the reader will chase" in references/html-docs.md.
+LinkOperands=CALL,DEFW,DJNZ,JP,JR,LD
+
 ; Release= renders under the game title on the index, and Copyright= renders in
 ; the footer. Both are hidden while empty, so an unset one reserves no blank
 ; band.

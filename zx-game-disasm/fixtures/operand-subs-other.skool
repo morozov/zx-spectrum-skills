@@ -1,0 +1,14 @@
+; An [OtherCode] listing: no @start, as such a listing has none.
+; Tune
+@label=tune
+c$9000 LD HL,$9008     ; Point at the notes.
+ $9003 CALL $9007      ;
+ $9006 RET             ;
+
+; Tone
+@label=tone
+c$9007 RET             ;
+
+; Tune notes
+@label=tune_notes
+b$9008 DEFB $01        ;

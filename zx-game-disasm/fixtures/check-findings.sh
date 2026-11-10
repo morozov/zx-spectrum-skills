@@ -149,6 +149,11 @@ run block-boundaries \
 run coverage-blocks \
     fixtures/coverage-blocks.py fixtures/coverage-blocks.skool
 
+# The site's listings spell operands as the .asm does, the [OtherCode] ones
+# included.
+run operand-subs \
+    fixtures/operand-subs.py
+
 run registry-terms \
     scripts/validate_glossary_terms.py fixtures/registry-prose.ref \
     --registry fixtures/registry.ref
