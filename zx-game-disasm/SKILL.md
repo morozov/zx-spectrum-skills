@@ -223,7 +223,7 @@ The build expects this layout. `site/site.mk` reads the `.ctl`, the `.t2s` recip
 | Path | Holds | Git |
 | --- | --- | --- |
 | `Makefile`, `skoolkit.ini`, `.gitignore` | files make, SkoolKit and git read from the root | tracked |
-| `src/` | the disassembly's source: `{game}.ctl`, the `.ref` pages, the `.t2s` recipes that load and pin the game's files | tracked |
+| `src/` | the disassembly's source: `{game}.ctl`, the `.ctl` of any `[OtherCode]` listing (`<name>.ctl`, built into `build/<name>.skool`), the `.ref` pages, the `.t2s` recipes that load and pin the game's files | tracked |
 | `spec/` | the behavior pages | tracked |
 | `tools/` | the settings it passes to skill scripts (`lint-baseline.toml`), `requirements.txt` | tracked |
 | `resources/` | the hand-made files the site copies: stylesheet, scripts, images | tracked |
