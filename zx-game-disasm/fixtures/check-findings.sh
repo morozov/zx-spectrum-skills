@@ -144,6 +144,11 @@ run prose-units-markdown \
 run block-boundaries \
     fixtures/block-boundaries.py
 
+# The coverage gauge's basic blocks: a block ENT-7 leaves bare (a bare RET, a
+# call or jump to a named routine) owes nothing; any other bare block counts.
+run coverage-blocks \
+    fixtures/coverage-blocks.py fixtures/coverage-blocks.skool
+
 run registry-terms \
     scripts/validate_glossary_terms.py fixtures/registry-prose.ref \
     --registry fixtures/registry.ref
