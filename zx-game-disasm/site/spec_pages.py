@@ -8,12 +8,17 @@ with the Markdown rendered to HTML as its PageContent. A #TABLE span is kept
 as SkoolKit table markup, its cells rendered from Markdown. A link to another
 spec/*.md file becomes a link to that page. Inline code that names a label of
 the main listing (read from SKOOL's @label directives) becomes a #R link to it.
-The pages are listed on the home page under the title of spec/index.md
-("Behavior specification" when it has none): the index first, then the pages in the order spec/index.md links them, then any
-others by name. The Markdown stays the single source.
+The pages are listed on the home page, as the group Spec, under the title of
+spec/index.md ("Behavior specification" when it has none): the index first,
+then the pages in the order spec/index.md links them, then any others by name.
+The Markdown stays the single source.
 
 The framework runs it from site.mk, which passes the ref it writes to
-skool2html after the project's own refs. It needs the `markdown` package.
+skool2html after the project's own refs. The home page draws the group only
+where the project's [Index] names Spec, as assets/game.ref.template does: a
+plain [Index] in a project ref replaces SkoolKit's default list, and an
+[Index+] here would replace it too where the project has none. It needs the
+`markdown` package.
 """
 
 import html
