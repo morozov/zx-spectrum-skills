@@ -66,8 +66,18 @@ Sound=Sound effects
 Data=Data tables
 Notes=Implementation notes
 Glossary=Glossary
+GameStatusBuffer=Variables
 
 [Titles]
 Graphics=Game graphics
 Sound=Sound effects
 Notes=Implementation notes
+Asm-g=Variables at {entry[address]}
+GameStatusBuffer=Variables
+
+; The `g` entries are the variables and buffers the game writes as it runs.
+; SkoolKit heads them "Game status buffer", a storage word for what the reader
+; browses as the game's variables (HEAD-2). Name them in this game's terms.
+[PageHeaders]
+Asm-g=Variables
+GameStatusBuffer=Variables

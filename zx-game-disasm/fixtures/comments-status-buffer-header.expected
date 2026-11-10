@@ -1,0 +1,5 @@
+Found 1 comment defect(s):
+
+[HEADING_JARGON] 1
+  status-buffer-header.ref:5: heading 'Game status buffer' uses the program's storage vocabulary or counts its contents – name what the reader is browsing, in the game's terms [HEAD-2]
+    Asm-g=Game status buffer

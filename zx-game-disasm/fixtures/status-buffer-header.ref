@@ -1,0 +1,6 @@
+; The `g` page header. SkoolKit's default, "Game status buffer", is a storage
+; word for the game's variables and is reported; the template's default,
+; "Variables", is not.
+[PageHeaders]
+Asm-g=Game status buffer
+GameStatusBuffer=Variables
