@@ -7,7 +7,7 @@ The annotated `.ctl` documents the game routine by routine. The behavior specifi
 - **A reader** learns how the game behaves without reading the Z80.
 - **An ML-agent trainer** reads the Markov decision process out of it — state, actions, dynamics, reward.
 
-The spec is a set of Markdown files (one per subsystem, plus an index). It can live in the disassembly repo or in a sibling rewrite repo, but it is *derived from* the `.ctl` and references the disassembly by label name, so the two stay anchored to each other.
+The spec is a set of Markdown files (one per subsystem, plus an index). It can live in the disassembly repo or in a sibling rewrite repo, but it is *derived from* the `.ctl` and references the disassembly by label name, so the two stay anchored to each other. Kept in the disassembly repo under `spec/`, it is published with the site: `site/spec_pages.py` renders each file as a page, lists the pages on the home page under the index's title, and links every label named in inline code to its entry. `site/site.mk` runs it, so a project names the pages nowhere.
 
 ## Table of contents
 

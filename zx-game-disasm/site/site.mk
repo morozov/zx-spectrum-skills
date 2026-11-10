@@ -142,8 +142,25 @@ HTML_GAME_DIR := $(or $(shell sed -n 's/^GameDir=//p' $(REF) 2>/dev/null),$(GAME
 HTML_REFS := $(REF) $(filter-out $(REF),$(sort $(wildcard $(SRC)/$(GAME)*.ref)))
 HTML_REFS += $(filter-out $(HTML_REFS),$(addprefix $(SRC)/,$(HTML_REF_FILES)))
 
-$(HTML_DIR)/.stamp: $(SKOOL) $(wildcard $(SRC)/*.ref) $(wildcard resources/*.css resources/*.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS) $(HTML_HEX) $(HTML_SYM)
+# The behavior pages. Each spec/*.md is one page of the site, [Page:Spec-<name>]
+# at spec/<name>.html, listed on the home page. spec_pages.py renders them into
+# one ref file under $(BUILD), linking each label the Markdown names in inline
+# code to its entry, and the site reads that ref after the project's own, so a
+# project names it nowhere. A project with no spec/ gets no such pages. The
+# spec directory is a prerequisite too, so a page added or removed rebuilds it.
+SPEC_MD    := $(sort $(wildcard spec/*.md))
+SPEC_REF   := $(BUILD)/spec.ref
+SPEC_PAGES := $(SITE_HOME)/spec_pages.py
+ifneq ($(SPEC_MD),)
+HTML_REFS += $(SPEC_REF)
+endif
+
+$(HTML_DIR)/.stamp: $(SKOOL) $(if $(SPEC_MD),$(SPEC_REF)) $(wildcard $(SRC)/*.ref) $(wildcard resources/*.css resources/*.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS) $(HTML_HEX) $(HTML_SYM)
 	$(SKOOL2HTML) -d $(HTML_DIR) -H -a -c "Config/InitModule=$(SITE_HOME)/html:operand_subs" -c "Config/GameDir=$(HTML_GAME_DIR)" -c "Game/JavaScript=$(HTML_JAVASCRIPT)" --rebuild-images --rebuild-audio -S $(THEME) -S $(SITE_RENDERS) $(SKOOL) $(HTML_REFS) $(THEME)/theme.ref
 	$(HTML_HEX) $(HTML_DIR)
 	$(HTML_SYM) $(HTML_DIR) $(SKOOL)
 	touch $@
+
+$(SPEC_REF): $(SPEC_MD) $(wildcard spec) $(SPEC_PAGES) $(SKOOL)
+	@mkdir -p $(dir $@)
+	$(SPEC_PAGES) $@ $(SKOOL) $(SPEC_MD)

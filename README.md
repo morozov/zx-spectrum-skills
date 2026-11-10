@@ -35,7 +35,7 @@ Agent skills for working with ZX Spectrum software.
 - [pasmo](https://pasmo.speccy.org/)
 - [Vale](https://vale.sh)
 - [Google Chrome](https://www.google.com/chrome/) or [Chromium](https://www.chromium.org/)
-- [numpy](https://pypi.org/project/numpy/), [Pillow](https://pypi.org/project/pillow/), [fontTools](https://pypi.org/project/fonttools/) and [brotli](https://pypi.org/project/Brotli/)
+- [numpy](https://pypi.org/project/numpy/), [Pillow](https://pypi.org/project/pillow/), [fontTools](https://pypi.org/project/fonttools/), [brotli](https://pypi.org/project/Brotli/) and [Markdown](https://pypi.org/project/Markdown/)
 
 ### `zx-tape-to-trdos`
 

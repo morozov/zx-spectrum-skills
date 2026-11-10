@@ -158,6 +158,15 @@ run coverage-blocks \
 run operand-subs \
     fixtures/operand-subs.py
 
+# The behavior pages, Markdown to a ref file: the index first, then the pages
+# in the order it links them, then the rest by name; a link to a .md becomes
+# one to its page, inline code that names a label becomes a #R link, a #TABLE
+# span stays SkoolKit's, and a '#' that would start a macro is escaped.
+run spec-pages \
+    site/spec_pages.py /dev/stdout fixtures/spec-pages.skool \
+    fixtures/spec-pages/aardvark.md fixtures/spec-pages/extra.md \
+    fixtures/spec-pages/index.md fixtures/spec-pages/state.md
+
 run registry-terms \
     scripts/validate_glossary_terms.py fixtures/registry-prose.ref \
     --registry fixtures/registry.ref
