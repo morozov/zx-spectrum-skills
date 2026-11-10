@@ -128,6 +128,10 @@ run comments-fragment-stop \
 # surface is skipped by every check that does not declare that surface.
 run prose-units \
     scripts/prose_units.py fixtures/units-session.skool fixtures/units-session.ref
+# A Markdown pipe table is cells, one unit each, as a #TABLE is; read as one
+# paragraph, its rows ran together into one sentence.
+run prose-units-markdown \
+    scripts/prose_units.py fixtures/units-markdown.md
 
 # Where one block ends and the next begins. Each case is a boundary that, read
 # wrong, deletes a line with no report: a `u` block, a non-`label=` directive

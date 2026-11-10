@@ -774,8 +774,29 @@ def ref_units(path, lines):
 
 # --- Markdown ----------------------------------------------------------------
 
+# A Markdown pipe-table row, and the delimiter row under its header.
+MD_ROW_RE = re.compile(r'^\|.*\|$')
+MD_DELIMITER_RE = re.compile(r'^\|(?:\s*:?-+:?\s*\|)+$')
+
+
+def markdown_row_units(path, lineno, stripped, row, header):
+    """One `table-cell` unit per cell of a pipe-table row."""
+    units, start = [], 1
+    for col, cell in enumerate(re.split(r'(?<!\\)\|', stripped[1:-1])):
+        end = start + len(cell)
+        if cell.strip():
+            units.append(make_unit('table-cell', path, stripped, start, end,
+                                   [(0, lineno, stripped)],
+                                   {'table': 'MD', 'col': col, 'row': row,
+                                    'header': header}))
+        start = end + 1
+    return units
+
+
 def markdown_units(path, lines):
+    """Units of a Markdown page. A pipe table is cells, as a `#TABLE` is."""
     units, para, fenced = [], [], False
+    row = None                # the next row's index while inside a table
 
     def flush():
         nonlocal para
@@ -800,7 +821,19 @@ def markdown_units(path, lines):
             continue
         if not stripped:
             flush()
+            row = None
             continue
+        if MD_ROW_RE.match(stripped):
+            flush()
+            if MD_DELIMITER_RE.match(stripped):
+                continue
+            row = 0 if row is None else row + 1
+            # The row above a delimiter row is the header; read ahead for it.
+            following = lines[lineno].strip() if lineno < len(lines) else ''
+            units.extend(markdown_row_units(path, lineno, stripped, row,
+                                            bool(MD_DELIMITER_RE.match(following))))
+            continue
+        row = None
         para.append((lineno, stripped, stripped))
     flush()
     return units
