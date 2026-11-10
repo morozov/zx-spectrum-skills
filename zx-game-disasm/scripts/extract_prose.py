@@ -32,9 +32,12 @@ import sys
 # --- Macro scrubbing ---------------------------------------------------------
 #
 # SkoolKit macros are not prose and must not reach the linter, with one
-# exception: the address in `#R$XXXX` is what AddressDensity and NamedHex count,
-# so that macro is reduced to the bare address rather than removed. Everything
-# else goes. Span macros are cleared first, and always to the same number of
+# exception: `#R` is reduced to what the page shows. `#R$XXXX(text)` shows its
+# link text and nothing else, so the text is kept and the address goes: left as
+# `$XXXX(text)`, the parenthesis reads as an aside and the address as the
+# sentence's subject. A bare `#R$XXXX` shows the label at that address, read
+# from the .skool among the sources; with none known it shows the address,
+# which AddressDensity and NamedHex count. Everything else goes. Span macros are cleared first, and always to the same number of
 # newlines, so the line map stays aligned.
 
 # A span macro opens its own line in every SkoolKit file that uses one, so the
@@ -44,7 +47,8 @@ import sys
 SPAN_MACRO_RE = re.compile(r'^[ \t]*(?:;[ \t]*)?#(?:UDGTABLE|TABLE|LIST)\b'
                            r'.*?(?:TABLE#|LIST#)', re.S | re.M)
 HTML_MACRO_RE = re.compile(r'#HTML\[.*?\]', re.S)
-REF_MACRO_RE = re.compile(r'#R\$?([0-9A-Fa-f]{4,5})')
+# `#Raddr[@code][#anchor][(link text)]`.
+REF_MACRO_RE = re.compile(r'#R\$?([0-9A-Fa-f]{4,5})(@[\w-]+)?(#[\w-]+)?')
 REG_MACRO_RE = re.compile(r'#REG([a-z]+)')
 NUM_MACRO_RE = re.compile(r'#N(\d+)(?:,[^ )]*)?')
 # `#MACRO<params>(text)`: the parameter list carries no spaces and runs straight
@@ -63,11 +67,39 @@ def blank_span(match):
     return '\n' * match.group(0).count('\n')
 
 
-def scrub(text):
+def link_text(text, labels):
+    """Replace each `#R` with what the page shows for it."""
+    out, last = [], 0
+    for m in REF_MACRO_RE.finditer(text):
+        if m.start() < last:
+            continue                      # inside the link text of the one before
+        out.append(text[last:m.start()])
+        end = m.end()
+        if end < len(text) and text[end] == '(':
+            depth = 0
+            for k in range(end, len(text)):
+                depth += {'(': 1, ')': -1}.get(text[k], 0)
+                if depth == 0:
+                    out.append(link_text(text[end + 1:k], labels))
+                    last = k + 1
+                    break
+            else:
+                out.append('$' + m.group(1))
+                last = end
+            continue
+        address = m.group(1).upper()
+        label = None if m.group(2) else labels.get(address)
+        out.append(label or '$' + m.group(1))
+        last = end
+    out.append(text[last:])
+    return ''.join(out)
+
+
+def scrub(text, labels=None):
     """Strip markup from a whole document without changing its line count."""
     text = SPAN_MACRO_RE.sub(blank_span, text)
     text = HTML_MACRO_RE.sub(blank_span, text)
-    text = REF_MACRO_RE.sub(lambda m: '$' + m.group(1), text)
+    text = link_text(text, labels or {})
     text = REG_MACRO_RE.sub(lambda m: m.group(1).upper(), text)
     text = NUM_MACRO_RE.sub(lambda m: m.group(1), text)
     text = WORD_MACRO_RE.sub('', text)
@@ -252,13 +284,37 @@ READERS = {
 }
 
 
-def read_units(path):
+SKOOL_LABEL_RE = re.compile(r'^@label=(\S+)\s*$')
+
+
+def skool_labels(paths):
+    """Return {address: label} from the .skool files among `paths`."""
+    labels, pending = {}, None
+    for path in paths:
+        if not path.endswith('.skool'):
+            continue
+        with open(path, encoding='utf-8', errors='replace') as handle:
+            for raw in handle:
+                m = SKOOL_LABEL_RE.match(raw)
+                if m:
+                    pending = m.group(1)
+                    continue
+                if raw.startswith('@'):
+                    continue
+                m = SKOOL_INSTR_RE.match(raw)
+                if m and pending:
+                    labels[m.group('addr').upper()] = pending
+                pending = None
+    return labels
+
+
+def read_units(path, labels=None):
     """Return the prose units of one source file, with its markup already gone."""
     reader = READERS.get(os.path.splitext(path)[1])
     if reader is None:
         raise SystemExit('extract_prose: no reader for %s' % path)
     with open(path, encoding='utf-8', errors='replace') as handle:
-        lines = scrub(handle.read()).split('\n')
+        lines = scrub(handle.read(), labels).split('\n')
     return reader(lines)
 
 
@@ -273,8 +329,9 @@ def emit(paths, out_path, map_path, print_map=False):
     script a silent regression would land in, and JSON does not diff usefully.
     """
     out, mapping, units = [], {}, 0
+    labels = skool_labels(paths)
     for path in paths:
-        for kind, para in read_units(path):
+        for kind, para in read_units(path, labels):
             body = [(n, t) for n, t in para if t.strip()]
             if not body:
                 continue

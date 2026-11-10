@@ -9,14 +9,18 @@ Expected, and nothing else:
   A braced group is one unit however many rows it spans. An indented ';' row
   carrying no address continues the comment above it - dropping those was what
   cut sentences in half and made every sentence-scoped check read half a
-  sentence. A routine link keeps its address, because the address is what the
-  density rules count. Every other macro goes, and a table span goes whole.
-  A directive between two rows of a group does not break the group.
+  sentence. A link reads as the page shows it: its link text, or else the
+  label it links to, or else its address, which the density rules count.
+  Every other macro goes, and a table span goes whole. A directive between
+  two rows of a group does not break the group.
 
 One thought over three rows, carrying a link to
 $ED00 and a register HL that reads as English.
 
-A standalone row is its own unit.
+A standalone row is its own unit. The shapes
+open the page, drop_markup drops the markup and
+a note in other code keeps its words.
+Its row is linked too.
 
 A row whose comment runs on
 past a directive and onto an
