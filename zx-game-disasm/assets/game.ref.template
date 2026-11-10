@@ -56,8 +56,11 @@ Spec
 Graphics
 Sound
 
-[Index:DataTables:Data tables and buffers]
+; SkoolKit heads this group "Data tables and buffers", storage words for what
+; the reader browses as the game's data and its variables (HEAD-2).
+[Index:DataTables:Game data]
 Data
+GameStatusBuffer
 
 [Index:Reference:Reference]
 Notes
@@ -75,7 +78,7 @@ Glossary=reference/glossary.html
 [Links]
 Graphics=Game graphics
 Sound=Sound effects
-Data=Data tables
+Data=Data
 Notes=Implementation notes
 Glossary=Glossary
 GameStatusBuffer=Variables
