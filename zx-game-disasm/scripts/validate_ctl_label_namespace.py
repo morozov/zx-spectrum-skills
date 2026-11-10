@@ -51,15 +51,21 @@ Two things it deliberately does not report:
   something a behavior rather than a stage is that a reader looks it up: the `N`
   narrative. So only a narrated label can be the *inner* behavior a prefix skips.
 
-## Why the graph is global and the roots are plural
+## Why the graph is global and the roots are the program's
 
-An address jumped into from another entry is not dominated by anything in its own
-entry, and a CFG built per entry cannot see that: the outside predecessor is
-invisible, the address looks dominated by whatever local path also reaches it, and
-the check hands out a restem that writes a fresh lie into the tree. So the graph
-is built once across every `c` entry, and each entry's dominator tree is rooted at
-its start *and* at every address something outside reaches - which leaves such an
-address dominated by nothing but itself, which is the truth about it.
+An address jumped into from another entry can be reached without passing through
+its own entry's start, and a CFG built per entry cannot see that: the outside
+predecessor is invisible, the address looks dominated by whatever local path also
+reaches it, and the check hands out a restem that writes a fresh lie into the
+tree. So the graph is built once across every `c` entry, and one dominator tree
+covers it, rooted at the program's own entry points: the instructions nothing
+flows into.
+
+Rooting each entry at every address something outside reaches would be wrong the
+other way. A routine that jumps out to a stub in the entry before it, which jumps
+back into the routine's loop, is entered from outside only through itself: the
+stub is reached from nowhere else. Its loop is inside it, and a root there would
+call the loop's labels unreached.
 
 A `CALL` to an address inside the same entry is an edge for the same reason. A
 subroutine reached only that way is inside the routine that calls it; modeling
@@ -70,9 +76,9 @@ subroutine reached only that way is inside the routine that calls it; modeling
 An entry whose flow cannot be followed is skipped and named in the output, never
 guessed at. Dominance computed around an indirect jump is not conservative, it is
 wrong, and a wrong dominator tree reports confident nonsense. Two things trigger
-the refusal: an explicit `JP (HL)`, and a labeled address inside the entry that
-no path reaches - which is what a jump table, a `PUSH`/`RET` computed jump, or
-self-modified flow looks like from here.
+the refusal: an explicit `JP (HL)`, and an address inside the entry, other than
+its start, that nothing flows into - which is what a jump table, a `PUSH`/`RET`
+computed jump, or self-modified flow looks like from here.
 """
 
 import argparse
@@ -230,56 +236,92 @@ def build_graph(code):
     return graph, predecessors, unfollowable
 
 
-# The virtual root every entry's dominator tree hangs from. Its children are the
-# entry's start and every address something outside the entry reaches, so an
-# address entered from elsewhere is dominated by nothing but itself.
+# The virtual root the dominator tree hangs from. Its children are the program's
+# true entry points: every instruction nothing in the code flows into.
 ROOT = -1
 
 
-def dominators(entry, instructions, graph, predecessors):
-    """Return {address: its dominators}, or None if some labeled byte is unreached."""
-    inside = set(instructions)
-    roots = {entry}
-    for address in inside:
-        if any(p not in inside for p in predecessors.get(address, ())):
-            roots.add(address)
+def global_dominators(graph, predecessors):
+    """Return ({address: immediate dominator}, the roots) over the whole program.
 
-    edges = {ROOT: sorted(roots)}
-    for address in inside:
-        edges[address] = [t for t in graph.get(address, ()) if t in inside]
+    The roots are the instructions nothing flows into: the program's entry, an
+    interrupt routine, a routine reached through a table or a computed jump. An
+    instruction the flow reaches from no root - a loop nothing enters - becomes
+    a root of its own, so every instruction has a dominator.
+    """
+    nodes = set(graph)
+    edges = {n: [t for t in graph[n] if t in nodes] for n in nodes}
+    roots = sorted(n for n in nodes
+                   if not any(p in nodes for p in predecessors.get(n, ())))
+    order, seen = [], {ROOT}
+    edges[ROOT] = []
 
-    reachable = {ROOT}
-    queue = [ROOT]
-    while queue:
-        for target in edges[queue.pop()]:
-            if target not in reachable:
-                reachable.add(target)
-                queue.append(target)
+    def walk(start):
+        # Iterative depth-first search, appending each node once all its
+        # successors are done: the post-order the algorithm below reverses.
+        stack = [(start, iter(edges[start]))]
+        while stack:
+            node, successors = stack[-1]
+            for target in successors:
+                if target not in seen:
+                    seen.add(target)
+                    stack.append((target, iter(edges[target])))
+                    break
+            else:
+                stack.pop()
+                order.append(node)
 
-    if len(reachable) - 1 < len(inside):
-        # Something reaches these bytes that the model cannot see - a jump table,
-        # a computed jump, self-modified flow. Refuse the whole entry.
-        return None
+    for root in roots:
+        if root not in seen:
+            seen.add(root)
+            edges[ROOT].append(root)
+            walk(root)
+    for node in sorted(nodes):
+        if node not in seen:
+            seen.add(node)
+            roots.append(node)
+            edges[ROOT].append(node)
+            walk(node)
+    order.append(ROOT)
 
-    incoming = collections.defaultdict(set)
-    for address, targets in edges.items():
+    # Cooper, Harvey and Kennedy, "A Simple, Fast Dominance Algorithm".
+    rpo = list(reversed(order))
+    index = {node: i for i, node in enumerate(rpo)}
+    incoming = collections.defaultdict(list)
+    for node, targets in edges.items():
         for target in targets:
-            incoming[target].add(address)
+            incoming[target].append(node)
+    idom = {ROOT: ROOT}
 
-    dominated = {address: set(reachable) for address in reachable}
-    dominated[ROOT] = {ROOT}
+    def intersect(a, b):
+        while a != b:
+            while index[a] > index[b]:
+                a = idom[a]
+            while index[b] > index[a]:
+                b = idom[b]
+        return a
+
     changed = True
     while changed:
         changed = False
-        for address in sorted(inside):
-            sources = [dominated[p] for p in incoming[address] if p in reachable]
-            if not sources:
-                continue
-            new = {address}.union(set.intersection(*sources))
-            if new != dominated[address]:
-                dominated[address] = new
+        for node in rpo[1:]:
+            done = [p for p in incoming[node] if p in idom]
+            new = done[0]
+            for p in done[1:]:
+                new = intersect(p, new)
+            if idom.get(node) != new:
+                idom[node] = new
                 changed = True
-    return dominated
+    return idom, set(roots)
+
+
+def dominator_chain(address, idom):
+    """Return the set of addresses that dominate `address`, itself included."""
+    chain = {address}
+    while address != ROOT:
+        address = idom[address]
+        chain.add(address)
+    return chain
 
 
 def inbound(code):
@@ -327,14 +369,15 @@ def check(labels, entries, narrated, code):
                  and entry_of(a, entries)[1] == 'c'}
     graph, predecessors, unfollowable = build_graph(code_only)
     callers = inbound(code)
+    idom, roots = global_dominators(graph, predecessors)
 
-    trees = {}
+    # An instruction other than its entry's start that nothing flows into is
+    # one something reaches unseen - a jump table, a computed jump, self-modified
+    # flow. Dominance around it would be wrong, not conservative, so the whole
+    # entry is refused.
     for entry, instructions in code_only.items():
-        tree = None if entry in unfollowable else \
-            dominators(entry, instructions, graph, predecessors)
-        if tree is None:
+        if any(a in roots for a in instructions if a != entry):
             unfollowable.add(entry)
-        trees[entry] = tree
 
     findings = []
     for address, (label, line_number) in sorted(labels.items()):
@@ -371,11 +414,11 @@ def check(labels, entries, narrated, code):
                 f'{stem} (${parent:04X}). Give it a name of its own'))
             continue
 
-        tree = trees.get(here[0])
-        if tree is None or address not in tree:
+        if here[0] in unfollowable or address not in code_only.get(here[0], {}):
             continue
+        dominated_by = dominator_chain(address, idom)
 
-        if parent not in tree[address]:
+        if parent not in dominated_by:
             findings.append((
                 line_number, 'UNREACHED',
                 f'{label} is prefixed `{stem}` (${parent:04X}), which does not contain '
@@ -383,11 +426,12 @@ def check(labels, entries, narrated, code):
                 f'{stem}. The prefix claims a containment the flow refuses'))
             continue
 
-        between = [a for a in tree[address]
-                   if a not in (address, parent, ROOT) and a in narrated and a in labels
-                   and parent in tree[a]]
+        inside = code_only[here[0]]
+        between = [a for a in dominated_by
+                   if a not in (address, parent, ROOT) and a in inside and a in narrated
+                   and a in labels and parent in dominator_chain(a, idom)]
         if between:
-            inner = max(between, key=lambda a: len(tree[a]))
+            inner = max(between, key=lambda a: len(dominator_chain(a, idom)))
             findings.append((
                 line_number, 'MISPARENTED',
                 f'{label} is prefixed `{stem}` (${parent:04X}), but these bytes are inside '
