@@ -1,14 +1,14 @@
-; SYNTH_ECHO beside a clip: the prose a clip reads back, and the two homes where
+; SYNTH_ECHO beside a clip: the prose a clip reads back, and the home where
 ; the same words are not an echo.
 ;
 ; Expected, and nothing else:
 ;   $E000  reported: a sound effect that calls the tone primitive, whose
 ;          description recites the periods the clip already plays.
-;   $E010  silent: the tone primitive, which drives the speaker itself, so its
-;          formula is its own mechanism.
+;   $E010  reported: a clip on the tone primitive still reads the formula back.
 ;   $E020  silent: a data entry whose schema names its fields, a period among
 ;          them, beside the clip that plays it.
 ;   $E026  silent: the same schema written as a #TABLE.
+;   $E030  reported: a data entry that recites its periods' values beside its clip.
 
 ; Warning beep
 ;
@@ -43,3 +43,10 @@ b$E020 DEFB $28,$28,$C8 ; First note
 ; #AUDIO(slides)
 @label=slides
 b$E026 DEFB $28,$04    ; Slide
+
+; Siren notes
+;
+; The notes fall from period 40 to period 20.
+; #AUDIO(siren)
+@label=siren_notes
+b$E030 DEFB $28,$14     ; Notes

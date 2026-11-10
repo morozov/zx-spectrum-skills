@@ -127,9 +127,8 @@ ones a reviewer would otherwise flag by hand:
                    synthesis; the words owe what the sound means in play, what
                    fires it, and the routine. Block prose and .ref catalogs only:
                    the routine's body is where the algorithm belongs. A data
-                   entry's definition and the prose of a routine that drives
-                   the speaker itself are exempt: there the period is a field's
-                   meaning or the routine's own mechanism
+                   entry's definition is exempt unless it states a value: there
+                   the period is a field's meaning
   - LAYOUT_ECHO    a record's field offset cited in a code block's prose — the
                    layout's one home is the record's own definition; a comment
                    about behavior names the thing, not the byte it sits at
@@ -1123,28 +1122,27 @@ def check_selflink(unit):
             return
 
 
-# An instruction that drives a port: the routine that holds one makes the sound
-# itself, so the tone formula is that routine's own mechanism.
-OUT_RE = re.compile(r'(?i)^OUT[ID]?R?\b')
+# A data entry's schema names a field ("the period of its first tone"); a value
+# read back beside the clip ("period 40", "200 cycles") is still the clip in
+# numbers.
+SYNTH_VALUE_RE = re.compile(
+    r'(?i)\bperiods?\s+(?:of\s+)?\$?[0-9A-F]*\d|\b\d[\d,]*\s*(?:cycles?|T-states?|half-cycles?)\b'
+    r'|\b\d+\s*\*\s*[A-Za-z_#(]|#REG[a-z]+\s*=')
 
 
 def check_synth(unit):
     """Prose beside a clip that reads the clip's synthesis back (HOME-7).
 
-    Two homes are exempt, because there the words are not the clip read back.
     A data entry's prose is its definition: a field that holds a period is
-    stated as one (DEF-1, ENT-4). A routine that drives the speaker itself is
-    the tone primitive the formula belongs to.
+    stated as one (DEF-1, ENT-4), so there only a value is reported.
     """
     if not (unit.ctx.get('run_audio') or unit.ctx.get('section_audio')):
         return
     entry = unit.ctx.get('entry')
-    if entry is not None and entry.type is not None:
-        if entry.type != 'c':
-            return
-        if any(OUT_RE.match(instr.strip()) for _, instr in entry.rows):
-            return
-    m = SYNTH_RE.search(unit.text)
+    rx = SYNTH_RE
+    if entry is not None and entry.type not in (None, 'c'):
+        rx = SYNTH_VALUE_RE
+    m = rx.search(unit.text)
     if m:
         yield m.start(), SYNTH_DETAIL.format(m.group(0).strip())
 
