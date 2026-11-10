@@ -180,6 +180,10 @@ run prose-extract \
 run prose-extract-map \
     scripts/extract_prose.py --out /dev/null --map - --print-map \
     fixtures/prose-extract.skool
+# A .ref's configuration sections publish no text: an [Index] list of page ids,
+# an [Expand] macro and a template are not prose, and a section's body is.
+run prose-extract-ref \
+    scripts/extract_prose.py --out - --map - fixtures/prose-extract.ref
 run struct-term-label \
     scripts/validate_glossary_terms.py fixtures/struct-term-label.ctl \
     --registry fixtures/struct-term-label-registry.ref

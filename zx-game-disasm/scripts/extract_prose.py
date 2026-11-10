@@ -29,6 +29,8 @@ import os
 import re
 import sys
 
+from prose_units import CONFIG_SECTIONS
+
 # --- Macro scrubbing ---------------------------------------------------------
 #
 # SkoolKit macros are not prose and must not reach the linter, with one
@@ -240,11 +242,21 @@ def units_from_ctl(lines):
 
 
 def units_from_ref(lines):
-    """Yield prose units from a .ref page, skipping config and section headers."""
+    """Yield prose units from a .ref page, skipping config and section headers.
+
+    A section SkoolKit reads as configuration publishes none of its lines as
+    text, whatever they look like: an [Index] list holds page ids, a
+    [Template:*] holds markup, an [Expand] holds macros. Which sections those
+    are is prose_units.CONFIG_SECTIONS, so both readers agree on it.
+    """
     para = []
+    config = False
     for n, raw in enumerate(lines, 1):
         text = raw.rstrip()
-        if not text.strip() or REF_SECTION_RE.match(text) or REF_CONFIG_RE.match(text) \
+        section = REF_SECTION_RE.match(text)
+        if section:
+            config = text.strip()[1:-1].split(':')[0].rstrip('+') in CONFIG_SECTIONS
+        if config or not text.strip() or section or REF_CONFIG_RE.match(text) \
                 or text.lstrip().startswith(';'):
             if para:
                 yield 'ref', para
