@@ -17,3 +17,5 @@ S $F020,16
 u $F030 Unused bytes
 S $F030,16
 c $F040 Return
+i $F050
+B $F050,8
