@@ -72,7 +72,7 @@ A rule with only `review` as its enforcer holds exactly as hard as one with a ch
 | DEF-3 | A definition carries no usage: nothing about what reads the value or what it selects. | GLOSSARY_DEF, review | Does this definition say what reads the value, what uses it or what it selects? |
 | DEF-4 | A definition is true at power-on and carries no progress framing. | GLOSSARY_DEF, review | Does this definition describe the player's progress or a state that holds only during play? |
 | DEF-5 | A one-byte variable's description is one sentence. | WORDY_VARIABLE | |
-| DEF-6 | A glossary term is admitted only when the game or the project coined it and its name does not say what it is. Plain words and constants are never glossary entries. | GLOSSARY_IDENT, review | Is this glossary term a plain word whose name says what it is, or a constant? |
+| DEF-6 | A glossary term is admitted only when the game or the project coined it and its name does not say what it is. Plain words and constants are never glossary entries. The glossary page's policy on names and its terminology registry are sections of the page, not terms. | GLOSSARY_IDENT, review | Is this glossary term a plain word whose name says what it is, or a constant? |
 
 ## ROW: data rows and tables
 
@@ -209,7 +209,7 @@ The writing rules of ASD-STE100, the controlled language of technical documentat
 | VIS-8 | A built site fetches nothing, and every font it names is shipped beside it or present on the reader's platform. | review | |
 | VIS-9 | The listing's code rows keep one even pitch, and a comment's length never changes the code rows' spacing. | review | |
 | VIS-10 | Design work runs in four steps: specialists name each problem with its root cause and a prescribed fix; an independent challenger with no stake in the proposal reviews each prescription; only what passes is implemented, exactly as prescribed; then the result is rendered and reviewed. | review | |
-| VIS-11 | A page that lists entries orders them in a way the reader can name. Things the game shows go in the order the game presents them, such as inhabitants by the level they first appear on. Sounds go by when a game plays them, with entries of one kind kept together, such as the title and game-over tunes. Any other list follows an order with a meaning to the reader, such as defects by what they cost the player. A list with no such order, such as a glossary, is alphabetical. Address order belongs to the memory maps alone. | review | |
+| VIS-11 | A page that lists entries orders them in a way the reader can name. Things the game shows go in the order the game presents them, such as inhabitants by the level they first appear on. Sounds go by when a game plays them, with entries of one kind kept together, such as the title and game-over tunes. Any other list follows an order with a meaning to the reader, such as defects by what they cost the player. A list with no such order, such as a glossary, is alphabetical. A section of the page that is not an item of its list, such as the glossary's policy on names or its terminology registry, comes before the list. Address order belongs to the memory maps alone. | review | |
 
 ## WORK: how to work
 
