@@ -573,6 +573,18 @@ table.disassembly tr.asm-group-hover {
   --lit: 4%;
 }
 
+/* A comment longer than its rows makes the table grow them, and a table shares
+   the growth out over every row the comment spans, so a wrapped comment pulls
+   its own code rows apart (VIS-9). A table gives growth to rows of auto height
+   before rows of a set height. So every row inside a comment group is held at
+   one line, and only the group's last row is left auto: it takes the growth,
+   and the space opens below the group. A group's last row is the one whose next
+   row opens a group of its own (a comment cell, empty or not) or is no code row
+   at all (an N note, the end of the entry). */
+table.disassembly > tbody > tr:has(+ tr > td.instruction):not(:has(+ tr > td.comment-0, + tr > td.comment-1)) {
+  height: 1lh;
+}
+
 span.register {
   color: var(--cyan);
   font-family: var(--font-mono);
