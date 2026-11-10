@@ -126,7 +126,10 @@ ones a reviewer would otherwise flag by hand:
                    periods, cycles, T-states, a period formula. The clip is the
                    synthesis; the words owe what the sound means in play, what
                    fires it, and the routine. Block prose and .ref catalogs only:
-                   the routine's body is where the algorithm belongs
+                   the routine's body is where the algorithm belongs. A data
+                   entry's definition and the prose of a routine that drives
+                   the speaker itself are exempt: there the period is a field's
+                   meaning or the routine's own mechanism
   - LAYOUT_ECHO    a record's field offset cited in a code block's prose — the
                    layout's one home is the record's own definition; a comment
                    about behavior names the thing, not the byte it sits at
@@ -1120,9 +1123,27 @@ def check_selflink(unit):
             return
 
 
+# An instruction that drives a port: the routine that holds one makes the sound
+# itself, so the tone formula is that routine's own mechanism.
+OUT_RE = re.compile(r'(?i)^OUT[ID]?R?\b')
+
+
 def check_synth(unit):
+    """Prose beside a clip that reads the clip's synthesis back (HOME-7).
+
+    Two homes are exempt, because there the words are not the clip read back.
+    A data entry's prose is its definition: a field that holds a period is
+    stated as one (DEF-1, ENT-4). A routine that drives the speaker itself is
+    the tone primitive the formula belongs to.
+    """
     if not (unit.ctx.get('run_audio') or unit.ctx.get('section_audio')):
         return
+    entry = unit.ctx.get('entry')
+    if entry is not None and entry.type is not None:
+        if entry.type != 'c':
+            return
+        if any(OUT_RE.match(instr.strip()) for _, instr in entry.rows):
+            return
     m = SYNTH_RE.search(unit.text)
     if m:
         yield m.start(), SYNTH_DETAIL.format(m.group(0).strip())

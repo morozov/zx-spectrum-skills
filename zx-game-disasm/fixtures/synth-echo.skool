@@ -1,0 +1,45 @@
+; SYNTH_ECHO beside a clip: the prose a clip reads back, and the two homes where
+; the same words are not an echo.
+;
+; Expected, and nothing else:
+;   $E000  reported: a sound effect that calls the tone primitive, whose
+;          description recites the periods the clip already plays.
+;   $E010  silent: the tone primitive, which drives the speaker itself, so its
+;          formula is its own mechanism.
+;   $E020  silent: a data entry whose schema names its fields, a period among
+;          them, beside the clip that plays it.
+;   $E026  silent: the same schema written as a #TABLE.
+
+; Warning beep
+;
+; A tone of period 40 for 200 cycles, then period 20.
+; #AUDIO(warning-beep)
+@label=sfx_warning
+c$E000 LD HL,$E020     ; Point at the beep's notes.
+ $E003 JP $E010        ;
+
+; Play two tones
+;
+; Plays two tones on the speaker at once. A tone of period P sounds at
+; 3.5 MHz ÷ (192 × P).
+; #AUDIO(two-tones)
+@label=play_two_tones
+c$E010 LD A,(HL)       ; {Send the level to the speaker.
+ $E011 OUT ($FE),A     ; }
+ $E013 RET             ;
+
+; Warning beep notes
+;
+; Each note is a record of 3 bytes: the period of its first tone, the period of
+; its second tone, then its length.
+; #AUDIO(warning-notes)
+@label=warning_notes
+b$E020 DEFB $28,$28,$C8 ; First note
+ $E023 DEFB $14,$14,$00 ; Second note
+
+; Slides
+;
+; #TABLE(default) { =h Byte | =h Holds } { 0 | Period of the first tone } { 1 | Number of steps } TABLE#
+; #AUDIO(slides)
+@label=slides
+b$E026 DEFB $28,$04    ; Slide

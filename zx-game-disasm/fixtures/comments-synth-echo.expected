@@ -1,0 +1,5 @@
+Found 1 comment defect(s):
+
+[SYNTH_ECHO] 1
+  synth-echo.skool:15: describes how the tone is produced ('period') beside the #AUDIO that plays it — the clip is the synthesis, so the words owe what the sound means in play, the event that fires it and the routine. The period formula is a mechanism and belongs once, at the tone primitive that implements it
+    A tone of period 40 for 200 cycles, then period 20.

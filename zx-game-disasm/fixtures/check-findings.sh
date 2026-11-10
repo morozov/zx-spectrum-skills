@@ -124,6 +124,10 @@ run comments-ste \
 # which keep their full stop.
 run comments-fragment-stop \
     scripts/lint_comments.py fixtures/fragment-stop.skool
+# SYNTH_ECHO beside a clip: a sound effect reciting its periods is reported; a
+# data entry's schema and the tone primitive's own formula are not.
+run comments-synth-echo \
+    scripts/lint_comments.py fixtures/synth-echo.skool
 # Which surface each piece of prose is read as. A unit that lands on the wrong
 # surface is skipped by every check that does not declare that surface.
 run prose-units \
