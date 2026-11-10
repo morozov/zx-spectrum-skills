@@ -1,0 +1,1 @@
+CHECK_terms: scripts/validate_glossary_terms.py build/game.skool src/game.ctl src/glossary.ref  --registry src/glossary.ref --baseline tools/lint-baseline.toml

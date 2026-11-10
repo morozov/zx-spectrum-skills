@@ -568,8 +568,13 @@ CHECK_names = $(SCRIPTS)/validate_prose_names.py $(CTL) $(PROSE) --baseline $(BA
 # registry qualifies by grammatical role ("zeros as the verb") are not decidable
 # by pattern and are counted in the report rather than reported, so the check
 # never claims more enforcement than it has.
+#
+# The registry is named, not found: the script's default looks beside its first
+# file, and the first file here is the generated .skool under $(BUILD), where no
+# glossary.ref lives. A project with no registry page passes a path that does
+# not exist, and the script says so and holds nothing, as it always has.
 CHECK_terms = $(SCRIPTS)/validate_glossary_terms.py $(SKOOL) $(CTL) $(PROSE) \
-    --baseline $(BASELINE)
+    --registry $(SRC)/glossary.ref --baseline $(BASELINE)
 lint-terms: $(CTL)
 	$(CHECK_terms)
 lint-names: $(CTL)

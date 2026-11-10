@@ -163,6 +163,10 @@ run struct-diff-entries \
     fixtures/struct-diff-entries.sh
 run struct-deletion-scope \
     fixtures/struct-deletion-scope.sh
+# What the gate hands each check: a wrong argument fails silently, as a check
+# that reads nothing and passes.
+run gate-wiring \
+    fixtures/gate-wiring.sh
 run struct-rules \
     scripts/validate_rules.py --rules fixtures/struct-rules.md \
     --scripts fixtures/struct-rules-scripts --mk fixtures/struct-rules.mk
