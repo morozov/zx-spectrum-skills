@@ -267,11 +267,38 @@ def units_from_ref(lines):
         yield 'ref', para
 
 
+# A SkoolKit table in a Markdown page, as site/spec_pages.py publishes it, has
+# one `{ cell | cell }` row per line. By the time a reader sees the lines, scrub
+# has dropped the #TABLE word that opens it, wherever on its line that stood,
+# and left the `TABLE#` that closes it. A cell opens on its markup (`=h`).
+MD_TABLE_ROW_RE = re.compile(r'^\{(?P<cells>.*)\}$')
+CELL_MARKUP_RE = re.compile(r'^=\w+(?:,\w+)*\s+')
+HEX_VALUE_RE = re.compile(r'\$[0-9A-Fa-f]+')
+
+
 def units_from_markdown(lines):
-    """Yield prose units from a plain Markdown file, skipping fenced code."""
+    """Yield prose units from a plain Markdown file, skipping fenced code.
+
+    A SkoolKit table's cells are one unit each, as the cells of a pipe table
+    are to Vale's own Markdown reader: run together, a table's rows read as one
+    sentence that names every address in its first column.
+    """
     para, fenced = [], False
     for n, raw in enumerate(lines, 1):
         text = raw.rstrip()
+        row = None if fenced else MD_TABLE_ROW_RE.match(text.strip())
+        if row or (not fenced and text.strip() == 'TABLE#'):
+            if para:
+                yield 'spec', para
+            para = []
+            for cell in (row.group('cells').split('|') if row else ()):
+                cell = CELL_MARKUP_RE.sub('', cell.strip())
+                # A cell of values alone (an address, a range, a count) is a
+                # column's datum, not prose, as ROW-7 puts a code in a column of
+                # its own.
+                if re.search(r'[A-Za-z]', HEX_VALUE_RE.sub('', cell)):
+                    yield 'spec', [(n, cell)]
+            continue
         if text.lstrip().startswith('```'):
             fenced = not fenced
             if para:

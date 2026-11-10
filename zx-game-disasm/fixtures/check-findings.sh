@@ -180,6 +180,13 @@ run prose-extract \
 run prose-extract-map \
     scripts/extract_prose.py --out /dev/null --map - --print-map \
     fixtures/prose-extract.skool
+# A SkoolKit table in a Markdown page is cells, one unit each: run together,
+# its rows read as one sentence naming every address in the first column. A
+# cell of values alone (an address, a range) is a datum and no unit; a cell with
+# words is one, its addresses with it.
+run prose-extract-markdown-table \
+    scripts/extract_prose.py --out - --map - --print-map \
+    fixtures/units-markdown-table.md
 # A .ref's configuration sections publish no text: an [Index] list of page ids,
 # an [Expand] macro and a template are not prose, and a section's body is.
 run prose-extract-ref \
