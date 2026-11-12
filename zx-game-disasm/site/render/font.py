@@ -5,13 +5,15 @@ Write a game's 8x8 character font as a TrueType font and a WOFF2 web font.
 The glyph for character code c is the 8 bytes at BASE + c*8, top row first, the
 layout of the Spectrum ROM font and of every font a game sets through CHARS.
 Each set pixel becomes one square of the outline, so the font draws the game's
-characters pixel for pixel at any multiple of 8 px.
+characters pixel for pixel at any multiple of 8 px. With --double-height each
+set pixel becomes one rectangle twice as tall. The character width and advance
+stay the same.
 
 Both files are byte-identical across runs.
 
 Usage:
     font.py IMAGE --org ORG --base BASE --first CODE --last CODE
-                  --family NAME --out STEM
+                  --family NAME [--id ID] [--double-height] --out STEM
 """
 
 import argparse
@@ -41,13 +43,14 @@ def glyph_name(code):
     return f"u{code:04X}"
 
 
-def build_outline(rows):
-    """Return a TrueType glyph with one clockwise square per set bit of ``rows``,
+def build_outline(rows, double_height=False):
+    """Return a TrueType glyph with one clockwise rectangle per set bit of ``rows``,
     8 bytes with the top row first."""
     pen = TTGlyphPen(None)
+    height = 2 if double_height else 1
     for r, byte in enumerate(rows):
-        y_top = (8 - r) * PIXEL
-        y_bot = (8 - r - 1) * PIXEL
+        y_top = (8 - r) * PIXEL * height
+        y_bot = (8 - r - 1) * PIXEL * height
         for col in range(8):
             if byte & (1 << (7 - col)):
                 x0 = col * PIXEL
@@ -74,6 +77,8 @@ def main():
     parser.add_argument('--family', required=True, help='the font family name')
     parser.add_argument('--id', default=None,
                         help='the unique font identifier (default: FAMILY)')
+    parser.add_argument('--double-height', action='store_true',
+                        help='draw each glyph row twice as tall, at the same width')
     parser.add_argument('--out', required=True,
                         help='output stem; writes STEM.ttf and STEM.woff2')
     args = parser.parse_args()
@@ -89,13 +94,14 @@ def main():
 
     glyphs = {".notdef": TTGlyphPen(None).glyph()}
     for code, rows in src_glyphs.items():
-        glyphs[glyph_name(code)] = build_outline(rows)
+        glyphs[glyph_name(code)] = build_outline(rows, args.double_height)
     fb.setupGlyf(glyphs)
 
     advance = UNITS_PER_EM
     metrics = {name: (advance, 0) for name in glyph_order}
     fb.setupHorizontalMetrics(metrics)
-    fb.setupHorizontalHeader(ascent=UNITS_PER_EM, descent=0)
+    ascent = UNITS_PER_EM * (2 if args.double_height else 1)
+    fb.setupHorizontalHeader(ascent=ascent, descent=0)
 
     # Fixed timestamps keep the output byte-identical across runs.
     fb.setupHead(created=0, modified=0, unitsPerEm=UNITS_PER_EM)
@@ -109,8 +115,8 @@ def main():
         "psName": family.replace(" ", "") + "-Regular",
         "version": "1.0",
     })
-    fb.setupOS2(sTypoAscender=UNITS_PER_EM, sTypoDescender=0,
-                usWinAscent=UNITS_PER_EM, usWinDescent=0)
+    fb.setupOS2(sTypoAscender=ascent, sTypoDescender=0,
+                usWinAscent=ascent, usWinDescent=0)
     fb.setupPost(keepGlyphNames=False)
 
     ttf_path = args.out + ".ttf"
