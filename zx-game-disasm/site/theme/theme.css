@@ -833,8 +833,10 @@ td.centre { text-align: center; }
 
 /* #UDGTABLE, and #TABLE with no class, write class="" on the table and on every
    cell. The reset zeroes their padding, so an image and its caption below it
-   touch and two images in a row meet edge to edge. */
-table[class=""] > tbody > tr > td[class=""] {
+   touch and two images in a row meet edge to edge. Only a cell that holds an
+   image is padded here: a text cell, in a table that mixes text and images,
+   keeps the theme's padding. */
+table[class=""] > tbody > tr > td[class=""]:has(img) {
   padding: var(--figure-gap) calc(var(--figure-gap) / 2);
   vertical-align: top;
 }
@@ -844,19 +846,20 @@ table[class=""] > tbody > tr > td[class=""] {
    that holds an image and its caption together keeps the two as one figure, the
    image on its own line above the text. A table of two or more rows is a grid
    whose columns line up (an image row over a caption row) and keeps the table
-   layout. */
-table[class=""]:has(img):not(:has(tr + tr)),
-table[class=""]:has(img):not(:has(tr + tr)) > tbody {
+   layout, and so does a table of one cell, which has nothing to wrap and stays
+   centred as a table is. */
+table[class=""]:has(img):not(:has(tr + tr)):has(td + td),
+table[class=""]:has(img):not(:has(tr + tr)):has(td + td) > tbody {
   display: block;
 }
 
-table[class=""]:has(img):not(:has(tr + tr)) > tbody > tr {
+table[class=""]:has(img):not(:has(tr + tr)):has(td + td) > tbody > tr {
   display: flex;
   flex-wrap: wrap;
   column-gap: var(--figure-gap);
 }
 
-table[class=""]:has(img):not(:has(tr + tr)) > tbody > tr > td > img {
+table[class=""]:has(img):not(:has(tr + tr)):has(td + td) > tbody > tr > td > img {
   display: block;
   margin-bottom: calc(var(--figure-gap) * 2);
 }
