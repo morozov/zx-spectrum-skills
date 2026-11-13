@@ -105,7 +105,10 @@ def convert(text, labels):
         title = html.unescape(re.sub(r'<[^>]+>', '', m.group(1))).strip()
         body = body[:m.start()] + body[m.end():]
 
-    # A ref file value is one line.
+    # A ref file value is one line. A code block's line breaks are its
+    # content, so inside <pre> each one is written as a character reference.
+    body = re.sub(r'<pre>.*?</pre>', lambda m: m.group(0).replace('\n', '&#10;'),
+                  body, flags=re.S)
     return title, ' '.join(body.split('\n'))
 
 

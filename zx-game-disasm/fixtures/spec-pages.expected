@@ -34,4 +34,4 @@ PageContent= <h2 id="lives">Lives</h2> <p>The <code>#R$8003(lives)</code> variab
 PageContent=<p>A page with no title is listed by its file name.</p>
 
 [Page:Spec-extra]
-PageContent= <p>A page the index does not link comes after the linked ones, by name.</p>
+PageContent= <p>A page the index does not link comes after the linked ones, by name.</p> <p>A code example keeps its lines:</p> <pre><code>LD A,(lives)&#10;DEC A&#10;RET&#10;</code></pre>
