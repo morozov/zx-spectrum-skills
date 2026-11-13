@@ -9,6 +9,8 @@
 ;          them, beside the clip that plays it.
 ;   $E026  silent: the same schema written as a #TABLE.
 ;   $E030  reported: a data entry that recites its periods' values beside its clip.
+;   $E032  reported: the same, its value in hex.
+;   $E033  reported: the same, the value after a colon.
 
 ; Warning beep
 ;
@@ -50,3 +52,17 @@ b$E026 DEFB $28,$04    ; Slide
 ; #AUDIO(siren)
 @label=siren_notes
 b$E030 DEFB $28,$14     ; Notes
+
+; Alarm note
+;
+; A tone of period $FF.
+; #AUDIO(alarm)
+@label=alarm_note
+b$E032 DEFB $FF         ; Note
+
+; Chirp note
+;
+; A tone of period: 40.
+; #AUDIO(chirp)
+@label=chirp_note
+b$E033 DEFB $28         ; Note

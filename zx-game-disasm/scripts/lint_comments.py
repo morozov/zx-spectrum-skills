@@ -1123,10 +1123,13 @@ def check_selflink(unit):
 
 
 # A data entry's schema names a field ("the period of its first tone"); a value
-# read back beside the clip ("period 40", "200 cycles") is still the clip in
-# numbers.
+# read back beside the clip ("period 40", "period $FF", "period: 40",
+# "200 cycles") is still the clip in numbers. A value is any number form the
+# prose writes: `$`-hex, `0x`-hex or decimal.
+SYNTH_NUMBER = r'(?:\$[0-9A-F]+|0x[0-9A-F]+|\d[\d,]*)\b'
 SYNTH_VALUE_RE = re.compile(
-    r'(?i)\bperiods?\s+(?:of\s+)?\$?[0-9A-F]*\d|\b\d[\d,]*\s*(?:cycles?|T-states?|half-cycles?)\b'
+    r'(?i)\bperiods?\s*:?\s*(?:of\s+)?' + SYNTH_NUMBER
+    + r'|(?<![\w$])' + SYNTH_NUMBER + r'\s*(?:cycles?|T-states?|half-cycles?)\b'
     r'|\b\d+\s*\*\s*[A-Za-z_#(]|#REG[a-z]+\s*=')
 
 
