@@ -1,0 +1,13 @@
+Found 5 comment defect(s):
+
+[SYNTH_ECHO] 5
+  synth-echo.skool:17: describes how the tone is produced ('period') beside the #AUDIO that plays it — the clip is the synthesis, so the words owe what the sound means in play, the event that fires it and the routine. The period formula is a mechanism and belongs once, at the tone primitive that implements it
+    A tone of period 40 for 200 cycles, then period 20.
+  synth-echo.skool:25: describes how the tone is produced ('period') beside the #AUDIO that plays it — the clip is the synthesis, so the words owe what the sound means in play, the event that fires it and the routine. The period formula is a mechanism and belongs once, at the tone primitive that implements it
+    Plays two tones on the speaker at once. A tone of period P sounds at
+  synth-echo.skool:51: describes how the tone is produced ('period 40') beside the #AUDIO that plays it — the clip is the synthesis, so the words owe what the sound means in play, the event that fires it and the routine. The period formula is a mechanism and belongs once, at the tone primitive that implements it
+    The notes fall from period 40 to period 20.
+  synth-echo.skool:58: describes how the tone is produced ('period $FF') beside the #AUDIO that plays it — the clip is the synthesis, so the words owe what the sound means in play, the event that fires it and the routine. The period formula is a mechanism and belongs once, at the tone primitive that implements it
+    A tone of period $FF.
+  synth-echo.skool:65: describes how the tone is produced ('period: 40') beside the #AUDIO that plays it — the clip is the synthesis, so the words owe what the sound means in play, the event that fires it and the routine. The period formula is a mechanism and belongs once, at the tone primitive that implements it
+    A tone of period: 40.

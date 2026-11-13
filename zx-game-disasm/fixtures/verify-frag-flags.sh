@@ -24,7 +24,13 @@
 #   -> clean fragment:     accepted
 #      raw fragment:       rejected, `WARNING: Unreplaced address ($F00A)`
 #      bad-@ssub fragment: rejected, `ERROR: Symbol 'no_such_label' is undefined`
+#      held fragment:      accepted, `comments: 1 known finding(s) held`
 #   -> `verify-frag-flags: OK`, exit 0
+#
+# The held fragment is a project with a comments finding its baseline holds.
+# The comments check keys a block comment's finding on the skool's file name,
+# `probe.skool` as the gate builds it, so the fragment check must name its
+# spliced skool the same; under any other name the held finding reads as new.
 #
 # The two rejections are the point. Rendered without `-s`, the raw fragment is
 # accepted; rendered but not assembled, the bad `@ssub` passes, and only the
@@ -104,6 +110,17 @@ bin2sna.py --org 0xF000 build/probe.bin build/probe.z80 >/dev/null
 touch src/probe.t2s
 touch build/probe.z80 build/probe.bin
 
+# A second copy of the project's .ctl whose routine description the comments
+# check reports, with the finding recorded in a baseline of its own, against
+# the skool the gate builds, `probe.skool`.
+mkdir -p src/held build/held
+sed 's/so no label can name it\./so no label can name it (unverified)./' src/probe.ctl > src/held/probe.ctl
+sed -n '/^@ \$F004/,/^  \$F00C$/p' src/held/probe.ctl > frag-held.ctl
+sna2skool.py --hex build/probe.z80 --ctl src/held/probe.ctl > build/held/probe.skool 2>/dev/null
+python3 "$SKILL/scripts/lint_comments.py" build/held/probe.skool \
+    --baseline held.toml --write-baseline --adopt >/dev/null
+grep -q 'probe.skool:' held.toml || { echo "verify-frag-flags: the held finding was not recorded"; exit 1; }
+
 fail=0
 expect() { # <what> <expected-status: accept|reject> <make args...>
     local what="$1" want="$2"; shift 2
@@ -122,6 +139,8 @@ expect() { # <what> <expected-status: accept|reject> <make args...>
 expect "clean fragment" accept verify-frag FRAG=frag-ok.ctl
 expect "raw-operand fragment" reject verify-frag FRAG=frag-raw.ctl
 expect "bad-@ssub fragment" reject verify-frag FRAG=frag-badssub.ctl
+expect "held fragment" accept verify-frag CTL=src/held/probe.ctl FRAG=frag-held.ctl \
+    BASELINE=held.toml
 
 [ $fail -eq 0 ] || { echo "verify-frag-flags: FAILED"; exit 1; }
 echo "verify-frag-flags: OK"

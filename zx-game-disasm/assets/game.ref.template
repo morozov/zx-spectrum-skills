@@ -27,11 +27,28 @@ StyleSheet=skoolkit.css;theme.css;{game}.css
 ; decimal anchor is two bases on one URL.
 AddressAnchor={address#IF({base}==16)(:04x)}
 
+; Link the operands a reader will chase: SkoolKit links only CALL, DEFW, DJNZ,
+; JP and JR, so a pointer loaded with LD would link nowhere. See "Link every
+; operand the reader will chase" in references/html-docs.md.
+LinkOperands=CALL,DEFW,DJNZ,JP,JR,LD
+
 ; Release= renders under the game title on the index, and Copyright= renders in
 ; the footer. Both are hidden while empty, so an unset one reserves no blank
 ; band.
 Release=
 Copyright=
+
+; [Index] lists the groups the home page draws, in this order: SkoolKit's own
+; list, then Spec, the behavior pages that site/spec_pages.py writes from
+; spec/*.md. A group missing here is not drawn, and neither is a group with no
+; pages, so the list can name Spec before spec/ exists.
+[Index]
+MemoryMaps
+Graphics
+DataTables
+OtherCode
+Reference
+Spec
 
 ; Index headings group pages on the home page. Each name must match a [Page:...]
 ; or a generated page id.
@@ -39,8 +56,11 @@ Copyright=
 Graphics
 Sound
 
-[Index:DataTables:Data tables and buffers]
+; SkoolKit heads this group "Data tables and buffers", storage words for what
+; the reader browses as the game's data and its variables (HEAD-2).
+[Index:DataTables:Game data]
 Data
+GameStatusBuffer
 
 [Index:Reference:Reference]
 Notes
@@ -58,11 +78,21 @@ Glossary=reference/glossary.html
 [Links]
 Graphics=Game graphics
 Sound=Sound effects
-Data=Data tables
+Data=Data
 Notes=Implementation notes
 Glossary=Glossary
+GameStatusBuffer=Variables
 
 [Titles]
 Graphics=Game graphics
 Sound=Sound effects
 Notes=Implementation notes
+Asm-g=Variables at {entry[address]}
+GameStatusBuffer=Variables
+
+; The `g` entries are the variables and buffers the game writes as it runs.
+; SkoolKit heads them "Game status buffer", a storage word for what the reader
+; browses as the game's variables (HEAD-2). Name them in this game's terms.
+[PageHeaders]
+Asm-g=Variables
+GameStatusBuffer=Variables

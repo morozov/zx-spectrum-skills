@@ -1,0 +1,5 @@
+; The `g` page header as SkoolKit names it by default, "Game status buffer": a
+; storage word for the game's variables, and reported. The template's names are
+; linted beside it by status-buffer-header.py.
+[PageHeaders]
+Asm-g=Game status buffer

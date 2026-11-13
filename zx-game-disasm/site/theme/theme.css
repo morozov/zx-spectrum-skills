@@ -55,10 +55,9 @@
      --bg to its own game's black and nothing else would otherwise get navy
      banding on its memory map from a stylesheet that declares no blue. */
   --tint:        rgba(10, 20, 50, 0.35);   /* zebra row, quiet surface       */
-  --tint-strong: rgba(8, 18, 50, 0.4);     /* the -2 box and list variants   */
+  --card:        rgba(255, 255, 255, 0.035); /* a box or list entry's ground */
   --hover:       rgba(20, 55, 130, 0.65);  /* link card, contents pill       */
   --rule:        rgba(22, 36, 72, 0.4);    /* row separator inside a table   */
-  --rule-strong: rgba(22, 36, 72, 0.7);    /* the -2 variants' border        */
 
   /* The lamp. Hovering an annotated group of the listing lights it: this much
      white falls on every surface in the group, over whatever color that surface
@@ -79,6 +78,11 @@
   --measure:       1200px;
   --index-measure: 720px;
   --gutter:        32px;
+  /* The space an image table puts round a cell: this much above and below,
+     so an image sits twice this far from the caption under it, and half of it
+     at each side, so two images in a row sit this far apart. The sides take
+     the half because a gallery fills the column across far sooner than down. */
+  --figure-gap:    4px;
 
   /* Type scale. Six steps, one role each. A size that is not one of these is a
      size with no role. */
@@ -574,6 +578,18 @@ table.disassembly tr.asm-group-hover {
   --lit: 4%;
 }
 
+/* A comment longer than its rows makes the table grow them, and a table shares
+   the growth out over every row the comment spans, so a wrapped comment pulls
+   its own code rows apart (VIS-9). A table gives growth to rows of auto height
+   before rows of a set height. So every row inside a comment group is held at
+   one line, and only the group's last row is left auto: it takes the growth,
+   and the space opens below the group. A group's last row is the one whose next
+   row opens a group of its own (a comment cell, empty or not) or is no code row
+   at all (an N note, the end of the entry). */
+table.disassembly > tbody > tr:has(+ tr > td.instruction):not(:has(+ tr > td.comment-0, + tr > td.comment-1)) {
+  height: 1lh;
+}
+
 span.register {
   color: var(--cyan);
   font-family: var(--font-mono);
@@ -719,22 +735,19 @@ div.map-entry-desc {
 
 /* ── Box entries (facts, notes, bugs…) ───── */
 
-div.box {
-  background: rgba(255, 255, 255, 0.035);
+/* SkoolKit numbers a page's boxes and list entries 1, 2, 1, 2 by position
+   (box-1, box-2), so a color keyed to that class is a color with no role but
+   the box's place on the page (VIS-2). Every box takes the one card ground, and
+   the same class rule matches box-1 and box-2 alike. */
+div.box,
+div.box-1,
+div.box-2 {
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 20px 24px;
   margin-bottom: 14px;
   width: auto;
-}
-
-div.box-1 {
-  background: rgba(255, 255, 255, 0.035);
-}
-
-div.box-2 {
-  background: var(--tint-strong);
-  border-color: var(--rule-strong);
 }
 
 div.box-title {
@@ -752,17 +765,16 @@ div.box p {
 
 /* ── List entries (graphics…) ────────────── */
 
-div.list-entry {
-  background: rgba(255, 255, 255, 0.035);
+div.list-entry,
+div.list-entry-1,
+div.list-entry-2 {
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 20px 24px;
   margin-bottom: 14px;
   width: auto;
 }
-
-div.list-entry-1 { background: rgba(255, 255, 255, 0.035); }
-div.list-entry-2 { background: var(--tint-strong); }
 
 div.list-entry-title {
   font-family: var(--font-mono);
@@ -818,6 +830,39 @@ table.default td {
 }
 
 td.centre { text-align: center; }
+
+/* #UDGTABLE, and #TABLE with no class, write class="" on the table and on every
+   cell. The reset zeroes their padding, so an image and its caption below it
+   touch and two images in a row meet edge to edge. Only a cell that holds an
+   image is padded here: a text cell, in a table that mixes text and images,
+   keeps the theme's padding. A project's own cell padding wins. */
+:where(table[class=""] > tbody > tr > td[class=""]:has(img)) {
+  padding: var(--figure-gap) calc(var(--figure-gap) / 2);
+  vertical-align: top;
+}
+
+/* An image table of one row flows: its cells wrap onto as many lines as the
+   column needs, so a gallery fits any width with no horizontal scroll. A cell
+   that holds an image and its caption together keeps the two as one figure, the
+   image on its own line above the text. A table of two or more rows is a grid
+   whose columns line up (an image row over a caption row) and keeps the table
+   layout, and so does a table of one cell, which has nothing to wrap and stays
+   centred as a table is. */
+table[class=""]:has(img):not(:has(tr + tr)):has(td + td),
+table[class=""]:has(img):not(:has(tr + tr)):has(td + td) > tbody {
+  display: block;
+}
+
+table[class=""]:has(img):not(:has(tr + tr)):has(td + td) > tbody > tr {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--figure-gap);
+}
+
+table[class=""]:has(img):not(:has(tr + tr)):has(td + td) > tbody > tr > td > img {
+  display: block;
+  margin-bottom: calc(var(--figure-gap) * 2);
+}
 
 /* ── Contents list ───────────────────────── */
 
@@ -1004,8 +1049,23 @@ a .hex { font-size: inherit; }
 /* A link into the disassembly reads as code. Matching on the path is what
    SkoolKit's generated markup allows — it puts no class on a #R link — so the
    match is at least held to a site-relative href, and a third-party URL that
-   happens to contain the same characters is left alone. */
-a:not([href^="http"])[href*="asm/"] {
+   happens to contain the same characters is left alone.
+
+   A link from one entry of a listing to another is a bare file name
+   (F06C.html#f070), with no asm/ in it. On a code page — the layout writes the
+   page id on body, Asm-<type> or <code>-Asm-<type> — every other page of the
+   site sits in another directory, so a link there with no directory in its
+   href leads into the same listing. :where() keeps that context at no weight,
+   so the rule below can hand the listing's own cells their size back. */
+a:not([href^="http"])[href*="asm/"],
+:where(body[class*="Asm-"] .page-content) a[href]:not([href*="/"]) {
   font-family: var(--font-mono);
   font-size: 0.88em;
+}
+
+/* An operand link and the entry navigation are set in the listing's own
+   monospace size already. */
+td.instruction a[href],
+table.asm-navigation a[href] {
+  font-size: inherit;
 }

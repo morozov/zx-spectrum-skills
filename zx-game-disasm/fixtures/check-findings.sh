@@ -99,6 +99,11 @@ run publication-contradicted \
 run label-namespace \
     scripts/validate_ctl_label_namespace.py fixtures/label-namespace.ctl \
     --skool fixtures/label-namespace.skool
+# A routine a dispatch table enters is a way in, though code flows into it too:
+# the label past its code predecessor is UNREACHED.
+run label-namespace-table \
+    scripts/validate_ctl_label_namespace.py fixtures/label-namespace-table.ctl \
+    --skool fixtures/label-namespace-table.skool
 run comments-group-span \
     scripts/lint_comments.py fixtures/group-span.skool
 run comments-page-headings \
@@ -124,10 +129,24 @@ run comments-ste \
 # which keep their full stop.
 run comments-fragment-stop \
     scripts/lint_comments.py fixtures/fragment-stop.skool
+# SYNTH_ECHO beside a clip: a sound effect reciting its periods is reported; a
+# data entry's schema and the tone primitive's own formula are not.
+run comments-synth-echo \
+    scripts/lint_comments.py fixtures/synth-echo.skool
+# The `g` page names: SkoolKit's "Game status buffer" is storage vocabulary and
+# is reported; the names assets/game.ref.template leaves the site with, read
+# from the template over SkoolKit's defaults, are not. Drop the template's
+# lines and SkoolKit's come back, reported.
+run comments-status-buffer-header \
+    fixtures/status-buffer-header.py
 # Which surface each piece of prose is read as. A unit that lands on the wrong
 # surface is skipped by every check that does not declare that surface.
 run prose-units \
     scripts/prose_units.py fixtures/units-session.skool fixtures/units-session.ref
+# A Markdown pipe table is cells, one unit each, as a #TABLE is; read as one
+# paragraph, its rows ran together into one sentence.
+run prose-units-markdown \
+    scripts/prose_units.py fixtures/units-markdown.md
 
 # Where one block ends and the next begins. Each case is a boundary that, read
 # wrong, deletes a line with no report: a `u` block, a non-`label=` directive
@@ -135,6 +154,27 @@ run prose-units \
 # pre-flight window, which must agree with the write path on all three.
 run block-boundaries \
     fixtures/block-boundaries.py
+
+# The coverage gauge's basic blocks: a block ENT-7 leaves bare (a bare RET, a
+# call or jump to a named routine) owes nothing; any other bare block counts,
+# a jump to a loop label inside a routine among them.
+run coverage-blocks \
+    fixtures/coverage-blocks.py fixtures/coverage-blocks.skool
+
+# The site's listings spell operands as the .asm does, the [OtherCode] ones
+# included.
+run operand-subs \
+    fixtures/operand-subs.py
+
+# The behavior pages, Markdown to a ref file: the index first, then the pages
+# in the order it links them, then the rest by name; a link to a .md becomes
+# one to its page, inline code that names a label becomes a #R link, a #TABLE
+# span stays SkoolKit's, a '#' that would start a macro is escaped, and a code
+# block keeps its line breaks.
+run spec-pages \
+    site/spec_pages.py /dev/stdout fixtures/spec-pages.skool \
+    fixtures/spec-pages/aardvark.md fixtures/spec-pages/extra.md \
+    fixtures/spec-pages/index.md fixtures/spec-pages/state.md
 
 run registry-terms \
     scripts/validate_glossary_terms.py fixtures/registry-prose.ref \
@@ -149,6 +189,18 @@ run prose-extract \
 run prose-extract-map \
     scripts/extract_prose.py --out /dev/null --map - --print-map \
     fixtures/prose-extract.skool
+# A SkoolKit table in a Markdown page is cells, one unit each: run together,
+# its rows read as one sentence naming every address in the first column. A
+# cell of values alone (an address, a range) is a datum and no unit; a cell with
+# words is one, its addresses with it. A table read the same whether its
+# #TABLE follows a paragraph on its line or opens a line of its own.
+run prose-extract-markdown-table \
+    scripts/extract_prose.py --out - --map - --print-map \
+    fixtures/units-markdown-table.md
+# A .ref's configuration sections publish no text: an [Index] list of page ids,
+# an [Expand] macro and a template are not prose, and a section's body is.
+run prose-extract-ref \
+    scripts/extract_prose.py --out - --map - fixtures/prose-extract.ref
 run struct-term-label \
     scripts/validate_glossary_terms.py fixtures/struct-term-label.ctl \
     --registry fixtures/struct-term-label-registry.ref
@@ -163,6 +215,10 @@ run struct-diff-entries \
     fixtures/struct-diff-entries.sh
 run struct-deletion-scope \
     fixtures/struct-deletion-scope.sh
+# What the gate hands each check: a wrong argument fails silently, as a check
+# that reads nothing and passes.
+run gate-wiring \
+    fixtures/gate-wiring.sh
 run struct-rules \
     scripts/validate_rules.py --rules fixtures/struct-rules.md \
     --scripts fixtures/struct-rules-scripts --mk fixtures/struct-rules.mk

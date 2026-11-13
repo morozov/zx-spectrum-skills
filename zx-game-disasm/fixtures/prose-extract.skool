@@ -9,14 +9,18 @@
 ;   A braced group is one unit however many rows it spans. An indented ';' row
 ;   carrying no address continues the comment above it - dropping those was what
 ;   cut sentences in half and made every sentence-scoped check read half a
-;   sentence. A routine link keeps its address, because the address is what the
-;   density rules count. Every other macro goes, and a table span goes whole.
-;   A directive between two rows of a group does not break the group.
+;   sentence. A link reads as the page shows it: its link text, or else the
+;   label it links to, or else its address, which the density rules count.
+;   Every other macro goes, and a table span goes whole. A directive between
+;   two rows of a group does not break the group.
 @label=lift_shapes
 c$EC00 LD A,(DE)      ; {One thought over three rows, carrying a link to
  $EC01 INC HL         ; #R$ED00 and a register #REGhl that reads as English.
  $EC02 LD (HL),A      ; }
- $EC03 LD B,$04       ; A standalone row is its own unit.
+ $EC03 LD B,$04       ; A standalone row is its own unit. #R$EC00(The shapes)
+                      ; open the page, #R$EC08 drops the markup and
+                      ; #R$F1BF@tune(a note in other code) keeps its words.
+                      ; #R$EC08#row(Its row) is linked too.
  $EC05 LD C,$08       ; A row whose comment runs on
 @isub=LD C,LIMIT
                       ; past a directive and onto an

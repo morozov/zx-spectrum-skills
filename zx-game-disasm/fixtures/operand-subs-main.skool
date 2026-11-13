@@ -1,0 +1,17 @@
+; The main listing of the operand_subs fixture.
+@start
+@org
+; Start
+@label=start
+@ssub=LD HL,notes+1
+c$8000 LD HL,$8011     ; Point past the count.
+ $8003 CALL $8010      ;
+ $8006 RET             ;
+
+; Play
+@label=play
+c$8010 RET             ;
+
+; Notes
+@label=notes
+b$8011 DEFB $02,$28,$14 ;

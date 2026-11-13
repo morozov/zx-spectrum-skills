@@ -36,6 +36,9 @@ abort() { # <stage>
 # baseline on the file a phrase sits in, so a throwaway name would make every
 # inherited finding look new.
 SPLICED="$tmp/$(basename "$CTL")"
+# The skool takes the project's name too, for the same reason: the comments check
+# keys its baseline on the .skool's filename, and the gate's is `<game>.skool`.
+SKOOL="$tmp/$(basename "$CTL" .ctl).skool"
 
 # Splice the fragment over its address range. The fragment owns a contiguous span
 # from its lowest block address up to (but not including) the next base block that
@@ -112,7 +115,7 @@ PY
 "$SCRIPTS/splice_ctl.py" --check-only "$CTL" "$FRAG"
 
 # Disassemble; no overlapping-instruction or other warning is allowed.
-sna2skool.py --hex "$Z80" --ctl "$SPLICED" > "$tmp/game.skool" 2>"$tmp/sna.err" \
+sna2skool.py --hex "$Z80" --ctl "$SPLICED" > "$SKOOL" 2>"$tmp/sna.err" \
   || { cat "$tmp/sna.err" >&2; abort "the disassembly"; }
 if grep -qi 'warning\|overlap' "$tmp/sna.err"; then
     cat "$tmp/sna.err" >&2; abort "the disassembly"
@@ -122,7 +125,7 @@ fi
 # warning (e.g. an address not resolvable to a label) is a hard failure, exactly
 # as in the full build. A fragment that leaves an in-image operand raw fails here,
 # where its author can see it, instead of in the Manager's `make`.
-skool2asm.py --create-labels -s "$tmp/game.skool" > "$tmp/game.asm" 2>"$tmp/asm.err" \
+skool2asm.py --create-labels -s "$SKOOL" > "$tmp/game.asm" 2>"$tmp/asm.err" \
   || { cat "$tmp/asm.err" >&2; abort "the render"; }
 if grep -q WARNING "$tmp/asm.err"; then
     cat "$tmp/asm.err" >&2; abort "the render"
@@ -169,7 +172,7 @@ lint_run data-structure "$SCRIPTS/validate_ctl_data_structure.py" "$SPLICED" \
 # The skool passed here is the one disassembled from the spliced .ctl above, so
 # the MUTABLE check reads the code as the fragment's own map lays it out.
 lint_run publication "$SCRIPTS/validate_ctl_publication.py" "$SPLICED" \
-    --org "$ORG" --size "$SIZE" --skool "$tmp/game.skool" \
+    --org "$ORG" --size "$SIZE" --skool "$SKOOL" \
     --baseline "$BASELINE" --ignore-stale
 lint_run array-elements "$SCRIPTS/validate_ctl_array_elements.py" "$SPLICED" \
     --baseline "$BASELINE" --ignore-stale
@@ -186,7 +189,7 @@ lint_run byte-counts "$SCRIPTS/validate_ctl_byte_counts.py" "$SPLICED" \
 # Reads the skool disassembled from the spliced .ctl, so the dominator trees are
 # built over the fragment's own map — the same reason `publication` gets it.
 lint_run label-namespace "$SCRIPTS/validate_ctl_label_namespace.py" "$SPLICED" \
-    --skool "$tmp/game.skool" --baseline "$BASELINE" --ignore-stale
+    --skool "$SKOOL" --baseline "$BASELINE" --ignore-stale
 
 # Comment-quality check over the spliced skool. It runs ahead of the verdict so a
 # red sweep still carries it: it is what the Challenger reads, and a fragment
@@ -195,7 +198,7 @@ lint_run label-namespace "$SCRIPTS/validate_ctl_label_namespace.py" "$SPLICED" \
 # marker must not be green here and red in the Manager's `make`, which is the one
 # thing this script promises cannot happen. It needs the project's baseline for
 # the same reason every other gating check does.
-lint_run comments "$SCRIPTS/lint_comments.py" "$tmp/game.skool" \
+lint_run comments "$SCRIPTS/lint_comments.py" "$SKOOL" \
     --baseline "$BASELINE"
 
 # `terms` likewise: the registry in glossary.ref gates the build, and a fragment

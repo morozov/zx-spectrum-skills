@@ -1,0 +1,9 @@
+units-markdown.md:1	ref-heading	Pipe tables
+units-markdown.md:3	ref-para	A paragraph before the table is one unit. It ends where the table starts.
+units-markdown.md:5	table-cell col=0	Address
+units-markdown.md:5	table-cell col=1	What it holds
+units-markdown.md:7	table-cell col=0	`$BD3E`
+units-markdown.md:7	table-cell col=1	Inside-the-hull flag
+units-markdown.md:8	table-cell col=0	`$BD3F`
+units-markdown.md:8	table-cell col=1	Sector number, 1–3
+units-markdown.md:10	ref-para	A paragraph after the table is a unit of its own.

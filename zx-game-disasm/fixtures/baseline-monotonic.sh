@@ -50,6 +50,13 @@
 #      a kind the file never declared:     REFUSED without a flag; accepted with
 #                                          `--adopt-kind UNTITLED_ENTRY`
 #      a second finding of that kind:      REFUSED, the kind is declared
+#      a listing's finding, scoped to
+#        tune.ctl, no flag:                REFUSED, `+ identity@tune.ctl ...`
+#      the same, with --adopt:             accepted, declares identity@tune.ctl
+#                                          and leaves identity's lines alone
+#      the gate, scoped:                   the listing's finding is held
+#      the gate, unscoped:                 the same finding is new: the main
+#                                          .ctl's keys do not hold a listing's
 #   -> `baseline-monotonic: OK`, exit 0
 set -euo pipefail
 
@@ -262,6 +269,38 @@ run "a second finding of the adopted kind" refuse "$IDENTITY" --adopt-kind UNTIT
 want_in "adopted kind: refused, it only shrinks from here" \
         "identity UNTITLED_ENTRY\` is declared in the file already"
 want_unchanged "second finding of the adopted kind"
+
+# --- a listing's findings are its own ----------------------------------------
+
+# An [OtherCode] listing's .ctl shares the file, under check names that carry
+# its file. An address alone does not say which listing it is in, so a key the
+# main .ctl recorded must not hold a listing's finding, nor the reverse.
+cp base.ctl probe.ctl
+sed -i.bak '/^  \$F00[03] /d' probe.ctl
+run "a listing's finding, no flag" refuse "$IDENTITY" --baseline-scope tune.ctl
+want_in "listing: the key carries the file" "+ identity@tune.ctl UNDESCRIBED \$F009"
+want_unchanged "listing, no flag"
+
+run "adopt the listing's identity" accept "$IDENTITY" --baseline-scope tune.ctl --adopt
+want_declared "listing: the adopted list carries the listing's check" "identity@tune.ctl" 1
+want_lines    "listing: records its finding under its own name" "identity@tune.ctl" 1
+want_lines    "listing: leaves the main .ctl's identity lines alone" identity 1
+
+gate() { # <what> <expected-status> <extra args...>
+    local what="$1" want="$2"; shift 2
+    local status
+    set +e
+    OUT="$(python3 "$IDENTITY" probe.ctl --baseline lint-baseline.toml "$@" 2>&1)"; status=$?
+    set -e
+    if [ $status -eq "$want" ]; then echo "PASS  $what: exit $status"
+    else echo "FAIL  $what: wanted exit $want, the check exited $status"; fail=1; fi
+    printf '%s\n' "$OUT" | sed 's/^/      | /'
+}
+gate "the gate, scoped to the listing" 0 --baseline-scope tune.ctl --ignore-stale
+want_in "scoped gate: the finding is held" "identity@tune.ctl: 1 known finding(s) held"
+gate "the gate, unscoped" 1 --ignore-stale
+want_in "unscoped gate: the listing's key does not hold the main .ctl's finding" \
+        "UNDESCRIBED"
 
 [ $fail -eq 0 ] || { echo "baseline-monotonic: FAILED"; exit 1; }
 echo "baseline-monotonic: OK"

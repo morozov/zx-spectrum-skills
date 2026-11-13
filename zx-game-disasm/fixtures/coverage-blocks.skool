@@ -1,0 +1,47 @@
+; Which basic blocks the coverage gauge counts, and which it counts as bare.
+;
+; Expected:
+;   start   a jump to a named routine, bare: owes nothing, 0 blocks
+;   tail    a call to a named routine, then RET, bare: owes nothing, 0 blocks
+;   stub    a jump to a placeholder label: 1 block, 1 bare
+;   setup   a load with no comment before the call: 1 block, 1 bare
+;   main    commented: 1 block, 0 bare
+;   spin    a jump back to its own loop label, bare: a label inside a routine
+;           is no routine, so the jump owes a comment: 3 blocks, 1 bare
+
+; Start
+@label=start
+c$E000 JP $E010       ;
+
+; Main
+@label=main
+c$E010 LD A,$01       ; Start with the first level.
+ $E012 RET            ;
+
+; Tail
+@label=tail
+c$E013 CALL $E010     ;
+ $E016 RET            ;
+
+; Stub
+@label=stub
+c$E017 JP $E01E       ;
+
+; Setup
+@label=setup
+c$E01A LD A,$02       ;
+ $E01C CALL $E010     ;
+
+; Placeholder
+@label=sub_e01e
+c$E01E RET            ;
+
+; Spin
+@label=spin
+c$E01F LD B,$04       ; Count four turns.
+@label=spin_turn
+*$E021 DEC B          ; Turn once.
+ $E022 JR Z,$E027     ; Stop after the fourth.
+ $E024 JP $E021       ;
+@label=spin_done
+*$E027 RET            ;

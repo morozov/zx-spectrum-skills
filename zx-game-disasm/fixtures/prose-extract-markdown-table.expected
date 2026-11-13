@@ -1,0 +1,57 @@
+The paragraph before a table ends where the table starts.
+
+Address
+
+Label
+
+Holds
+
+`shields`
+
+Shields left
+
+`device_destroyed_1`
+
+Sector 1 device
+
+`device_destroyed_2`
+
+Sector 2 device
+
+`image_buffers`
+
+From $5B00
+
+`mirror`
+
+A paragraph after the table is a unit of its own, and names $BD3C and $BD40.
+
+A table that opens on a line of its own, as a spec page writes it:
+
+Page
+
+What it covers
+
+[State](state.md)
+
+The `lives` counter and `main_loop`
+
+1	fixtures/units-markdown-table.md:3	spec
+3	fixtures/units-markdown-table.md:4	spec
+5	fixtures/units-markdown-table.md:4	spec
+7	fixtures/units-markdown-table.md:4	spec
+9	fixtures/units-markdown-table.md:5	spec
+11	fixtures/units-markdown-table.md:5	spec
+13	fixtures/units-markdown-table.md:6	spec
+15	fixtures/units-markdown-table.md:6	spec
+17	fixtures/units-markdown-table.md:7	spec
+19	fixtures/units-markdown-table.md:7	spec
+21	fixtures/units-markdown-table.md:8	spec
+23	fixtures/units-markdown-table.md:8	spec
+25	fixtures/units-markdown-table.md:9	spec
+27	fixtures/units-markdown-table.md:12	spec
+29	fixtures/units-markdown-table.md:18	spec
+31	fixtures/units-markdown-table.md:21	spec
+33	fixtures/units-markdown-table.md:21	spec
+35	fixtures/units-markdown-table.md:22	spec
+37	fixtures/units-markdown-table.md:22	spec

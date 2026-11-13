@@ -1,0 +1,10 @@
+main $8000 LD HL,notes+1
+main $8003 CALL play
+main $8006 RET
+main $8010 RET
+main $8011 DEFB $02,$28,$14
+other $9000 LD HL,tune_notes
+other $9003 CALL tone
+other $9006 RET
+other $9007 RET
+other $9008 DEFB $01

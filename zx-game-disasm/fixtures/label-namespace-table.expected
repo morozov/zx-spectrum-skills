@@ -1,0 +1,3 @@
+Found 1 label prefix(es) that name something else:
+
+  Line 9: UNREACHED — routine_stage_done is prefixed `routine_stage` ($8001), which does not contain $8004 — control reaches these bytes without passing through routine_stage. The prefix claims a containment the flow refuses

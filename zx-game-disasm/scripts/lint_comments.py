@@ -126,7 +126,9 @@ ones a reviewer would otherwise flag by hand:
                    periods, cycles, T-states, a period formula. The clip is the
                    synthesis; the words owe what the sound means in play, what
                    fires it, and the routine. Block prose and .ref catalogs only:
-                   the routine's body is where the algorithm belongs
+                   the routine's body is where the algorithm belongs. A data
+                   entry's definition is exempt unless it states a value: there
+                   the period is a field's meaning
   - LAYOUT_ECHO    a record's field offset cited in a code block's prose — the
                    layout's one home is the record's own definition; a comment
                    about behavior names the thing, not the byte it sits at
@@ -1120,10 +1122,30 @@ def check_selflink(unit):
             return
 
 
+# A data entry's schema names a field ("the period of its first tone"); a value
+# read back beside the clip ("period 40", "period $FF", "period: 40",
+# "200 cycles") is still the clip in numbers. A value is any number form the
+# prose writes: `$`-hex, `0x`-hex or decimal.
+SYNTH_NUMBER = r'(?:\$[0-9A-F]+|0x[0-9A-F]+|\d[\d,]*)\b'
+SYNTH_VALUE_RE = re.compile(
+    r'(?i)\bperiods?\s*:?\s*(?:of\s+)?' + SYNTH_NUMBER
+    + r'|(?<![\w$])' + SYNTH_NUMBER + r'\s*(?:cycles?|T-states?|half-cycles?)\b'
+    r'|\b\d+\s*\*\s*[A-Za-z_#(]|#REG[a-z]+\s*=')
+
+
 def check_synth(unit):
+    """Prose beside a clip that reads the clip's synthesis back (HOME-7).
+
+    A data entry's prose is its definition: a field that holds a period is
+    stated as one (DEF-1, ENT-4), so there only a value is reported.
+    """
     if not (unit.ctx.get('run_audio') or unit.ctx.get('section_audio')):
         return
-    m = SYNTH_RE.search(unit.text)
+    entry = unit.ctx.get('entry')
+    rx = SYNTH_RE
+    if entry is not None and entry.type not in (None, 'c'):
+        rx = SYNTH_VALUE_RE
+    m = rx.search(unit.text)
     if m:
         yield m.start(), SYNTH_DETAIL.format(m.group(0).strip())
 

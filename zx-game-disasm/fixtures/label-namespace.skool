@@ -35,3 +35,27 @@ c$F060 LD A,($9005)      ; Which key.
 @label=open_door_unlock
 *$F06C LD ($9006),A      ; UNREACHED: the unlock does not contain key1.
  $F06F RET               ;
+
+@label=scan_grid
+c$F070 LD B,$08          ; Eight rows.
+@label=scan_grid_row
+*$F072 LD A,(HL)         ; Read a cell.
+ $F073 JP Z,$F080        ; An empty cell goes out to the stub, which comes back.
+@label=scan_grid_next
+*$F076 DJNZ $F072        ; Next row.
+ $F078 RET               ;
+
+@label=skip_cell
+c$F080 INC HL            ; Step over the empty cell.
+ $F081 JP $F076          ; Back into the scan: only the scan reaches this stub.
+
+@label=fill_block
+c$F090 LD B,$04          ; Four rows.
+@label=fill_block_row
+*$F092 LD (HL),A         ; Fill one.
+ $F093 DJNZ $F092        ; Next row.
+ $F095 RET               ;
+
+@label=fill_row
+c$F0A0 CALL $F092        ; UNREACHED: enters the fill's loop past its start.
+ $F0A3 RET               ;

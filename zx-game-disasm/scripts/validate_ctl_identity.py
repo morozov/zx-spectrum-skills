@@ -32,8 +32,9 @@ The fourth is a label that names something the bytes are not:
                   refer to; on bytes nothing uses, a name for a used thing is a
                   false claim, and "Unused" under a name says the name is wrong.
 
-An `i` (ignore) block is exempt from the title rule: it publishes no page, it
-marks where the disassembly stops.
+An `i` (ignore) block is exempt from the title rule and its sub-directives from
+the description rule: it publishes no page, it marks where the disassembly stops
+or bytes it lays into memory without listing them.
 
 ## Why UNTITLED does not classify itself
 
@@ -253,6 +254,10 @@ def check_descriptions(entry, labeled, targets=None, covered=frozenset()):
     if entry['type'] == 'u':
         # An unused entry's own description says the one thing there is to say;
         # its sub-blocks are runs of bytes nothing reads, with nothing to name.
+        return violations
+    if entry['type'] == 'i':
+        # An ignored block publishes nothing, its sub-blocks included, so there
+        # is no row a reader could fail to identify.
         return violations
     for sub in entry['subs']:
         if sub['described'] or sub['address'] in labeled:

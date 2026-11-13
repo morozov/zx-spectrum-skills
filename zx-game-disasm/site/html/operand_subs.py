@@ -18,6 +18,10 @@ left as they were, so nothing here can change what the disassembly assembles to
 or what the image macros read.
 
 The second parse is in @ssub mode, the mode the build renders the `.asm` in.
+
+An `[OtherCode]` listing is parsed by `SkoolParser.clone`, which builds its
+parser from inside `skoolkit.skoolparser` and never sees the name replaced here.
+So `clone` is wrapped too, and every listing on the site reads as its source.
 """
 
 import html as _html
@@ -27,6 +31,10 @@ from skoolkit.skoolparser import SkoolParser
 
 # SkoolParser's asm_mode for @ssub, the mode `skool2asm -s` renders in.
 SSUB_MODE = 2
+# Added to asm_mode, it reads the skool whole, as the HTML parse does. A skool
+# with no `@start`, such as an [OtherCode] listing's, would otherwise parse to
+# nothing in ASM mode.
+IGNORE_START_END = 4
 
 
 def asm_operations(skoolfile, case, base, create_labels, asm_labels, label_fmt, variables):
@@ -36,7 +44,8 @@ def asm_operations(skoolfile, case, base, create_labels, asm_labels, label_fmt, 
     that inserts or overwrites instructions makes the two parses disagree about
     what lives at that address, and there is then no one operand to copy.
     """
-    parser = SkoolParser(skoolfile, case=case, base=base, asm_mode=SSUB_MODE,
+    parser = SkoolParser(skoolfile, case=case, base=base,
+                         asm_mode=SSUB_MODE + IGNORE_START_END,
                          create_labels=create_labels, asm_labels=asm_labels,
                          label_fmt=label_fmt, variables=variables)
     operations = {}
@@ -104,4 +113,23 @@ def _parse(skoolfile, **kwargs):
     return parser
 
 
+_clone = SkoolParser.clone
+
+
+def _clone(self, skoolfile, _clone=_clone):
+    parser = _clone(self, skoolfile)
+    if parser.mode.html and skoolfile != '-':
+        substitute_operands(parser, asm_operations(
+            skoolfile,
+            self.case,
+            self.base,
+            self.mode.create_labels,
+            self.mode.asm_labels,
+            self.label_fmt,
+            tuple(self.fields['vars'].items())
+        ))
+    return parser
+
+
 skool2html.SkoolParser = _parse
+SkoolParser.clone = _clone

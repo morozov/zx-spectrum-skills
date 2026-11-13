@@ -1,0 +1,6 @@
+@start
+@label=main_loop
+c$8000 JP $8000
+
+@label=lives
+g$8003 DEFB 3

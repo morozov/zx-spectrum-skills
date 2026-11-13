@@ -1,0 +1,27 @@
+; A ref page: the [Index] lists, the [Expand] macros and the template are
+; configuration and publish no text, so none of their lines is prose. The
+; section bodies and the page's own paragraph are.
+
+[Index]
+MemoryMaps
+Reference
+Spec
+
+[Index:Reference:Reference]
+Glossary
+tune-Index
+
+[Expand]
+#DEF(#SPEC(a) #PUSHS #SIM($8000,$8003)#POPS)
+
+[Template:Footer]
+<footer>Spec sheet</footer>
+
+[Page:Notes]
+SectionPrefix=Note
+
+[Note:speed:Speed]
+The ship moves two pixels on each pass.
+
+[Note:spec:Spec]
+The spec of the ship holds its speed.

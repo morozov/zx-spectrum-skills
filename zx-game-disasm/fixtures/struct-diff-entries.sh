@@ -8,6 +8,7 @@
 #             with its `@` label line, $F004 added; $F000 untouched and absent
 #   glossary.ref  [Term:workbuf] deleted, [Page:Glossary] modified
 #   notes.txt  listed whole
+#   pickups.ref  untracked, so [Page:Pickups] added; ignored.txt never listed
 #
 # and with --cached, only what was staged: the notes.txt change.
 set -uo pipefail
@@ -47,6 +48,7 @@ A hostile figure that patrols the level.
 The frame's work buffer.
 REF
 echo one > notes.txt
+echo ignored.txt > .gitignore
 git add -A && git commit -qm base
 
 cat > game.ctl <<'CTL'
@@ -70,6 +72,8 @@ A hostile figure that patrols the level.
 REF
 echo two > notes.txt
 git add notes.txt
+printf '[Page:Pickups]\nThe things the player collects.\n' > pickups.ref
+echo scratch > ignored.txt
 
 echo '$ diff_entries.py'
 "$CHECK"

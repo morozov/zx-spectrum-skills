@@ -16,7 +16,10 @@ Reports, from the generated .skool (plus the .ctl and .ref files when given):
                    is documented by being cut into acts, not by hitting a line
                    count. The bar on bare blocks is zero. A block that is only a
                    bare RET is not counted: it owes nothing, and demanding a
-                   sentence there would demand one lint_comments.py rejects.
+                   sentence there would demand one lint_comments.py rejects. Nor
+                   is a block that is only an unconditional CALL or JP to a named
+                   routine (a `c` entry's start, not a label inside one): ENT-7
+                   leaves that row bare, as it leaves the RET.
   - LINE DENSITY   % of real instructions carrying a comment. Kept as a
                    cross-check and nothing more: it cannot see altitude. One
                    sentence over a whole routine and a comment on every block
@@ -79,6 +82,8 @@ DATA_MNEMONIC = re.compile(r'^\s*(DEFB|DEFW|DEFM|DEFS)\b')
 # what a reader can arrive at, and the row after a conditional branch is a place
 # they arrive, so it owes a sentence of its own.
 BLOCK_END = re.compile(r'(?i)^(JP|JR|DJNZ|RET)\b')
+# An unconditional transfer to an address, which a label may name.
+TRANSFER_RE = re.compile(r'(?i)^(?:CALL|JP)\s+\$(?P<addr>[0-9A-F]{4})$')
 LABEL_RE = re.compile(r'^@label=(?P<label>\S+)\s*$')
 PLACEHOLDER_LABEL_RE = re.compile(
     r'(?i)^(l|loc|sub|loop|data|byte|word|var|tmp|temp|work|helper|routine|'
@@ -101,6 +106,47 @@ def comment_raw(body):
 def comment_of(body):
     """The comment text with `{ }` group markers stripped."""
     return comment_raw(body).replace('{', '').replace('}', '').strip()
+
+
+def owes_nothing(rows, labels):
+    """Is a block one that ENT-7 leaves bare?
+
+    A bare `RET`, and an unconditional `CALL` or `JP` to a routine whose label
+    names it, carry no comment: the row already says what happens. A block of
+    nothing but such rows owes nothing. A placeholder label names nothing, so a
+    transfer to one still owes a comment.
+    """
+    def bare(row):
+        if row == 'RET':
+            return True
+        m = TRANSFER_RE.match(row)
+        label = labels.get(m.group('addr')) if m else None
+        return bool(label) and not PLACEHOLDER_LABEL_RE.match(label)
+    return bool(rows) and all(bare(row) for row in rows)
+
+
+def skool_labels(skool):
+    """Return {address: label} for the routines of a .skool: its `c` entries.
+
+    Only an entry's start is a routine. A label inside one (a loop, a branch
+    position) names a place, not a routine, so a bare jump to it still owes a
+    comment; a data label is no routine either.
+    """
+    labels, pending = {}, None
+    with open(skool, encoding='utf-8', errors='ignore') as f:
+        for raw in f:
+            line = raw.rstrip('\n')
+            m = LABEL_RE.match(line)
+            if m:
+                pending = m.group('label')
+                continue
+            if line.startswith('@'):
+                continue
+            m = INSTR_RE.match(line)
+            if m and pending and m.group('ctrl') == 'c':
+                labels[m.group('addr').upper()] = pending
+            pending = None
+    return labels
 
 
 def analyze(skool):
@@ -128,6 +174,7 @@ def analyze(skool):
     block_covered = False                   # has the current basic block a comment?
     block_rows = []                         # the instructions in it, for BARE_RET
     group_id = 0
+    labels = skool_labels(skool)
 
     def end_block():
         """Close the basic block under the cursor and score it.
@@ -144,12 +191,14 @@ def analyze(skool):
         The doctrine settles which instrument gives way: a bare `RET` is
         self-evident and stays bare, so it is not a place a reader arrives
         needing to be told anything. It owes nothing, and a thing that owes
-        nothing does not belong in a denominator.
+        nothing does not belong in a denominator. ENT-7 says the same of a
+        call or a jump to a well-named routine, so a block of those and bare
+        `RET`s is left out too.
         """
         nonlocal block_covered, block_rows
         if cur is None or not cur['open_block']:
             return
-        if not (len(block_rows) == 1 and block_rows[0] == 'RET'):
+        if not owes_nothing(block_rows, labels):
             cur['blocks'] += 1
             if not block_covered:
                 cur['bare_blocks'] += 1

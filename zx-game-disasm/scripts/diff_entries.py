@@ -19,8 +19,8 @@ Each line reads `<file>: <entry>  [<status>]`, the status one of added,
 modified or deleted.
 
 Usage: diff_entries.py [--cached] [--base REF] [-C DIR] [PATH …]
-The comparison is the working tree against HEAD, or the index against HEAD with
-`--cached`. Exit 0.
+The comparison is the working tree against HEAD, untracked files that are not
+ignored included, or the index against HEAD with `--cached`. Exit 0.
 """
 
 import argparse
@@ -133,8 +133,17 @@ def entries_for(directory, base, cached, paths=()):
     if cached:
         args.append('--cached')
     args += [base, '--'] + list(paths)
+    lines = git(directory, *args).splitlines()
+    if not cached:
+        # An untracked file is part of the working tree's diff: the review
+        # record's hash stages it, so the scope listed here has to carry it too.
+        # `git add -N` puts a file in the diff above, and then it is not listed
+        # as untracked here.
+        others = git(directory, 'ls-files', '--others', '--exclude-standard',
+                     '--full-name', '--', *paths)
+        lines += ['A\t' + path for path in others.splitlines()]
     rows = []
-    for line in git(directory, *args).splitlines():
+    for line in lines:
         status, _, path = line.partition('\t')
         old = show(top, base, path)
         new = show(top, ':', path) if cached else read_work(top, path)
