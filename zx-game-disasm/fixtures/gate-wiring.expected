@@ -1,6 +1,18 @@
-CHECK_terms: scripts/validate_glossary_terms.py build/game.skool src/game.ctl src/glossary.ref src/tune.ref  --registry src/glossary.ref --baseline tools/lint-baseline.toml
-OTHER_CTL: src/tune.ctl
-LINT_TOTAL: 29
+CHECK_terms: scripts/validate_glossary_terms.py build/game.skool src/game.ctl src/game.ref src/glossary.ref src/tune.ref src/unused.ref  --registry src/glossary.ref --baseline tools/lint-baseline.toml
+OTHER_CTL: src/intro.ctl src/tune.ctl
+LINT_TOTAL: 41
+address-order@intro.ctl: scripts/validate_ctl_address_order.py src/intro.ctl
+instruction-order@intro.ctl: scripts/validate_ctl_instruction_order.py src/intro.ctl
+lengths@intro.ctl: scripts/validate_ctl_lengths.py src/intro.ctl
+label-length@intro.ctl: scripts/validate_ctl_label_length.py src/intro.ctl
+identity@intro.ctl: scripts/validate_ctl_identity.py src/intro.ctl --skool build/intro.skool --baseline tools/lint-baseline.toml --baseline-scope intro.ctl
+names@intro.ctl: scripts/validate_prose_names.py src/intro.ctl --baseline tools/lint-baseline.toml --baseline-scope intro.ctl
+byte-counts@intro.ctl: scripts/validate_ctl_byte_counts.py src/intro.ctl --baseline tools/lint-baseline.toml --baseline-scope intro.ctl
+array-elements@intro.ctl: scripts/validate_ctl_array_elements.py src/intro.ctl --baseline tools/lint-baseline.toml --baseline-scope intro.ctl
+registers@intro.ctl: scripts/validate_ctl_registers.py src/intro.ctl --baseline tools/lint-baseline.toml --baseline-scope intro.ctl
+comments@intro.ctl: scripts/lint_comments.py build/intro.skool --baseline tools/lint-baseline.toml --baseline-scope intro.ctl
+label-namespace@intro.ctl: scripts/validate_ctl_label_namespace.py src/intro.ctl --skool build/intro.skool --baseline tools/lint-baseline.toml --baseline-scope intro.ctl
+terms@intro.ctl: scripts/validate_glossary_terms.py build/intro.skool src/intro.ctl --registry src/glossary.ref --baseline tools/lint-baseline.toml --baseline-scope intro.ctl
 address-order@tune.ctl: scripts/validate_ctl_address_order.py src/tune.ctl
 instruction-order@tune.ctl: scripts/validate_ctl_instruction_order.py src/tune.ctl
 lengths@tune.ctl: scripts/validate_ctl_lengths.py src/tune.ctl

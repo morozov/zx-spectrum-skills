@@ -748,14 +748,17 @@ lint-comments: $(SKOOL)
 # --- The control files of the other listings ----------------------------------
 #
 # A site can publish code from outside the program image as a listing of its
-# own: an `[OtherCode:<id>]` section whose `Source=` names a skool, such as a
-# routine the game decrypts before it runs. When that skool is disassembled from
-# a .ctl of its own, `$(SRC)/<name>.ctl` into `$(BUILD)/<name>.skool`, the .ctl
-# is hand-edited source like the main one, and the checks hold it too. Left out,
+# own: an `[OtherCode:<id>]` section, whose skool is the one its `Source=` names
+# or, with no `Source=`, SkoolKit's default `<id>.skool` - such as a routine the
+# game decrypts before it runs. When that skool is disassembled from a .ctl of
+# its own, `$(SRC)/<name>.ctl` into `$(BUILD)/<name>.skool`, the .ctl is
+# hand-edited source like the main one, and the checks hold it too. Left out,
 # its titles, rows and labels publish with no check having read them.
 #
-# The list comes from the refs, so a project declares nothing twice. A project
-# whose other listing is laid out differently sets OTHER_CTL in its Makefile.
+# The list comes from the refs the site reads, $(HTML_REFS), so a project
+# declares nothing twice, and a ref the site does not read adds no listing. A
+# project whose other listing is laid out differently sets OTHER_CTL in its
+# Makefile.
 #
 # The checks that read a .ctl, or the .ctl and its own skool, run over each one.
 # The checks bound to the program image do not: data-structure and publication
@@ -764,8 +767,11 @@ lint-comments: $(SKOOL)
 # (`--baseline-scope`): an address alone does not say which listing it is in.
 # `make lint-baseline` re-records them with the main .ctl's.
 ifndef OTHER_CTL
-OTHER_CODE_SOURCES := $(shell awk '/^\[OtherCode:/{o=1;next} /^\[/{o=0} \
-    o&&/^Source=/{sub(/^Source=/,""); sub(/\r$$/,""); print}' $(REFS) /dev/null 2>/dev/null)
+OTHER_CODE_SOURCES := $(shell awk 'function flush() { if (id != "") print (src != "" ? src : id ".skool"); id = ""; src = "" } \
+    FNR == 1 { flush() } \
+    /^\[/ { flush(); if (index($$0, "[OtherCode:") == 1) { id = substr($$0, 12); sub(/\].*/, "", id) } next } \
+    id != "" && /^Source=/ { src = $$0; sub(/^Source=/, "", src); sub(/\r$$/, "", src) } \
+    END { flush() }' $(wildcard $(HTML_REFS)) /dev/null 2>/dev/null)
 OTHER_CTL := $(wildcard $(foreach s,$(OTHER_CODE_SOURCES),$(SRC)/$(basename $(notdir $(s))).ctl))
 endif
 other_skool = $(BUILD)/$(basename $(notdir $(1))).skool

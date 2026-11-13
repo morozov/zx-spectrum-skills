@@ -11,9 +11,14 @@
 #   .skool under build/, and the script's default looks beside its first file,
 #   where no glossary.ref lives.
 #
-#   OTHER_CTL is src/tune.ctl, the .ctl of the [OtherCode] listing that
-#   src/tune.ref declares, and not src/loader.ctl, which no listing names. Each
-#   check over it runs as a check of its own, so LINT_TOTAL counts them.
+#   OTHER_CTL is src/intro.ctl and src/tune.ctl, the .ctl files of the
+#   [OtherCode] listings in the refs the site reads: src/game.ref declares
+#   `intro` with no Source=, so its skool is SkoolKit's default intro.skool, and
+#   src/tune.ref, which game.ref names in RefFiles=, declares `tune`. It is not
+#   src/loader.ctl, whose listing is in src/unused.ref, a ref the site does not
+#   read. Each check over each one runs as a check of its own, so LINT_TOTAL
+#   counts them, and each one that holds a baseline reads it under its own
+#   `--baseline-scope`.
 set -uo pipefail
 
 SKILL="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -46,8 +51,10 @@ show-other:
 	@$(foreach o,$(OTHER_CTL),$(foreach c,$(OTHER_CTL_CHECKS),\
 	    echo '$(c)@$(notdir $(o)): $(call OTHER_$(c),$(o))';))
 MK
-touch src/game.ctl src/glossary.ref src/tune.ctl src/loader.ctl
-printf '[OtherCode:tune]\nSource=tune.skool\n\n[Page:Notes]\nSource=x.skool\n' > src/tune.ref
+touch src/game.ctl src/glossary.ref src/intro.ctl src/tune.ctl src/loader.ctl
+printf '[Config]\nRefFiles=tune.ref\n\n[OtherCode:intro]\n\n[Page:Notes]\nSource=x.skool\n' > src/game.ref
+printf '[OtherCode:tune]\nSource=tune.skool\n' > src/tune.ref
+printf '[OtherCode:loader]\nSource=loader.skool\n' > src/unused.ref
 
 show() {
     PATH="$work/stub:$PATH" "$mk" --no-print-directory -s "SKILL=$SKILL" "$1" \
