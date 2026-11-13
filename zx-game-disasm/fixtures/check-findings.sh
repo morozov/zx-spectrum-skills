@@ -154,7 +154,8 @@ run block-boundaries \
     fixtures/block-boundaries.py
 
 # The coverage gauge's basic blocks: a block ENT-7 leaves bare (a bare RET, a
-# call or jump to a named routine) owes nothing; any other bare block counts.
+# call or jump to a named routine) owes nothing; any other bare block counts,
+# a jump to a loop label inside a routine among them.
 run coverage-blocks \
     fixtures/coverage-blocks.py fixtures/coverage-blocks.skool
 

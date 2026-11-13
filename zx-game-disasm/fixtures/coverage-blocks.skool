@@ -6,6 +6,8 @@
 ;   stub    a jump to a placeholder label: 1 block, 1 bare
 ;   setup   a load with no comment before the call: 1 block, 1 bare
 ;   main    commented: 1 block, 0 bare
+;   spin    a jump back to its own loop label, bare: a label inside a routine
+;           is no routine, so the jump owes a comment: 3 blocks, 1 bare
 
 ; Start
 @label=start
@@ -33,3 +35,13 @@ c$E01A LD A,$02       ;
 ; Placeholder
 @label=sub_e01e
 c$E01E RET            ;
+
+; Spin
+@label=spin
+c$E01F LD B,$04       ; Count four turns.
+@label=spin_turn
+*$E021 DEC B          ; Turn once.
+ $E022 JR Z,$E027     ; Stop after the fourth.
+ $E024 JP $E021       ;
+@label=spin_done
+*$E027 RET            ;

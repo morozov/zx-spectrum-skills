@@ -18,7 +18,8 @@ Reports, from the generated .skool (plus the .ctl and .ref files when given):
                    bare RET is not counted: it owes nothing, and demanding a
                    sentence there would demand one lint_comments.py rejects. Nor
                    is a block that is only an unconditional CALL or JP to a named
-                   routine: ENT-7 leaves that row bare, as it leaves the RET.
+                   routine (a `c` entry's start, not a label inside one): ENT-7
+                   leaves that row bare, as it leaves the RET.
   - LINE DENSITY   % of real instructions carrying a comment. Kept as a
                    cross-check and nothing more: it cannot see altitude. One
                    sentence over a whole routine and a comment on every block
@@ -125,7 +126,12 @@ def owes_nothing(rows, labels):
 
 
 def skool_labels(skool):
-    """Return {address: label} for the labeled instructions of a .skool."""
+    """Return {address: label} for the routines of a .skool: its `c` entries.
+
+    Only an entry's start is a routine. A label inside one (a loop, a branch
+    position) names a place, not a routine, so a bare jump to it still owes a
+    comment; a data label is no routine either.
+    """
     labels, pending = {}, None
     with open(skool, encoding='utf-8', errors='ignore') as f:
         for raw in f:
@@ -137,7 +143,7 @@ def skool_labels(skool):
             if line.startswith('@'):
                 continue
             m = INSTR_RE.match(line)
-            if m and pending:
+            if m and pending and m.group('ctrl') == 'c':
                 labels[m.group('addr').upper()] = pending
             pending = None
     return labels
