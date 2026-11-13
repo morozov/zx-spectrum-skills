@@ -189,7 +189,8 @@ run prose-extract-map \
 # A SkoolKit table in a Markdown page is cells, one unit each: run together,
 # its rows read as one sentence naming every address in the first column. A
 # cell of values alone (an address, a range) is a datum and no unit; a cell with
-# words is one, its addresses with it.
+# words is one, its addresses with it. A table read the same whether its
+# #TABLE follows a paragraph on its line or opens a line of its own.
 run prose-extract-markdown-table \
     scripts/extract_prose.py --out - --map - --print-map \
     fixtures/units-markdown-table.md

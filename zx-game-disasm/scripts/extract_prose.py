@@ -97,9 +97,15 @@ def link_text(text, labels):
     return ''.join(out)
 
 
-def scrub(text, labels=None):
-    """Strip markup from a whole document without changing its line count."""
-    text = SPAN_MACRO_RE.sub(blank_span, text)
+def scrub(text, labels=None, spans=True):
+    """Strip markup from a whole document without changing its line count.
+
+    `spans=False` keeps a span macro's body and drops only its opening word: a
+    Markdown page's reader reads a SkoolKit table's rows as cells, so it needs
+    them, wherever the `#TABLE` that opens them stands.
+    """
+    if spans:
+        text = SPAN_MACRO_RE.sub(blank_span, text)
     text = HTML_MACRO_RE.sub(blank_span, text)
     text = link_text(text, labels or {})
     text = REG_MACRO_RE.sub(lambda m: m.group(1).upper(), text)
@@ -270,7 +276,8 @@ def units_from_ref(lines):
 # A SkoolKit table in a Markdown page, as site/spec_pages.py publishes it, has
 # one `{ cell | cell }` row per line. By the time a reader sees the lines, scrub
 # has dropped the #TABLE word that opens it, wherever on its line that stood,
-# and left the `TABLE#` that closes it. A cell opens on its markup (`=h`).
+# and left the rows and the `TABLE#` that closes it: a Markdown page is
+# scrubbed with its spans kept. A cell opens on its markup (`=h`).
 MD_TABLE_ROW_RE = re.compile(r'^\{(?P<cells>.*)\}$')
 CELL_MARKUP_RE = re.compile(r'^=\w+(?:,\w+)*\s+')
 HEX_VALUE_RE = re.compile(r'\$[0-9A-Fa-f]+')
@@ -287,7 +294,7 @@ def units_from_markdown(lines):
     for n, raw in enumerate(lines, 1):
         text = raw.rstrip()
         row = None if fenced else MD_TABLE_ROW_RE.match(text.strip())
-        if row or (not fenced and text.strip() == 'TABLE#'):
+        if row or (not fenced and text.strip() in ('TABLE#', 'LIST#')):
             if para:
                 yield 'spec', para
             para = []
@@ -353,7 +360,8 @@ def read_units(path, labels=None):
     if reader is None:
         raise SystemExit('extract_prose: no reader for %s' % path)
     with open(path, encoding='utf-8', errors='replace') as handle:
-        lines = scrub(handle.read(), labels).split('\n')
+        lines = scrub(handle.read(), labels,
+                      spans=reader is not units_from_markdown).split('\n')
     return reader(lines)
 
 

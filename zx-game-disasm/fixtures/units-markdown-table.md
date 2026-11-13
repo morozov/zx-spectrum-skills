@@ -14,3 +14,10 @@ A paragraph after the table is a unit of its own, and names $BD3C and $BD40.
 ```
 { $8000 | a fenced row | stays out }
 ```
+
+A table that opens on a line of its own, as a spec page writes it:
+
+#TABLE(default)
+{ =h Page            | =h What it covers                    }
+{ [State](state.md)  | The `lives` counter and `main_loop`  }
+TABLE#
