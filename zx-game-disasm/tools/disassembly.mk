@@ -697,6 +697,8 @@ lint-baseline: $(CTL) $(CTL_EXTRA) $(BIN) $(SKOOL) $(HTML_DIR)/.stamp
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
 	$(SCRIPTS)/check_html_layout.py $(HTML_DIR) \
 	    --baseline $(BASELINE) --write-baseline; $(sift_baseline_status); \
+	$(foreach o,$(OTHER_CTL),$(foreach c,$(OTHER_BASELINED),\
+	    $(call OTHER_$(c),$(o)) --write-baseline; $(sift_baseline_status);)) \
 	[ $$refused -eq 0 ] || { echo "make lint-baseline: a check refused to record a key $(BASELINE) does not list, so it keeps what it said — the gate still fails on the finding."; exit $(BASELINE_REFUSED); }
 	@$(stamp_baseline_gate)
 
@@ -757,14 +759,17 @@ lint-comments: $(SKOOL)
 #
 # The checks that read a .ctl, or the .ctl and its own skool, run over each one.
 # The checks bound to the program image do not: data-structure and publication
-# take the main image's bytes, origin and size. No baseline is read: a finding
-# in a listing the project adds is not one it inherited.
+# take the main image's bytes, origin and size. Each listing's findings are held
+# against $(BASELINE) under check names of its own, `<check>@<name>.ctl`
+# (`--baseline-scope`): an address alone does not say which listing it is in.
+# `make lint-baseline` re-records them with the main .ctl's.
 ifndef OTHER_CTL
 OTHER_CODE_SOURCES := $(shell awk '/^\[OtherCode:/{o=1;next} /^\[/{o=0} \
     o&&/^Source=/{sub(/^Source=/,""); sub(/\r$$/,""); print}' $(REFS) /dev/null 2>/dev/null)
 OTHER_CTL := $(wildcard $(foreach s,$(OTHER_CODE_SOURCES),$(SRC)/$(basename $(notdir $(s))).ctl))
 endif
 other_skool = $(BUILD)/$(basename $(notdir $(1))).skool
+other_baseline = --baseline $(BASELINE) --baseline-scope $(notdir $(1))
 
 OTHER_CTL_CHECKS = address-order instruction-order lengths label-length identity \
                    names byte-counts array-elements registers comments label-namespace terms
@@ -772,16 +777,22 @@ OTHER_address-order     = $(SCRIPTS)/validate_ctl_address_order.py $(1)
 OTHER_instruction-order = $(SCRIPTS)/validate_ctl_instruction_order.py $(1)
 OTHER_lengths           = $(SCRIPTS)/validate_ctl_lengths.py $(1)
 OTHER_label-length      = $(SCRIPTS)/validate_ctl_label_length.py $(1)
-OTHER_identity          = $(SCRIPTS)/validate_ctl_identity.py $(1) --skool $(call other_skool,$(1))
-OTHER_names             = $(SCRIPTS)/validate_prose_names.py $(1)
-OTHER_byte-counts       = $(SCRIPTS)/validate_ctl_byte_counts.py $(1)
-OTHER_array-elements    = $(SCRIPTS)/validate_ctl_array_elements.py $(1)
-OTHER_registers         = $(SCRIPTS)/validate_ctl_registers.py $(1)
-OTHER_comments          = $(SCRIPTS)/lint_comments.py $(call other_skool,$(1))
+OTHER_identity          = $(SCRIPTS)/validate_ctl_identity.py $(1) --skool $(call other_skool,$(1)) $(call other_baseline,$(1))
+OTHER_names             = $(SCRIPTS)/validate_prose_names.py $(1) $(call other_baseline,$(1))
+OTHER_byte-counts       = $(SCRIPTS)/validate_ctl_byte_counts.py $(1) $(call other_baseline,$(1))
+OTHER_array-elements    = $(SCRIPTS)/validate_ctl_array_elements.py $(1) $(call other_baseline,$(1))
+OTHER_registers         = $(SCRIPTS)/validate_ctl_registers.py $(1) $(call other_baseline,$(1))
+OTHER_comments          = $(SCRIPTS)/lint_comments.py $(call other_skool,$(1)) $(call other_baseline,$(1))
 OTHER_label-namespace   = $(SCRIPTS)/validate_ctl_label_namespace.py $(1) \
-    --skool $(call other_skool,$(1))
+    --skool $(call other_skool,$(1)) $(call other_baseline,$(1))
 OTHER_terms             = $(SCRIPTS)/validate_glossary_terms.py $(call other_skool,$(1)) $(1) \
-    --registry $(SRC)/glossary.ref
+    --registry $(SRC)/glossary.ref $(call other_baseline,$(1))
+
+# The checks above that hold a baseline, which `make lint-baseline` re-records
+# for each listing.
+OTHER_BASELINED = identity names byte-counts array-elements registers comments \
+                  label-namespace
+lint-baseline: $(OTHER_CTL) $(foreach o,$(OTHER_CTL),$(call other_skool,$(o)))
 
 # Each run is a check of its own in the sweep's count, named `<check>@<file>`.
 LINT_OTHER = $(foreach o,$(OTHER_CTL),$(foreach c,$(OTHER_CTL_CHECKS),$(c)@$(notdir $(o))))

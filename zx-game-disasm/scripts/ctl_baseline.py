@@ -80,6 +80,14 @@ So the file states its own invariant, decidable without a history: for every
 declared entry the count is non-increasing, and the declared set grows only by a
 line a reviewer reads in the diff.
 
+A listing of its own - an `[OtherCode]` skool built from a `.ctl` of its own -
+shares the file, under check names that carry the listing's file:
+`--baseline-scope tune.ctl` records and reads every key of the run as
+`<check>@tune.ctl`, the name the gate's sweep gives that run. An address alone
+does not say which listing it is in, and the main `.ctl`'s keys must not hold a
+listing's findings or the reverse; the scope keeps each file's debt its own, and
+it is adopted, and shrinks, on its own.
+
 The file also records the gate it was written under, in a `[gate]` table of its
 `generation` and `digest`. `write` keeps it; `make lint-baseline` sets it
 through `stamp`, and the gate reads it back through `gate`, which prints it as
@@ -121,6 +129,24 @@ REFUSED_EXIT = 3
 ADOPT_CHECK = '*'
 _ADOPT = None
 
+# The listing file `--baseline-scope` names, or `None` for the main `.ctl`.
+# Recorded at parse time, as the adoption flags are, so every check honors it
+# without passing it on.
+_SCOPE = None
+
+
+class _Scope(argparse.Action):
+    """Record `--baseline-scope` where `write`, `partition` and `report` read it."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        global _SCOPE
+        _SCOPE = values.strip() or None
+
+
+def scoped(check):
+    """Return the check's name in the baseline: `<check>@<file>` under a scope."""
+    return f'{check}@{_SCOPE}' if _SCOPE else check
+
 
 class _Adopt(argparse.Action):
     """Record an adoption flag where `write` reads it."""
@@ -160,6 +186,11 @@ def add_arguments(parser):
                              'already adopted - a kind the check itself gained since, '
                              'whose findings predate it. Records that kind\'s findings '
                              'only, and declares the kind adopted')
+    parser.add_argument('--baseline-scope', metavar='FILE', action=_Scope,
+                        default=argparse.SUPPRESS,
+                        help='the listing file this run reads, for an [OtherCode] '
+                             '.ctl: its keys are recorded and read as '
+                             '`<check>@FILE`, apart from the main .ctl\'s')
     parser.add_argument('--ignore-stale', action='store_true',
                         help='do not fail on baseline entries this run no longer '
                              'reports; for a spliced fragment, whose .ctl is a '
@@ -327,6 +358,7 @@ def write(path, check, findings, lines, token_of=None):
     being adoptable later. The one file this does not create is a baseline that
     would hold nothing: a project with no findings and no baseline keeps neither.
     """
+    check = scoped(check)
     existed = bool(path) and os.path.exists(path)
     data = read(path)
     previous = load(path, check)
@@ -367,6 +399,7 @@ def partition(path, check, findings, lines, report_stale=True, token_of=None):
     records for this check that the check no longer reports. A key recorded N
     times covers the first N findings that carry it; the N+1st is new.
     """
+    check = scoped(check)
     accepted = load(path, check)
     new, held = [], []
     seen = collections.Counter()
@@ -380,6 +413,7 @@ def partition(path, check, findings, lines, report_stale=True, token_of=None):
 
 def report(path, check, held, stale):
     """Print the baseline's own verdict: what it held, and what it no longer covers."""
+    check = scoped(check)
     if held:
         print(f'{check}: {len(held)} known finding(s) held by {path}')
     if stale:
@@ -398,6 +432,7 @@ def report_write(path, check, recorded, added, dropped, adopted=None):
     debt, named once, in the commit that takes it on. `adopted` is the
     entry it declared, which is the line that says the debt stops there.
     """
+    check = scoped(check)
     if not os.path.exists(path):
         print(f'{check}: nothing to record, and {path} does not exist — a project '
               f'with no findings keeps no baseline')

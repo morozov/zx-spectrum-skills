@@ -5,11 +5,11 @@ address-order@tune.ctl: scripts/validate_ctl_address_order.py src/tune.ctl
 instruction-order@tune.ctl: scripts/validate_ctl_instruction_order.py src/tune.ctl
 lengths@tune.ctl: scripts/validate_ctl_lengths.py src/tune.ctl
 label-length@tune.ctl: scripts/validate_ctl_label_length.py src/tune.ctl
-identity@tune.ctl: scripts/validate_ctl_identity.py src/tune.ctl --skool build/tune.skool
-names@tune.ctl: scripts/validate_prose_names.py src/tune.ctl
-byte-counts@tune.ctl: scripts/validate_ctl_byte_counts.py src/tune.ctl
-array-elements@tune.ctl: scripts/validate_ctl_array_elements.py src/tune.ctl
-registers@tune.ctl: scripts/validate_ctl_registers.py src/tune.ctl
-comments@tune.ctl: scripts/lint_comments.py build/tune.skool
-label-namespace@tune.ctl: scripts/validate_ctl_label_namespace.py src/tune.ctl --skool build/tune.skool
-terms@tune.ctl: scripts/validate_glossary_terms.py build/tune.skool src/tune.ctl --registry src/glossary.ref
+identity@tune.ctl: scripts/validate_ctl_identity.py src/tune.ctl --skool build/tune.skool --baseline tools/lint-baseline.toml --baseline-scope tune.ctl
+names@tune.ctl: scripts/validate_prose_names.py src/tune.ctl --baseline tools/lint-baseline.toml --baseline-scope tune.ctl
+byte-counts@tune.ctl: scripts/validate_ctl_byte_counts.py src/tune.ctl --baseline tools/lint-baseline.toml --baseline-scope tune.ctl
+array-elements@tune.ctl: scripts/validate_ctl_array_elements.py src/tune.ctl --baseline tools/lint-baseline.toml --baseline-scope tune.ctl
+registers@tune.ctl: scripts/validate_ctl_registers.py src/tune.ctl --baseline tools/lint-baseline.toml --baseline-scope tune.ctl
+comments@tune.ctl: scripts/lint_comments.py build/tune.skool --baseline tools/lint-baseline.toml --baseline-scope tune.ctl
+label-namespace@tune.ctl: scripts/validate_ctl_label_namespace.py src/tune.ctl --skool build/tune.skool --baseline tools/lint-baseline.toml --baseline-scope tune.ctl
+terms@tune.ctl: scripts/validate_glossary_terms.py build/tune.skool src/tune.ctl --registry src/glossary.ref --baseline tools/lint-baseline.toml --baseline-scope tune.ctl
