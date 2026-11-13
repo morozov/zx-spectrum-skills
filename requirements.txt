@@ -1,2 +1,2 @@
 skoolkit==10.1
-markdown
+markdown==3.11.3
