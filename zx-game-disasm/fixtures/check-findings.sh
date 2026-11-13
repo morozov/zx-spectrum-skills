@@ -99,6 +99,11 @@ run publication-contradicted \
 run label-namespace \
     scripts/validate_ctl_label_namespace.py fixtures/label-namespace.ctl \
     --skool fixtures/label-namespace.skool
+# A routine a dispatch table enters is a way in, though code flows into it too:
+# the label past its code predecessor is UNREACHED.
+run label-namespace-table \
+    scripts/validate_ctl_label_namespace.py fixtures/label-namespace-table.ctl \
+    --skool fixtures/label-namespace-table.skool
 run comments-group-span \
     scripts/lint_comments.py fixtures/group-span.skool
 run comments-page-headings \

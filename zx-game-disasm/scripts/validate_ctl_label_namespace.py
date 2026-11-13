@@ -59,7 +59,9 @@ predecessor is invisible, the address looks dominated by whatever local path als
 reaches it, and the check hands out a restem that writes a fresh lie into the
 tree. So the graph is built once across every `c` entry, and one dominator tree
 covers it, rooted at the program's own entry points: the instructions nothing
-flows into.
+flows into, and every code address a data table names. A routine a dispatcher
+enters through a `DEFW` can also have a code predecessor; rooted only where
+nothing flows in, the tree would not see the table's path at all.
 
 Rooting each entry at every address something outside reaches would be wrong the
 other way. A routine that jumps out to a stub in the entry before it, which jumps
@@ -241,18 +243,25 @@ def build_graph(code):
 ROOT = -1
 
 
-def global_dominators(graph, predecessors):
+def global_dominators(graph, predecessors, seeds=()):
     """Return ({address: immediate dominator}, the roots) over the whole program.
 
     The roots are the instructions nothing flows into: the program's entry, an
     interrupt routine, a routine reached through a table or a computed jump. An
     instruction the flow reaches from no root - a loop nothing enters - becomes
     a root of its own, so every instruction has a dominator.
+
+    `seeds` are the code addresses a data table names. Each is a way in too,
+    though code may also flow into it: a helper a dispatcher enters through a
+    `DEFW` has a path that skips its code predecessor, and without the seed the
+    tree would not see that path. Seeds hang from the root but are not returned
+    as roots: an address with a predecessor is one the flow can follow.
     """
     nodes = set(graph)
     edges = {n: [t for t in graph[n] if t in nodes] for n in nodes}
     roots = sorted(n for n in nodes
                    if not any(p in nodes for p in predecessors.get(n, ())))
+    starts = sorted(set(roots) | (set(seeds) & nodes))
     order, seen = [], {ROOT}
     edges[ROOT] = []
 
@@ -271,11 +280,11 @@ def global_dominators(graph, predecessors):
                 stack.pop()
                 order.append(node)
 
-    for root in roots:
-        if root not in seen:
-            seen.add(root)
-            edges[ROOT].append(root)
-            walk(root)
+    for start in starts:
+        edges[ROOT].append(start)
+        if start not in seen:
+            seen.add(start)
+            walk(start)
     for node in sorted(nodes):
         if node not in seen:
             seen.add(node)
@@ -324,6 +333,21 @@ def dominator_chain(address, idom):
     return chain
 
 
+def data_targets(code):
+    """Return the addresses a data directive names: the ways in a table offers."""
+    targets = set()
+    for instructions in code.values():
+        for operation in instructions.values():
+            if not DATA_DIRECTIVE.match(operation):
+                continue
+            for token in re.findall(ADDRESS, operation):
+                try:
+                    targets.add(parse_address(token))
+                except ValueError:
+                    continue
+    return targets
+
+
 def inbound(code):
     """Return {target address: the entries referencing it}, data tables included."""
     callers = collections.defaultdict(set)
@@ -369,7 +393,7 @@ def check(labels, entries, narrated, code):
                  and entry_of(a, entries)[1] == 'c'}
     graph, predecessors, unfollowable = build_graph(code_only)
     callers = inbound(code)
-    idom, roots = global_dominators(graph, predecessors)
+    idom, roots = global_dominators(graph, predecessors, data_targets(code))
 
     # An instruction other than its entry's start that nothing flows into is
     # one something reaches unseen - a jump table, a computed jump, self-modified

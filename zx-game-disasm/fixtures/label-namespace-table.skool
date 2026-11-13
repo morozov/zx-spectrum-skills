@@ -1,0 +1,12 @@
+@label=routine
+c$8000 NOP               ;
+@label=routine_stage
+*$8001 JP $9000          ; Hand off to the helper.
+@label=routine_stage_done
+*$8004 RET               ; UNREACHED: the table path skips $8001.
+
+@label=helper
+c$9000 JP $8004          ; Also entered through the table at $A000.
+
+@label=dispatch_table
+b$A000 DEFW $9000        ; The helper.
