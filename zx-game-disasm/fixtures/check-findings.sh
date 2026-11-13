@@ -133,10 +133,12 @@ run comments-fragment-stop \
 # data entry's schema and the tone primitive's own formula are not.
 run comments-synth-echo \
     scripts/lint_comments.py fixtures/synth-echo.skool
-# The `g` page header: SkoolKit's "Game status buffer" is storage vocabulary;
-# assets/game.ref.template's "Variables" is not.
+# The `g` page names: SkoolKit's "Game status buffer" is storage vocabulary and
+# is reported; the names assets/game.ref.template leaves the site with, read
+# from the template over SkoolKit's defaults, are not. Drop the template's
+# lines and SkoolKit's come back, reported.
 run comments-status-buffer-header \
-    scripts/lint_comments.py fixtures/no-code.skool fixtures/status-buffer-header.ref
+    fixtures/status-buffer-header.py
 # Which surface each piece of prose is read as. A unit that lands on the wrong
 # surface is skipped by every check that does not declare that surface.
 run prose-units \
