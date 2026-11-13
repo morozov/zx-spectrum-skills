@@ -146,21 +146,31 @@ HTML_REFS += $(filter-out $(HTML_REFS),$(addprefix $(SRC)/,$(HTML_REF_FILES)))
 # at spec/<name>.html, listed on the home page. spec_pages.py renders them into
 # one ref file under $(BUILD), linking each label the Markdown names in inline
 # code to its entry, and the site reads that ref after the project's own, so a
-# project names it nowhere. A project with no spec/ gets no such pages. The
-# spec directory is a prerequisite too, so a page added or removed rebuilds it.
+# project names it nowhere. A project with no spec/ gets no such pages.
+#
+# The set of pages is a prerequisite of its own: $(SPEC_KEY) names them, and is
+# rewritten only when the set changes. A page added or removed rebuilds the ref
+# and the site, and so does deleting the last one, which takes $(SPEC_REF) out
+# of both the refs and the stamp's prerequisites and would otherwise leave the
+# old Spec links on an incremental build. The recipe clears the pages a build
+# wrote before, so a page whose Markdown is gone goes too.
 SPEC_MD    := $(sort $(wildcard spec/*.md))
 SPEC_REF   := $(BUILD)/spec.ref
+SPEC_KEY   := $(BUILD)/spec.key
 SPEC_PAGES := $(SITE_HOME)/spec_pages.py
 ifneq ($(SPEC_MD),)
 HTML_REFS += $(SPEC_REF)
 endif
+$(shell mkdir -p '$(BUILD)' && { printf '%s\n' '$(SPEC_MD)' | cmp -s - '$(SPEC_KEY)' \
+    || printf '%s\n' '$(SPEC_MD)' > '$(SPEC_KEY)'; })
 
-$(HTML_DIR)/.stamp: $(SKOOL) $(if $(SPEC_MD),$(SPEC_REF)) $(wildcard $(SRC)/*.ref) $(wildcard resources/*.css resources/*.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS) $(HTML_HEX) $(HTML_SYM)
+$(HTML_DIR)/.stamp: $(SKOOL) $(SPEC_KEY) $(if $(SPEC_MD),$(SPEC_REF)) $(wildcard $(SRC)/*.ref) $(wildcard resources/*.css resources/*.js) $(THEME)/theme.ref $(THEME)/theme.css $(THEME)/theme.js $(HTML_SUBS) $(HTML_HEX) $(HTML_SYM)
+	rm -rf $(HTML_DIR)/$(HTML_GAME_DIR)/spec
 	$(SKOOL2HTML) -d $(HTML_DIR) -H -a -c "Config/InitModule=$(SITE_HOME)/html:operand_subs" -c "Config/GameDir=$(HTML_GAME_DIR)" -c "Game/JavaScript=$(HTML_JAVASCRIPT)" --rebuild-images --rebuild-audio -S $(THEME) -S $(SITE_RENDERS) $(SKOOL) $(HTML_REFS) $(THEME)/theme.ref
 	$(HTML_HEX) $(HTML_DIR)
 	$(HTML_SYM) $(HTML_DIR) $(SKOOL)
 	touch $@
 
-$(SPEC_REF): $(SPEC_MD) $(wildcard spec) $(SPEC_PAGES) $(SKOOL)
+$(SPEC_REF): $(SPEC_MD) $(SPEC_KEY) $(SPEC_PAGES) $(SKOOL)
 	@mkdir -p $(dir $@)
 	$(SPEC_PAGES) $@ $(SKOOL) $(SPEC_MD)
