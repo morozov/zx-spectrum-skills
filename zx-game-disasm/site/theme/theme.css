@@ -846,8 +846,8 @@ td.centre { text-align: center; }
    that holds an image and its caption together keeps the two as one figure, the
    image on its own line above the text. A table of two or more rows is a grid
    whose columns line up (an image row over a caption row) and keeps the table
-   layout, and so does a table of one cell, which has nothing to wrap and stays
-   centred as a table is. */
+   layout, and so does a table of one cell, which has nothing to wrap and sits
+   at the column's left edge, as any table does. */
 table[class=""]:has(img):not(:has(tr + tr)):has(td + td),
 table[class=""]:has(img):not(:has(tr + tr)):has(td + td) > tbody {
   display: block;
